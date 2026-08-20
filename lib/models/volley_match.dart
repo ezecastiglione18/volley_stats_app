@@ -24,6 +24,14 @@ class VolleyMatch {
   List<MatchSet> sets;
   MatchStatus status;
 
+  /// Líbero designado para la defensa cuando el equipo propio saca (opcional).
+  String? defensiveLiberoId;
+
+  /// Líbero designado para la recepción cuando saca el rival (opcional).
+  /// También es el líbero que entra automáticamente por el central que sacó
+  /// si se pierde ese punto. Puede ser el mismo jugador que [defensiveLiberoId].
+  String? receptionLiberoId;
+
   VolleyMatch({
     required this.id,
     required this.date,
@@ -39,6 +47,8 @@ class VolleyMatch {
     required this.config,
     List<MatchSet>? sets,
     this.status = MatchStatus.setup,
+    this.defensiveLiberoId,
+    this.receptionLiberoId,
   }) : sets = sets ?? [];
 
   int get ownSetsWon => sets.where((s) => s.finished && s.winner == TeamSide.own).length;
@@ -62,6 +72,8 @@ class VolleyMatch {
         'config': config.toJson(),
         'sets': sets.map((s) => s.toJson()).toList(),
         'status': status.name,
+        'defensiveLiberoId': defensiveLiberoId,
+        'receptionLiberoId': receptionLiberoId,
       };
 
   factory VolleyMatch.fromJson(Map<dynamic, dynamic> json) => VolleyMatch(
@@ -87,5 +99,7 @@ class VolleyMatch {
           (e) => e.name == json['status'],
           orElse: () => MatchStatus.setup,
         ),
+        defensiveLiberoId: json['defensiveLiberoId'] as String?,
+        receptionLiberoId: json['receptionLiberoId'] as String?,
       );
 }

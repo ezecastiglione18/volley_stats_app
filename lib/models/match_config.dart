@@ -4,6 +4,7 @@ class MatchConfig {
   int setWinMargin; // minimum point margin to win a regular set. Default 2.
   int tieBreakPoints; // points to win the deciding set. Default 15.
   int tieBreakWinMargin; // minimum margin for the deciding set. Default 2.
+  int maxSubstitutionsPerSet; // cambios de jugador permitidos por set (1-10). Default 6.
 
   MatchConfig({
     this.maxSets = 5,
@@ -11,6 +12,7 @@ class MatchConfig {
     this.setWinMargin = 2,
     this.tieBreakPoints = 15,
     this.tieBreakWinMargin = 2,
+    this.maxSubstitutionsPerSet = 6,
   });
 
   int get setsToWin => (maxSets / 2).ceil();
@@ -29,6 +31,7 @@ class MatchConfig {
         'setWinMargin': setWinMargin,
         'tieBreakPoints': tieBreakPoints,
         'tieBreakWinMargin': tieBreakWinMargin,
+        'maxSubstitutionsPerSet': maxSubstitutionsPerSet,
       };
 
   factory MatchConfig.fromJson(Map<dynamic, dynamic> json) => MatchConfig(
@@ -37,6 +40,7 @@ class MatchConfig {
         setWinMargin: (json['setWinMargin'] as num?)?.toInt() ?? 2,
         tieBreakPoints: (json['tieBreakPoints'] as num?)?.toInt() ?? 15,
         tieBreakWinMargin: (json['tieBreakWinMargin'] as num?)?.toInt() ?? 2,
+        maxSubstitutionsPerSet: (json['maxSubstitutionsPerSet'] as num?)?.toInt() ?? 6,
       );
 
   MatchConfig copy() => MatchConfig(
@@ -45,5 +49,6 @@ class MatchConfig {
         setWinMargin: setWinMargin,
         tieBreakPoints: tieBreakPoints,
         tieBreakWinMargin: tieBreakWinMargin,
+        maxSubstitutionsPerSet: maxSubstitutionsPerSet,
       );
 }

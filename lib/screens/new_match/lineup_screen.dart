@@ -23,6 +23,12 @@ class LineupScreen extends StatefulWidget {
   final MatchConfig config;
   final List<Player> roster;
 
+  // Roles de líbero elegidos en la planilla (opcionales). Solo se usan al
+  // crear el partido (primer set); en un set siguiente el partido ya tiene
+  // estos valores asignados.
+  final String? defensiveLiberoId;
+  final String? receptionLiberoId;
+
   // Si se pasa un [existingController], esta pantalla configura el
   // siguiente set de un partido ya en curso en lugar de crear uno nuevo.
   final MatchController? existingController;
@@ -40,6 +46,8 @@ class LineupScreen extends StatefulWidget {
     required this.date,
     required this.config,
     required this.roster,
+    this.defensiveLiberoId,
+    this.receptionLiberoId,
     this.existingController,
   });
 
@@ -101,6 +109,8 @@ class _LineupScreenState extends State<LineupScreen> {
       rivalTeamName: widget.rivalTeamName,
       rivalTeamSourceId: widget.rivalTeamSourceId,
       config: widget.config,
+      defensiveLiberoId: widget.defensiveLiberoId,
+      receptionLiberoId: widget.receptionLiberoId,
     );
     final controller = MatchController(match);
     controller.startSet(
@@ -195,7 +205,10 @@ class _LineupScreenState extends State<LineupScreen> {
                 ))
             .toList(),
         selectedItemBuilder: (context) => _availableFor(pos)
-            .map((p) => Text('#${p.number}', overflow: TextOverflow.ellipsis))
+            .map((p) => Text(
+                  '#${p.number} ${p.lastName} · ${p.position.shortLabel}',
+                  overflow: TextOverflow.ellipsis,
+                ))
             .toList(),
         onChanged: (v) => setState(() => _positions[pos] = v),
       ),

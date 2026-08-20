@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/player.dart';
 import '../../../state/match_controller.dart';
 
 class CourtView extends StatelessWidget {
@@ -25,9 +26,17 @@ class CourtView extends StatelessWidget {
             ),
           ),
           child: Center(
-            child: Text(
-              player == null ? '?' : '#${player.number}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  player == null ? '?' : '#${player.number}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (player?.position == PlayerPosition.libero)
+                  const Text('LIB',
+                      style: TextStyle(fontSize: 9, color: Colors.deepPurple, fontWeight: FontWeight.bold)),
+              ],
             ),
           ),
         ),

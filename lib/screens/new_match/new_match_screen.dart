@@ -200,6 +200,13 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
                         min: 1,
                         max: 5,
                       ),
+                      _NumberField(
+                        label: 'Cambios permitidos por set',
+                        value: _config.maxSubstitutionsPerSet,
+                        onChanged: (v) => setState(() => _config.maxSubstitutionsPerSet = v),
+                        min: 1,
+                        max: 10,
+                      ),
                     ],
                   ),
                 ),

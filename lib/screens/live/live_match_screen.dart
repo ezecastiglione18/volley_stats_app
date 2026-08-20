@@ -9,6 +9,7 @@ import '../new_match/lineup_screen.dart';
 import 'widgets/action_grid.dart';
 import 'widgets/court_view.dart';
 import 'widgets/scoreboard.dart';
+import 'widgets/substitution_dialog.dart';
 
 class LiveMatchScreen extends StatelessWidget {
   final MatchController controller;
@@ -56,6 +57,11 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
               context,
               MaterialPageRoute(builder: (_) => MatchSummaryScreen(match: match)),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Cambio de jugador',
+            onPressed: () => showSubstitutionDialog(context: context, controller: controller),
           ),
           IconButton(
             icon: const Icon(Icons.casino_outlined),
