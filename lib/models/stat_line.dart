@@ -1,3 +1,5 @@
+import 'player.dart';
+
 /// Conteo de calificaciones para Saque / Ataque / Contra (escala PP/P/N/NN,
 /// con BLOQ adicional para ataque y contra).
 class TouchStats {
@@ -30,6 +32,9 @@ class PlayerStatLine {
   final String displayName;
   final int number;
 
+  /// Posición del jugador (null para la fila "No Asignado" o "Total Equipo").
+  final PlayerPosition? position;
+
   final TouchStats saque = TouchStats();
   final TouchStats ataque = TouchStats();
   final TouchStats contra = TouchStats();
@@ -41,6 +46,7 @@ class PlayerStatLine {
     required this.playerId,
     required this.displayName,
     required this.number,
+    this.position,
   });
 
   int get totalPts => saque.pp + ataque.pp + contra.pp + bloqueoPts;
@@ -53,4 +59,27 @@ class PlayerStatLine {
       contra.nn +
       errGen +
       recepcion.nn;
+}
+
+/// Estadística de saque y ataque (ataque + contra combinados) por zona de
+/// cancha de destino (1-6), solo con los toques que tienen zona registrada.
+class ZoneStats {
+  final Map<int, TouchStats> serveByZone;
+  final Map<int, TouchStats> attackByZone;
+
+  /// Igual que [serveByZone] / [attackByZone], pero desglosado por jugador
+  /// (clave = playerId). Cada jugador solo aparece si tuvo al menos un
+  /// toque con zona registrada.
+  final Map<String, Map<int, TouchStats>> serveByZoneByPlayer;
+  final Map<String, Map<int, TouchStats>> attackByZoneByPlayer;
+
+  ZoneStats({
+    required this.serveByZone,
+    required this.attackByZone,
+    required this.serveByZoneByPlayer,
+    required this.attackByZoneByPlayer,
+  });
+
+  bool get hasAnyData =>
+      serveByZone.values.any((s) => s.total > 0) || attackByZone.values.any((s) => s.total > 0);
 }

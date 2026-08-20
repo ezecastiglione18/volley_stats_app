@@ -121,6 +121,14 @@ class MatchController extends ChangeNotifier {
   Map<int, String> get onCourtOwn =>
       {for (var pos = 1; pos <= 6; pos++) pos: playerAtPosition(pos)};
 
+  /// Posición en cancha (1-6) del jugador propio [playerId], o null si no
+  /// está en cancha en este momento.
+  int? courtPositionOf(String playerId) {
+    final slot = currentSet.currentOrderOwn.indexOf(playerId);
+    if (slot == -1) return null;
+    return _courtPositionOfSlot(slot);
+  }
+
   Player? playerById(String id) {
     for (final p in match.ownRoster) {
       if (p.id == id) return p;
@@ -145,11 +153,13 @@ class MatchController extends ChangeNotifier {
     required int setNumber,
     required List<String> startingOrderOwn,
     required TeamSide startingServer,
+    bool trackHitZones = true,
   }) {
     final set = MatchSet(
       setNumber: setNumber,
       startingOrderOwn: startingOrderOwn,
       startingServer: startingServer,
+      trackHitZones: trackHitZones,
     );
     match.sets.add(set);
     match.status = MatchStatus.inProgress;
@@ -172,7 +182,7 @@ class MatchController extends ChangeNotifier {
 
   // ---------------- Registro de acciones ----------------
 
-  void logServe(String playerId, String grade) {
+  void logServe(String playerId, String grade, {int? targetZone}) {
     _currentRallyServerId = playerId;
     final terminal = grade == Grade.pp || grade == Grade.nn;
     final winner = grade == Grade.pp
@@ -185,6 +195,7 @@ class MatchController extends ChangeNotifier {
       grade: grade,
       endsRally: terminal,
       winner: winner,
+      targetZone: targetZone,
     );
     if (!terminal) {
       _stage = RallyStage.defending;
@@ -208,15 +219,15 @@ class MatchController extends ChangeNotifier {
     }
   }
 
-  void logAttack(String playerId, String grade) {
-    _logAttackOrCounter(RallyPhase.attack, playerId, grade);
+  void logAttack(String playerId, String grade, {int? targetZone}) {
+    _logAttackOrCounter(RallyPhase.attack, playerId, grade, targetZone: targetZone);
   }
 
-  void logCounter(String playerId, String grade) {
-    _logAttackOrCounter(RallyPhase.counter, playerId, grade);
+  void logCounter(String playerId, String grade, {int? targetZone}) {
+    _logAttackOrCounter(RallyPhase.counter, playerId, grade, targetZone: targetZone);
   }
 
-  void _logAttackOrCounter(RallyPhase phase, String playerId, String grade) {
+  void _logAttackOrCounter(RallyPhase phase, String playerId, String grade, {int? targetZone}) {
     final terminal = grade == Grade.pp || grade == Grade.nn || grade == Grade.bloq;
     final winner = grade == Grade.pp
         ? TeamSide.own
@@ -228,6 +239,7 @@ class MatchController extends ChangeNotifier {
       grade: grade,
       endsRally: terminal,
       winner: winner,
+      targetZone: targetZone,
     );
     if (!terminal) {
       _stage = RallyStage.defending;
@@ -345,14 +357,19 @@ class MatchController extends ChangeNotifier {
     return st;
   }
 
+  int _courtPositionOfSlot(int slotIndex) => ((slotIndex - _rotationOffsetOwn) % 6 + 6) % 6 + 1;
+
   bool _slotIsBackRow(int slotIndex) {
-    final pos = ((slotIndex - _rotationOffsetOwn) % 6 + 6) % 6 + 1;
+    final pos = _courtPositionOfSlot(slotIndex);
     return pos == 1 || pos == 5 || pos == 6;
   }
 
-  bool _liberoOnCourtInAnySlot(String liberoId) {
+  /// true si algún líbero (cualquiera) está en cancha en este momento: la
+  /// regla de la FIVB es que solo puede haber UN líbero en cancha a la vez,
+  /// aunque el equipo haya declarado dos.
+  bool get _anyLiberoOnCourt {
     for (var i = 0; i < 6; i++) {
-      if (_slotState(i).liberoOnCourtId == liberoId) return true;
+      if (_slotState(i).liberoOnCourtId != null) return true;
     }
     return false;
   }
@@ -419,8 +436,11 @@ class MatchController extends ChangeNotifier {
     final st = _slotState(slot);
     if (st.liberoOnCourtId != null) return false;
     if (!_slotIsBackRow(slot)) return false;
+    // El líbero no puede sacar: si este puesto está a punto de sacar (está
+    // en posición 1 y el saque es nuestro), no se puede meter un líbero ahí.
+    if (_courtPositionOfSlot(slot) == 1 && _servingTeam == TeamSide.own) return false;
     if (st.lastLiberoActionRally == _rallyCounter) return false;
-    if (_liberoOnCourtInAnySlot(liberoId)) return false;
+    if (_anyLiberoOnCourt) return false; // solo puede haber un líbero en cancha a la vez
     return true;
   }
 
@@ -462,7 +482,6 @@ class MatchController extends ChangeNotifier {
     final st = _slotState(slotIndex);
     final other = declaredLiberoIds.where((id) => id != st.liberoOnCourtId).toList();
     if (other.isEmpty) return;
-    if (_liberoOnCourtInAnySlot(other.first)) return;
     _applySubstitution(
       slotIndex: slotIndex,
       playerInId: other.first,
@@ -610,6 +629,8 @@ class MatchController extends ChangeNotifier {
 
   String _randomGrade(List<String> pool) => pool[_rng.nextInt(pool.length)];
 
+  int? _randomZone() => currentSet.trackHitZones ? 1 + _rng.nextInt(6) : null;
+
   /// Juega un punto completo a partir del estado actual, eligiendo al azar
   /// jugador/calificación/resultado en cada toque, reutilizando los mismos
   /// métodos `log*` que usan los botones de carga manual. Pensado para
@@ -622,13 +643,13 @@ class MatchController extends ChangeNotifier {
       guard++;
       switch (_stage) {
         case RallyStage.serveOwn:
-          logServe(_randomPlayerId(), _randomGrade(_serveGradePool));
+          logServe(_randomPlayerId(), _randomGrade(_serveGradePool), targetZone: _randomZone());
           break;
         case RallyStage.receiveOwn:
           logReception(_randomPlayerId(), _randomGrade(_receptionGradePool));
           break;
         case RallyStage.attackK1Own:
-          logAttack(_randomPlayerId(), _randomGrade(_attackGradePool));
+          logAttack(_randomPlayerId(), _randomGrade(_attackGradePool), targetZone: _randomZone());
           break;
         case RallyStage.defending:
           _simulateDefendingTouch();
@@ -640,7 +661,7 @@ class MatchController extends ChangeNotifier {
   void _simulateDefendingTouch() {
     final roll = _rng.nextDouble();
     if (roll < 0.45) {
-      logCounter(_randomPlayerId(), _randomGrade(_attackGradePool));
+      logCounter(_randomPlayerId(), _randomGrade(_attackGradePool), targetZone: _randomZone());
     } else if (roll < 0.65) {
       final blockers = onCourtPlayers..shuffle(_rng);
       logBlockPoint(blockers.take(1 + _rng.nextInt(2)).map((p) => p.id).toList());
@@ -707,6 +728,7 @@ class MatchController extends ChangeNotifier {
     String? grade,
     required bool endsRally,
     TeamSide? winner,
+    int? targetZone,
   }) {
     final set = currentSet;
     final servingBefore = _servingTeam;
@@ -731,6 +753,7 @@ class MatchController extends ChangeNotifier {
       ownScoreAfter: set.ownScore,
       rivalScoreAfter: set.rivalScore,
       timestamp: DateTime.now(),
+      targetZone: set.trackHitZones ? targetZone : null,
     );
     set.events.add(event);
 

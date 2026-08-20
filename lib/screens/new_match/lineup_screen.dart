@@ -59,6 +59,7 @@ class _LineupScreenState extends State<LineupScreen> {
   final Map<int, String?> _positions = {1: null, 2: null, 3: null, 4: null, 5: null, 6: null};
   TeamSide _startingServer = TeamSide.own;
   int? _rivalSetterPos;
+  bool _trackHitZones = true;
 
   bool get _isNextSet => widget.existingController != null;
 
@@ -67,7 +68,11 @@ class _LineupScreenState extends State<LineupScreen> {
         .where((e) => e.key != pos && e.value != null)
         .map((e) => e.value)
         .toSet();
-    return widget.roster.where((p) => !used.contains(p.id)).toList();
+    // El líbero nunca arranca en el sexteto inicial: solo entra en cancha
+    // durante el set a través del cambio de líbero (fila trasera).
+    return widget.roster
+        .where((p) => p.position != PlayerPosition.libero && !used.contains(p.id))
+        .toList();
   }
 
   bool get _complete => _positions.values.every((v) => v != null);
@@ -88,6 +93,7 @@ class _LineupScreenState extends State<LineupScreen> {
         setNumber: setNumber,
         startingOrderOwn: order,
         startingServer: _startingServer,
+        trackHitZones: _trackHitZones,
       );
       controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
       await context.read<AppDataController>().saveMatch(controller.match);
@@ -117,6 +123,7 @@ class _LineupScreenState extends State<LineupScreen> {
       setNumber: 1,
       startingOrderOwn: order,
       startingServer: _startingServer,
+      trackHitZones: _trackHitZones,
     );
     controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
     await context.read<AppDataController>().saveMatch(match);
@@ -176,7 +183,21 @@ class _LineupScreenState extends State<LineupScreen> {
             ],
             onChanged: (v) => setState(() => _rivalSetterPos = v),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
+          const Text('Opciones', style: TextStyle(fontWeight: FontWeight.w600)),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _trackHitZones,
+            title: const Text('Registrar zona de destino en saque y ataque'),
+            subtitle: const Text(
+              'Al calificar un saque o un ataque, vas a poder marcar (opcional) a qué '
+              'zona de la cancha fue dirigido.',
+              style: TextStyle(fontSize: 12),
+            ),
+            onChanged: (v) => setState(() => _trackHitZones = v ?? true),
+          ),
+          const SizedBox(height: 4),
           ElevatedButton(
             onPressed: _start,
             child: Text(_isNextSet

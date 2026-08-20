@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../models/player.dart';
 import '../models/rally_event.dart';
 import '../models/stat_line.dart';
 import '../models/volley_match.dart';
@@ -30,7 +31,9 @@ class PdfReportService {
   static Future<Uint8List> _buildPdf(VolleyMatch match) async {
     final doc = pw.Document();
     final stats = StatsEngine.compute(match);
+    final zones = StatsEngine.computeZones(match);
     final dateStr = DateFormat('dd/MM/yyyy').format(match.date);
+    final winnerText = _matchWinnerText(match);
 
     doc.addPage(
       pw.MultiPage(
@@ -39,21 +42,94 @@ class PdfReportService {
         header: (ctx) => _header(match, dateStr),
         build: (ctx) => [
           pw.SizedBox(height: 12),
-          _setScoreTable(match),
+          // Inseparable: si no entra en lo que queda de la hoja pero sí en una
+          // hoja completa, pasa entero a la siguiente en lugar de partirse.
+          pw.Inseparable(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _setScoreTable(match),
+                if (winnerText != null) ...[
+                  pw.SizedBox(height: 6),
+                  winnerText,
+                ],
+              ],
+            ),
+          ),
           pw.SizedBox(height: 16),
-          pw.Text('Estadística del partido — ${match.ownTeamName}',
-              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 6),
-          _statsTable(stats),
+          pw.Inseparable(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Estadística del partido - ${match.ownTeamName}',
+                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 6),
+                _statsTable(stats),
+              ],
+            ),
+          ),
           pw.SizedBox(height: 16),
+          if (zones.hasAnyData) ...[
+            pw.Inseparable(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Zonas de destino de saque y ataque',
+                      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Zonas 1 a 6 de la cancha rival (numeración estándar). "Ataque" incluye contraataques. '
+                    'Solo se cuentan los toques con zona registrada.',
+                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(child: _zoneTable('Saque por zona', zones.serveByZone)),
+                      pw.SizedBox(width: 16),
+                      pw.Expanded(child: _zoneTable('Ataque por zona', zones.attackByZone)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (zones.serveByZoneByPlayer.isNotEmpty || zones.attackByZoneByPlayer.isNotEmpty) ...[
+              pw.SizedBox(height: 10),
+              pw.Inseparable(
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: _zonePlayerTable(
+                          'Saque por zona y jugador', zones.serveByZoneByPlayer, stats),
+                    ),
+                    pw.SizedBox(width: 16),
+                    pw.Expanded(
+                      child: _zonePlayerTable(
+                          'Ataque por zona y jugador', zones.attackByZoneByPlayer, stats),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            pw.SizedBox(height: 16),
+          ],
           if (match.sets.length > 1) ...[
             pw.Text('Detalle por set', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 6),
             for (final set in match.sets) ...[
-              pw.Text('Set ${set.setNumber} (${set.ownScore}-${set.rivalScore})',
-                  style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              _statsTable(StatsEngine.compute(match, setNumber: set.setNumber), compact: true),
+              pw.Inseparable(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Set ${set.setNumber} (${set.ownScore}-${set.rivalScore})',
+                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 4),
+                    _statsTable(StatsEngine.compute(match, setNumber: set.setNumber), compact: true),
+                  ],
+                ),
+              ),
               pw.SizedBox(height: 10),
             ],
           ],
@@ -62,6 +138,19 @@ class PdfReportService {
     );
 
     return doc.save();
+  }
+
+  /// Línea con el equipo ganador del partido (en sets), o null si todavía
+  /// está empatado en sets (partido sin definir).
+  static pw.Widget? _matchWinnerText(VolleyMatch match) {
+    final ownWon = match.ownSetsWon;
+    final rivalWon = match.rivalSetsWon;
+    if (ownWon == rivalWon) return null;
+    final winnerName = ownWon > rivalWon ? match.ownTeamName : match.rivalTeamName;
+    return pw.Text(
+      'Equipo ganador: $winnerName ($ownWon-$rivalWon)',
+      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+    );
   }
 
   static pw.Widget _header(VolleyMatch match, String dateStr) {
@@ -113,42 +202,11 @@ class PdfReportService {
   }
 
   static pw.Widget _statsTable(MatchStats stats, {bool compact = false}) {
-    final headers = [
-      'N°',
-      'Jugador',
-      'Pts',
-      'Err',
-      'Saq PP',
-      'Saq P',
-      'Saq N',
-      'Saq NN',
-      'Atq PP',
-      'Atq P',
-      'Atq N',
-      'Atq Bl',
-      'Atq NN',
-      'Ctr PP',
-      'Ctr P',
-      'Ctr N',
-      'Ctr Bl',
-      'Ctr NN',
-      'Blq Pts',
-      'Err Gen',
-      'Rec Tot',
-      'Rec PP',
-      'Rec P',
-      'Rec !',
-      'Rec N',
-      'Rec V-',
-      'Rec NN',
-      'Rec %',
-    ];
-
     final rows = stats.orderedRows.map((r) {
       final effPct = r.recepcion.efficiency;
       return [
         r.playerId == unassignedId ? '-' : '${r.number}',
-        r.displayName,
+        _playerLabel(r),
         '${r.totalPts}',
         '${r.totalErr}',
         '${r.saque.pp}',
@@ -213,14 +271,271 @@ class PdfReportService {
           : '${(t.recepcion.efficiency! * 100).toStringAsFixed(0)}%',
     ]);
 
-    return pw.Table.fromTextArray(
-      headers: headers,
-      data: rows,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: compact ? 7 : 8),
-      cellStyle: pw.TextStyle(fontSize: compact ? 7 : 8),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      cellAlignment: pw.Alignment.center,
-      cellAlignments: const {1: pw.Alignment.centerLeft},
+    final columnWidths = <int, pw.TableColumnWidth>{
+      for (var i = 0; i < _statCols.length; i++) i: pw.FlexColumnWidth(_statCols[i].flex.toDouble()),
+    };
+    final fontSize = compact ? 6.5 : 7.5;
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _statsGroupBand(compact),
+        pw.Table.fromTextArray(
+          headers: [for (final c in _statCols) c.label],
+          data: rows,
+          columnWidths: columnWidths,
+          cellPadding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+          headerPadding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: fontSize),
+          cellStyle: pw.TextStyle(fontSize: fontSize),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          cellAlignment: pw.Alignment.center,
+          cellAlignments: {
+            for (var i = 0; i < _statCols.length; i++)
+              if (_statCols[i].alignLeft) i: pw.Alignment.centerLeft,
+          },
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          'Referencias - Saque/Ataque/Contra: PP punto directo · P positivo · N negativo · '
+          'Bl bloqueado · NN error.  Recepción: PP perfecta · P buena · ! efectiva · N negativa · '
+          'V- muy negativa · NN error.  Pts puntos · Err errores totales · Blq Pts puntos de bloqueo · '
+          'Err Gen errores generales · Tot toques totales · % efectividad de recepción.  $_positionLegend',
+          style: pw.TextStyle(fontSize: compact ? 5.5 : 6.5, color: PdfColors.grey700),
+        ),
+      ],
     );
   }
+
+  /// Nombre del jugador para mostrar en las tablas, con la posición
+  /// abreviada entre paréntesis (ver [_positionLegend]).
+  static String _playerLabel(PlayerStatLine r) {
+    final pos = r.position;
+    return pos == null ? r.displayName : '${r.displayName} (${pos.shortLabel})';
+  }
+
+  static const String _positionLegend =
+      'Posición: ARM Armador · OP Opuesto · CEN Central · P/R Punta/Receptor · LIB Líbero.';
+
+  /// Especificación de columnas de la tabla de estadística por jugador:
+  /// [flex] define el ancho relativo (misma unidad usada en la banda de
+  /// categorías y en la tabla de datos, para que ambas queden alineadas).
+  static const List<_StatCol> _statCols = [
+    _StatCol('N°', 8),
+    _StatCol('Jugador', 48, alignLeft: true),
+    _StatCol('Pts', 9),
+    _StatCol('Err', 9),
+    _StatCol('PP', 9, group: 'Saque'),
+    _StatCol('P', 9, group: 'Saque'),
+    _StatCol('N', 9, group: 'Saque'),
+    _StatCol('NN', 9, group: 'Saque'),
+    _StatCol('PP', 9, group: 'Ataque'),
+    _StatCol('P', 9, group: 'Ataque'),
+    _StatCol('N', 9, group: 'Ataque'),
+    _StatCol('Bl', 9, group: 'Ataque'),
+    _StatCol('NN', 9, group: 'Ataque'),
+    _StatCol('PP', 9, group: 'Contraataque'),
+    _StatCol('P', 9, group: 'Contraataque'),
+    _StatCol('N', 9, group: 'Contraataque'),
+    _StatCol('Bl', 9, group: 'Contraataque'),
+    _StatCol('NN', 9, group: 'Contraataque'),
+    _StatCol('Blq Pts', 13),
+    _StatCol('Err Gen', 13),
+    _StatCol('Tot', 9, group: 'Recepción'),
+    _StatCol('PP', 9, group: 'Recepción'),
+    _StatCol('P', 9, group: 'Recepción'),
+    _StatCol('!', 8, group: 'Recepción'),
+    _StatCol('N', 9, group: 'Recepción'),
+    _StatCol('V-', 9, group: 'Recepción'),
+    _StatCol('NN', 9, group: 'Recepción'),
+    _StatCol('%', 10, group: 'Recepción'),
+  ];
+
+  /// Banda superior con los títulos de categoría (Saque, Ataque, etc.),
+  /// agrupando visualmente las columnas de [_statCols] que comparten
+  /// [_StatCol.group]. Usa los mismos anchos relativos (flex) que las
+  /// columnas de la tabla de datos para que ambas filas queden alineadas.
+  static pw.Widget _statsGroupBand(bool compact) {
+    final children = <pw.Widget>[];
+    var i = 0;
+    while (i < _statCols.length) {
+      final group = _statCols[i].group;
+      var flexSum = _statCols[i].flex;
+      var j = i + 1;
+      while (j < _statCols.length && _statCols[j].group == group) {
+        flexSum += _statCols[j].flex;
+        j++;
+      }
+      children.add(
+        pw.Expanded(
+          flex: flexSum,
+          child: pw.Container(
+            height: compact ? 11 : 13,
+            alignment: pw.Alignment.center,
+            decoration: const pw.BoxDecoration(
+              color: PdfColors.blueGrey100,
+              border: pw.Border(
+                left: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
+                right: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
+                top: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
+              ),
+            ),
+            child: group == null
+                ? null
+                : pw.Text(
+                    group,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: compact ? 6.5 : 7.5,
+                    ),
+                  ),
+          ),
+        ),
+      );
+      i = j;
+    }
+    return pw.Row(children: children);
+  }
+
+  /// Desglose de saque o ataque por zona de destino, con una fila por
+  /// jugador (solo los que registraron al menos un toque con zona).
+  static pw.Widget _zonePlayerTable(
+    String title,
+    Map<String, Map<int, TouchStats>> byPlayerZone,
+    MatchStats stats,
+  ) {
+    final rows = <List<String>>[];
+    for (final r in stats.orderedRows) {
+      final zoneMap = byPlayerZone[r.playerId];
+      if (zoneMap == null) continue;
+      final totals = zoneMap.values.fold<TouchStats>(TouchStats(), (acc, s) {
+        acc.pp += s.pp;
+        acc.p += s.p;
+        acc.n += s.n;
+        acc.nn += s.nn;
+        acc.bloq += s.bloq;
+        return acc;
+      });
+      if (totals.total == 0) continue;
+      final effPct = (totals.pp + totals.p) / totals.total;
+      rows.add([
+        r.playerId == unassignedId ? '-' : '${r.number}',
+        _playerLabel(r),
+        for (var z = 1; z <= 6; z++) '${zoneMap[z]!.total}',
+        '${totals.total}',
+        '${(effPct * 100).toStringAsFixed(0)}%',
+      ]);
+    }
+
+    if (rows.isEmpty) return pw.SizedBox();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(title, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 4),
+        pw.Table.fromTextArray(
+          headers: const ['N°', 'Jugador', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Total', '% Efec'],
+          data: rows,
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1),
+            1: pw.FlexColumnWidth(4.6),
+            2: pw.FlexColumnWidth(1),
+            3: pw.FlexColumnWidth(1),
+            4: pw.FlexColumnWidth(1),
+            5: pw.FlexColumnWidth(1),
+            6: pw.FlexColumnWidth(1),
+            7: pw.FlexColumnWidth(1),
+            8: pw.FlexColumnWidth(1.2),
+            9: pw.FlexColumnWidth(1.4),
+          },
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+          cellStyle: const pw.TextStyle(fontSize: 8),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          cellAlignment: pw.Alignment.center,
+          cellAlignments: const {1: pw.Alignment.centerLeft},
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          'Referencias: Z1-Z6 zona de destino de cada toque (numeración estándar) · '
+          'Total toques con zona registrada · % Efec = (PP+P) / Total.  $_positionLegend',
+          style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _zoneTable(String title, Map<int, TouchStats> byZone) {
+    final includeBloq = byZone.values.any((s) => s.bloq > 0);
+    final headers = ['Zona', 'Total', 'PP', 'P', 'N', if (includeBloq) 'BLOQ', 'NN'];
+
+    final rows = [
+      for (var zone = 1; zone <= 6; zone++)
+        [
+          '$zone',
+          '${byZone[zone]!.total}',
+          '${byZone[zone]!.pp}',
+          '${byZone[zone]!.p}',
+          '${byZone[zone]!.n}',
+          if (includeBloq) '${byZone[zone]!.bloq}',
+          '${byZone[zone]!.nn}',
+        ],
+    ];
+
+    final totalAll = byZone.values.fold<TouchStats>(TouchStats(), (acc, s) {
+      acc.pp += s.pp;
+      acc.p += s.p;
+      acc.n += s.n;
+      acc.nn += s.nn;
+      acc.bloq += s.bloq;
+      return acc;
+    });
+    rows.add([
+      'Total',
+      '${totalAll.total}',
+      '${totalAll.pp}',
+      '${totalAll.p}',
+      '${totalAll.n}',
+      if (includeBloq) '${totalAll.bloq}',
+      '${totalAll.nn}',
+    ]);
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(title, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 4),
+        pw.Table.fromTextArray(
+          headers: headers,
+          data: rows,
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+          cellStyle: const pw.TextStyle(fontSize: 8),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          cellAlignment: pw.Alignment.center,
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          'Referencias: PP punto directo · P positivo · N negativo'
+          '${includeBloq ? ' · BLOQ bloqueado' : ''} · NN error.',
+          style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700),
+        ),
+      ],
+    );
+  }
+}
+
+/// Columna de la tabla de estadística por jugador ([PdfReportService._statsTable]).
+/// [flex] es el ancho relativo de la columna; [group] agrupa columnas
+/// contiguas bajo un mismo título en la banda de categorías (null = sin
+/// grupo, la columna solo se ve en la fila de sub-encabezados).
+class _StatCol {
+  const _StatCol(this.label, this.flex, {this.group, this.alignLeft = false});
+
+  final String label;
+  final int flex;
+  final String? group;
+  final bool alignLeft;
 }

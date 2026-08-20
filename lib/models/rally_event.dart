@@ -41,6 +41,11 @@ class RallyEvent {
   final int rivalScoreAfter;
   final DateTime timestamp;
 
+  /// Zona de cancha (1-6) a la que fue dirigido el toque. Solo aplica a
+  /// saque, ataque y contra, y solo si el set tiene activado el registro de
+  /// zonas (`MatchSet.trackHitZones`); en el resto de los casos es null.
+  final int? targetZone;
+
   RallyEvent({
     required this.id,
     required this.setNumber,
@@ -55,6 +60,7 @@ class RallyEvent {
     required this.ownScoreAfter,
     required this.rivalScoreAfter,
     required this.timestamp,
+    this.targetZone,
   });
 
   Map<String, dynamic> toJson() => {
@@ -71,6 +77,7 @@ class RallyEvent {
         'ownScoreAfter': ownScoreAfter,
         'rivalScoreAfter': rivalScoreAfter,
         'timestamp': timestamp.toIso8601String(),
+        'targetZone': targetZone,
       };
 
   factory RallyEvent.fromJson(Map<dynamic, dynamic> json) => RallyEvent(
@@ -95,5 +102,6 @@ class RallyEvent {
         timestamp:
             DateTime.tryParse(json['timestamp'] as String? ?? '') ??
                 DateTime.now(),
+        targetZone: (json['targetZone'] as num?)?.toInt(),
       );
 }

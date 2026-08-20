@@ -68,6 +68,11 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             tooltip: 'Simular resto del set',
             onPressed: () => _confirmSimulate(context, controller),
           ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Abandonar partido',
+            onPressed: () => _confirmAbandon(context, match.id),
+          ),
         ],
       ),
       body: SafeArea(
@@ -107,6 +112,33 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
     if (confirmed == true) {
       controller.simulateRestOfSet();
     }
+  }
+
+  Future<void> _confirmAbandon(BuildContext context, String matchId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Abandonar partido'),
+        content: const Text(
+            'Se va a borrar todo lo cargado de este partido y no se puede deshacer. ¿Confirmás?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Abandonar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    _handledEnd = true;
+    await context.read<AppDataController>().deleteMatch(matchId);
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _checkEndOfSet(BuildContext context, MatchController controller) async {

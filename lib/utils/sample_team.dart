@@ -217,5 +217,5 @@ Team buildSampleTeamUtnBa() {
     ),
   ];
 
-  return Team(id: generateId('team_'), name: 'La Scaloneta', players: players);
+  return Team(id: generateId('team_'), name: 'UTN BA', players: players);
 }

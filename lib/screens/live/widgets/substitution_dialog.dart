@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/player.dart';
+import '../../../models/rally_event.dart' show TeamSide;
 import '../../../state/match_controller.dart';
 
 /// Bottom sheet para registrar un cambio durante el set. Tiene dos modos:
@@ -109,7 +110,7 @@ class _RegularPanel extends StatelessWidget {
             final canGo = controller.canSubOutRegular(p.id);
             final isSel = playerOutId == p.id;
             return ChoiceChip(
-              label: Text('#${p.number} ${p.lastName}'),
+              label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
               selected: isSel,
               onSelected: canGo ? (_) => onPlayerOutSelected(isSel ? null : p.id) : null,
               backgroundColor: canGo ? null : Colors.grey.shade200,
@@ -135,7 +136,7 @@ class _RegularPanel extends StatelessWidget {
               runSpacing: 8,
               children: bench.map((p) {
                 return ActionChip(
-                  label: Text('#${p.number} ${p.lastName}'),
+                  label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
                   backgroundColor: blocked ? Colors.grey.shade200 : null,
                   onPressed: blocked
                       ? null
@@ -182,27 +183,84 @@ class _LiberoPanel extends StatelessWidget {
       final canOut = controller.canSendLiberoOut(slot);
       rows.add(Padding(
         padding: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                    child: Text(
+                        'En cancha: #${player!.number} ${player.lastName} · ${player.position.shortLabel}')),
+                TextButton(
+                  onPressed: canOut
+                      ? () {
+                          controller.sendLiberoOut(slot);
+                          setState(() {});
+                        }
+                      : null,
+                  child: const Text('Sacar'),
+                ),
+                if (liberoIds.length > 1)
+                  TextButton(
+                    onPressed: canOut
+                        ? () {
+                            controller.swapLiberoToOther(slot);
+                            setState(() {});
+                          }
+                        : null,
+                    child: const Text('Cambiar por el otro líbero'),
+                  ),
+              ],
+            ),
+            if (!canOut)
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Text(
+                  'Todavía no se puede: hace falta que se juegue al menos un punto más '
+                  'desde que entró este líbero (regla FIVB).',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ),
+          ],
+        ),
+      ));
+    }
+
+    // Centrales en fila trasera (posición 1, 5 o 6) que no están a punto de
+    // sacar: sugerencia de cambiarlos por el líbero que corresponda según
+    // quién saque (defensor si sacamos nosotros, receptor si saca el rival).
+    final centralSuggestions = <Widget>[];
+    final suggestedFor = <String>{};
+    for (final p in onCourt.where((p) => p.position == PlayerPosition.central)) {
+      final pos = controller.courtPositionOf(p.id);
+      if (pos == null || (pos != 1 && pos != 5 && pos != 6)) continue;
+      if (pos == 1 && controller.servingTeam == TeamSide.own) {
+        continue; // está a punto de sacar: debe quedarse.
+      }
+      suggestedFor.add(p.id);
+      final recommendedId = controller.servingTeam == TeamSide.own
+          ? controller.match.defensiveLiberoId
+          : controller.match.receptionLiberoId;
+      final canSuggest = recommendedId != null && controller.canBringLiberoIn(recommendedId, p.id);
+      final recommended = recommendedId == null ? null : controller.playerById(recommendedId);
+      final roleLabel = controller.servingTeam == TeamSide.own ? 'defensor' : 'receptor';
+      centralSuggestions.add(Padding(
+        padding: const EdgeInsets.only(bottom: 8),
         child: Row(
           children: [
-            Expanded(child: Text('En cancha: #${player!.number} ${player.lastName} (líbero)')),
-            TextButton(
-              onPressed: canOut
-                  ? () {
-                      controller.sendLiberoOut(slot);
-                      setState(() {});
-                    }
-                  : null,
-              child: const Text('Sacar'),
+            Expanded(
+              child: Text(
+                'Central #${p.number} ${p.lastName} en el fondo (pos. $pos) — líbero $roleLabel'
+                '${recommended == null ? ' no configurado' : ': #${recommended.number} ${recommended.lastName}'}',
+              ),
             ),
-            if (liberoIds.length > 1)
-              TextButton(
-                onPressed: canOut
-                    ? () {
-                        controller.swapLiberoToOther(slot);
-                        setState(() {});
-                      }
-                    : null,
-                child: const Text('Cambiar por el otro líbero'),
+            if (canSuggest)
+              ElevatedButton(
+                onPressed: () {
+                  controller.bringLiberoIn(recommendedId, p.id);
+                  setState(() {});
+                },
+                child: const Text('Cambiar'),
               ),
           ],
         ),
@@ -214,14 +272,21 @@ class _LiberoPanel extends StatelessWidget {
       children: [
         const Text(
           'El líbero solo puede entrar en un puesto de fila trasera y solo puede '
-          'salir por el mismo jugador al que reemplazó.',
+          'salir por el mismo jugador al que reemplazó. Solo puede haber un líbero '
+          'en cancha a la vez.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 12),
         if (rows.isNotEmpty) ...rows,
+        if (centralSuggestions.isNotEmpty) ...[
+          const Text('Central en el fondo', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          ...centralSuggestions,
+          const SizedBox(height: 8),
+        ],
         const Text('Hacer entrar a un líbero', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        ...onCourt.where((p) => p.position != PlayerPosition.libero).map((p) {
+        ...onCourt.where((p) => p.position != PlayerPosition.libero && !suggestedFor.contains(p.id)).map((p) {
           final options = liberoIds.where((id) => controller.canBringLiberoIn(id, p.id)).toList();
           if (options.isEmpty) return const SizedBox.shrink();
           return Padding(
@@ -230,11 +295,11 @@ class _LiberoPanel extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 8,
               children: [
-                Text('Por #${p.number} ${p.lastName}:'),
+                Text('Por #${p.number} ${p.lastName} · ${p.position.shortLabel}:'),
                 ...options.map((liberoId) {
                   final libero = controller.playerById(liberoId);
                   return ActionChip(
-                    label: Text('#${libero?.number} ${libero?.lastName}'),
+                    label: Text('#${libero?.number} ${libero?.lastName} · LIB'),
                     onPressed: () {
                       controller.bringLiberoIn(liberoId, p.id);
                       setState(() {});

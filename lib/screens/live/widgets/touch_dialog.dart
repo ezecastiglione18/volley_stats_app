@@ -2,18 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../../models/player.dart';
 import '../../../utils/grade_labels.dart';
+import 'hit_zone_picker.dart';
 
-/// Muestra un modal para elegir jugador (si corresponde) y calificar el
-/// toque. Devuelve (playerId, grade) o null si se canceló.
+/// Muestra un modal para elegir jugador (si corresponde), calificar el
+/// toque y, si [trackZone] está activo, elegir la zona de destino (opcional).
 Future<void> showTouchDialog({
   required BuildContext context,
   required String title,
   required List<Player> players,
   String? fixedPlayerId, // si no es null, no se pide elegir jugador
   required List<GradeOption> grades,
-  required void Function(String playerId, String grade) onConfirm,
+  bool trackZone = false,
+  required void Function(String playerId, String grade, int? targetZone) onConfirm,
 }) async {
   String? selected = fixedPlayerId ?? (players.length == 1 ? players.first.id : null);
+  int? selectedZone;
 
   await showModalBottomSheet(
     context: context,
@@ -54,6 +57,13 @@ Future<void> showTouchDialog({
                   ),
                   const SizedBox(height: 18),
                 ],
+                if (trackZone) ...[
+                  HitZonePicker(
+                    selectedZone: selectedZone,
+                    onChanged: (z) => setState(() => selectedZone = z),
+                  ),
+                  const SizedBox(height: 18),
+                ],
                 const Text('Calificación', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 GridView.count(
@@ -73,7 +83,7 @@ Future<void> showTouchDialog({
                           ? null
                           : () {
                               Navigator.pop(ctx);
-                              onConfirm(selected!, g.code);
+                              onConfirm(selected!, g.code, selectedZone);
                             },
                       child: Text(g.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
                     );

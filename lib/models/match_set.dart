@@ -33,6 +33,11 @@ class MatchSet {
   /// libres y no incrementan este contador).
   int substitutionsUsedOwn = 0;
 
+  /// Si está activado, el saque, el ataque y la contra de este set piden
+  /// (opcionalmente) la zona de cancha (1-6) a la que fue dirigido el toque.
+  /// Se define una vez, al armar la formación de este set.
+  bool trackHitZones;
+
   final List<RallyEvent> events = [];
   final List<SubstitutionEvent> substitutions = [];
 
@@ -40,6 +45,7 @@ class MatchSet {
     required this.setNumber,
     required this.startingOrderOwn,
     required this.startingServer,
+    this.trackHitZones = true,
   }) : currentOrderOwn = List<String>.from(startingOrderOwn);
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +59,7 @@ class MatchSet {
         'winner': winner?.name,
         'finished': finished,
         'substitutionsUsedOwn': substitutionsUsedOwn,
+        'trackHitZones': trackHitZones,
         'events': events.map((e) => e.toJson()).toList(),
         'substitutions': substitutions.map((s) => s.toJson()).toList(),
       };
@@ -65,6 +72,7 @@ class MatchSet {
           .toList(),
       startingServer: TeamSide.values
           .firstWhere((e) => e.name == json['startingServer']),
+      trackHitZones: json['trackHitZones'] as bool? ?? true,
     );
     final savedCurrentOrder = (json['currentOrderOwn'] as List?)?.map((e) => e.toString()).toList();
     if (savedCurrentOrder != null && savedCurrentOrder.length == s.startingOrderOwn.length) {

@@ -49,6 +49,7 @@ class StatsEngine {
           playerId: p.id,
           displayName: p.fullName,
           number: p.number,
+          position: p.position,
         );
       });
     }
@@ -164,6 +165,50 @@ class StatsEngine {
     target.n += src.n;
     target.nn += src.nn;
     target.bloq += src.bloq;
+  }
+
+  /// Calcula la estadística de saque y ataque por zona de destino (1-6),
+  /// para todo el partido o, si [setNumber] se especifica, solo ese set.
+  /// Solo cuenta toques propios que tienen zona registrada (el registro de
+  /// zona es opcional y puede estar desactivado en algún set).
+  static ZoneStats computeZones(VolleyMatch match, {int? setNumber}) {
+    final serveByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
+    final attackByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
+    final serveByZoneByPlayer = <String, Map<int, TouchStats>>{};
+    final attackByZoneByPlayer = <String, Map<int, TouchStats>>{};
+
+    Map<int, TouchStats> zoneMapFor(
+      Map<String, Map<int, TouchStats>> store,
+      String playerId,
+    ) =>
+        store.putIfAbsent(playerId, () => {for (var z = 1; z <= 6; z++) z: TouchStats()});
+
+    final sets = setNumber == null
+        ? match.sets
+        : match.sets.where((s) => s.setNumber == setNumber).toList();
+
+    for (final set in sets) {
+      for (final ev in set.events) {
+        if (ev.team != TeamSide.own || ev.targetZone == null) continue;
+        final zone = ev.targetZone!;
+        if (zone < 1 || zone > 6) continue;
+        final playerId = _singlePlayer(ev);
+        if (ev.phase == RallyPhase.serve) {
+          _bumpTouch(serveByZone[zone]!, ev.grade);
+          _bumpTouch(zoneMapFor(serveByZoneByPlayer, playerId)[zone]!, ev.grade);
+        } else if (ev.phase == RallyPhase.attack || ev.phase == RallyPhase.counter) {
+          _bumpTouch(attackByZone[zone]!, ev.grade);
+          _bumpTouch(zoneMapFor(attackByZoneByPlayer, playerId)[zone]!, ev.grade);
+        }
+      }
+    }
+
+    return ZoneStats(
+      serveByZone: serveByZone,
+      attackByZone: attackByZone,
+      serveByZoneByPlayer: serveByZoneByPlayer,
+      attackByZoneByPlayer: attackByZoneByPlayer,
+    );
   }
 
   static void _accumulateRecepcion(ReceptionStats target, ReceptionStats src) {

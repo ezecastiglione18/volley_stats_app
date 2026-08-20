@@ -13,10 +13,12 @@ class CourtView extends StatelessWidget {
       final playerId = controller.playerAtPosition(pos);
       final player = controller.playerById(playerId);
       final isServer = pos == 1;
+      final isLibero = player?.position == PlayerPosition.libero;
       return Expanded(
         child: Container(
           margin: const EdgeInsets.all(3),
-          height: 54,
+          height: 62,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: isServer ? const Color(0xFFFFF3E0) : Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -30,12 +32,21 @@ class CourtView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  player == null ? '?' : '#${player.number}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  player == null ? '?' : '#${player.number} ${player.lastName}',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
-                if (player?.position == PlayerPosition.libero)
-                  const Text('LIB',
-                      style: TextStyle(fontSize: 9, color: Colors.deepPurple, fontWeight: FontWeight.bold)),
+                if (player != null)
+                  Text(
+                    player.position.shortLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isLibero ? Colors.deepPurple : Colors.grey.shade600,
+                    ),
+                  ),
               ],
             ),
           ),

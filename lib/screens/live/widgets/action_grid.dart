@@ -33,7 +33,8 @@ class ActionGrid extends StatelessWidget {
       players: player == null ? [] : [player],
       fixedPlayerId: serverId,
       grades: serveAttackGrades,
-      onConfirm: (playerId, grade) => controller.logServe(playerId, grade),
+      trackZone: controller.currentSet.trackHitZones,
+      onConfirm: (playerId, grade, zone) => controller.logServe(playerId, grade, targetZone: zone),
     );
   }
 
@@ -43,7 +44,7 @@ class ActionGrid extends StatelessWidget {
       title: 'Recepción',
       players: controller.onCourtPlayers,
       grades: receptionGrades,
-      onConfirm: (playerId, grade) => controller.logReception(playerId, grade),
+      onConfirm: (playerId, grade, zone) => controller.logReception(playerId, grade),
     );
   }
 
@@ -53,7 +54,8 @@ class ActionGrid extends StatelessWidget {
       title: 'Ataque',
       players: controller.onCourtPlayers,
       grades: attackCounterGrades,
-      onConfirm: (playerId, grade) => controller.logAttack(playerId, grade),
+      trackZone: controller.currentSet.trackHitZones,
+      onConfirm: (playerId, grade, zone) => controller.logAttack(playerId, grade, targetZone: zone),
     );
   }
 
@@ -63,7 +65,8 @@ class ActionGrid extends StatelessWidget {
       title: 'Contraataque',
       players: controller.onCourtPlayers,
       grades: attackCounterGrades,
-      onConfirm: (playerId, grade) => controller.logCounter(playerId, grade),
+      trackZone: controller.currentSet.trackHitZones,
+      onConfirm: (playerId, grade, zone) => controller.logCounter(playerId, grade, targetZone: zone),
     );
   }
 

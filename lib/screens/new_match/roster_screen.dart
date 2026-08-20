@@ -40,6 +40,11 @@ class _RosterScreenState extends State<RosterScreen> {
   String? _defensiveLiberoId;
   String? _receptionLiberoId;
 
+  // Filtro de posición solo para lo que se muestra en la lista: no afecta
+  // a [_selected], así que los jugadores elegidos se mantienen aunque se
+  // cambie o limpie el filtro.
+  PlayerPosition? _positionFilter;
+
   void _toggle(Player p) {
     setState(() {
       if (_selected.contains(p.id)) {
@@ -93,6 +98,9 @@ class _RosterScreenState extends State<RosterScreen> {
   @override
   Widget build(BuildContext context) {
     final players = [...widget.ownTeam.players]..sort((a, b) => a.number.compareTo(b.number));
+    final filteredPlayers = _positionFilter == null
+        ? players
+        : players.where((p) => p.position == _positionFilter).toList();
     final selectedLiberos = players
         .where((p) => _selected.contains(p.id) && p.position == PlayerPosition.libero)
         .toList();
@@ -106,6 +114,28 @@ class _RosterScreenState extends State<RosterScreen> {
             child: Text('Seleccionados: ${_selected.length}/$maxRoster',
                 style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
+          if (players.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Todos'),
+                    selected: _positionFilter == null,
+                    onSelected: (_) => setState(() => _positionFilter = null),
+                  ),
+                  for (final pos in PlayerPosition.values)
+                    ChoiceChip(
+                      label: Text(pos.shortLabel),
+                      selected: _positionFilter == pos,
+                      onSelected: (_) => setState(() => _positionFilter = pos),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView(
               children: [
@@ -114,8 +144,13 @@ class _RosterScreenState extends State<RosterScreen> {
                     padding: EdgeInsets.all(16),
                     child: Center(child: Text('Este equipo no tiene jugadores cargados')),
                   )
+                else if (filteredPlayers.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: Text('No hay jugadores en esa posición')),
+                  )
                 else
-                  ...players.map((p) {
+                  ...filteredPlayers.map((p) {
                     final checked = _selected.contains(p.id);
                     return CheckboxListTile(
                       value: checked,
