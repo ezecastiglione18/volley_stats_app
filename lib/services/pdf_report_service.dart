@@ -62,7 +62,7 @@ class PdfReportService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text('Estadística del partido - ${match.ownTeamName}',
-                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 6),
                 _statsTable(stats),
               ],
@@ -75,7 +75,7 @@ class PdfReportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Zonas de destino de saque y ataque',
-                      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                      style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 4),
                   pw.Text(
                     'Zonas 1 a 6 de la cancha rival (numeración estándar). "Ataque" incluye contraataques. '
@@ -116,7 +116,7 @@ class PdfReportService {
             pw.SizedBox(height: 16),
           ],
           if (match.sets.length > 1) ...[
-            pw.Text('Detalle por set', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Detalle por set', style: const pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 6),
             for (final set in match.sets) ...[
               pw.Inseparable(
@@ -124,7 +124,7 @@ class PdfReportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('Set ${set.setNumber} (${set.ownScore}-${set.rivalScore})',
-                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                        style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 4),
                     _statsTable(StatsEngine.compute(match, setNumber: set.setNumber), compact: true),
                   ],
@@ -149,7 +149,7 @@ class PdfReportService {
     final winnerName = ownWon > rivalWon ? match.ownTeamName : match.rivalTeamName;
     return pw.Text(
       'Equipo ganador: $winnerName ($ownWon-$rivalWon)',
-      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+      style: const pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
     );
   }
 
@@ -157,10 +157,10 @@ class PdfReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Estadísticas de Vóley', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        pw.Text('Estadísticas de Vóley', style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 4),
         pw.Text('${match.ownTeamName}  vs  ${match.rivalTeamName}',
-            style: pw.TextStyle(fontSize: 14)),
+            style: const pw.TextStyle(fontSize: 14)),
         pw.SizedBox(height: 2),
         pw.Text(
           [
@@ -189,7 +189,7 @@ class PdfReportService {
     return pw.Table.fromTextArray(
       headers: headers,
       data: rows,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+      headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
       cellStyle: const pw.TextStyle(fontSize: 10),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.blue100),
       cellAlignments: {
@@ -433,7 +433,7 @@ class PdfReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(title, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.Text(title, style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 4),
         pw.Table.fromTextArray(
           headers: const ['N°', 'Jugador', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Total', '% Efec'],
@@ -450,7 +450,7 @@ class PdfReportService {
             8: pw.FlexColumnWidth(1.2),
             9: pw.FlexColumnWidth(1.4),
           },
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+          headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
           cellStyle: const pw.TextStyle(fontSize: 8),
           headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
           oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
@@ -505,12 +505,12 @@ class PdfReportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(title, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.Text(title, style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 4),
         pw.Table.fromTextArray(
           headers: headers,
           data: rows,
-          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+          headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
           cellStyle: const pw.TextStyle(fontSize: 8),
           headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
           oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),

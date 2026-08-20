@@ -62,7 +62,7 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: successColor(context).withOpacity(0.14),
+                color: successColor(context).withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text('¡Partido finalizado! Los datos quedaron guardados en el archivo.',
@@ -223,7 +223,7 @@ class _StatsTable extends StatelessWidget {
           header(),
           for (final r in rows) row(r),
           TableRow(
-            decoration: BoxDecoration(color: scheme.secondary.withOpacity(0.16)),
+            decoration: BoxDecoration(color: scheme.secondary.withValues(alpha: 0.16)),
             children: [
               const _C(''),
               const Padding(

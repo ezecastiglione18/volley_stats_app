@@ -22,7 +22,10 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 12),
-              Icon(Icons.sports_volleyball, size: 84, color: Theme.of(context).colorScheme.secondary),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset('assets/icon/app_icon.png', width: 84, height: 84),
+              ),
               const SizedBox(height: 8),
               const Center(
                 child: Text('RallyStats',

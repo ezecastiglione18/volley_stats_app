@@ -41,7 +41,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
   Future<void> _addPlayer() async {
     if (_team.players.length >= Team.maxPlayers) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Máximo ${Team.maxPlayers} jugadores por equipo')),
+        const SnackBar(content: const Text('Máximo ${Team.maxPlayers} jugadores por equipo')),
       );
       return;
     }

@@ -2,9 +2,9 @@ import '../models/player.dart';
 import '../models/team.dart';
 import 'id_gen.dart';
 
-/// Equipo de ejemplo ("UTN BA") con 20 jugadores repartidos en partes
-/// iguales entre las 5 posiciones (4 jugadores por posición).
-Team buildSampleTeamUtnBa() {
+/// Equipo de ejemplo ("Club Atlético Central") con 20 jugadores repartidos
+/// en partes iguales entre las 5 posiciones (4 jugadores por posición).
+Team buildSampleTeam() {
   final players = <Player>[
     // Armadores
     Player(
@@ -217,5 +217,5 @@ Team buildSampleTeamUtnBa() {
     ),
   ];
 
-  return Team(id: generateId('team_'), name: 'UTN BA', players: players);
+  return Team(id: generateId('team_'), name: 'Club Atlético Central', players: players);
 }

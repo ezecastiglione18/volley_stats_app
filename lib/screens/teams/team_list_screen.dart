@@ -13,16 +13,16 @@ class TeamListScreen extends StatelessWidget {
 
   Future<void> _loadSampleTeam(BuildContext context) async {
     final appData = context.read<AppDataController>();
-    if (appData.teams.any((t) => t.name == 'UTN BA')) {
+    if (appData.teams.any((t) => t.name == 'Club Atlético Central')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El equipo de ejemplo "UTN BA" ya existe')),
+        const SnackBar(content: Text('El equipo de ejemplo "Club Atlético Central" ya existe')),
       );
       return;
     }
-    await appData.saveTeam(buildSampleTeamUtnBa());
+    await appData.saveTeam(buildSampleTeam());
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Equipo de ejemplo "UTN BA" agregado')),
+        const SnackBar(content: Text('Equipo de ejemplo "Club Atlético Central" agregado')),
       );
     }
   }

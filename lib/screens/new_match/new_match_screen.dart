@@ -37,7 +37,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  bool get _canContinue => _ownTeam != null && _rivalNameCtrl.text.trim().isNotEmpty;
+  //bool get _canContinue => _ownTeam != null && _rivalNameCtrl.text.trim().isNotEmpty;
 
   void _continue() {
     if (_ownTeam == null) {

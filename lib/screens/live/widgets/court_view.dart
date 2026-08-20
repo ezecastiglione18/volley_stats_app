@@ -24,7 +24,7 @@ class CourtView extends StatelessWidget {
           height: 62,
           padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: isServer ? warning.withOpacity(0.16) : scheme.surface,
+            color: isServer ? warning.withValues(alpha: 0.16) : scheme.surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isServer ? warning : scheme.outline,

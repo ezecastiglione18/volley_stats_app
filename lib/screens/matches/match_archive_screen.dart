@@ -38,7 +38,7 @@ class MatchArchiveScreen extends StatelessWidget {
                 return Card(
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: statusColor.withOpacity(0.16),
+                      backgroundColor: statusColor.withValues(alpha: 0.16),
                       child: Icon(
                         finished ? Icons.check : Icons.play_arrow,
                         color: statusColor,

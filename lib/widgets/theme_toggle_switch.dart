@@ -33,7 +33,7 @@ class ThemeToggleSwitch extends StatelessWidget {
           Switch(
             value: isDark,
             onChanged: (v) => context.read<ThemeController>().setDark(v),
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: const Color(0xFF3DC2EC),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: Colors.white24,
