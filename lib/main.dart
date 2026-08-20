@@ -13,13 +13,13 @@ Future<void> main() async {
   final themeController = ThemeController();
   await appData.loadAll();
   await themeController.load();
-  runApp(VolleyStatsApp(appData: appData, themeController: themeController));
+  runApp(RallyStatsApp(appData: appData, themeController: themeController));
 }
 
-class VolleyStatsApp extends StatelessWidget {
+class RallyStatsApp extends StatelessWidget {
   final AppDataController appData;
   final ThemeController themeController;
-  const VolleyStatsApp({super.key, required this.appData, required this.themeController});
+  const RallyStatsApp({super.key, required this.appData, required this.themeController});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,7 @@ class VolleyStatsApp extends StatelessWidget {
       child: Consumer<ThemeController>(
         builder: (context, theme, _) {
           return MaterialApp(
-            title: 'Vóley Stats',
+            title: 'RallyStats',
             debugShowCheckedModeBanner: false,
             theme: buildLightTheme(),
             darkTheme: buildDarkTheme(),

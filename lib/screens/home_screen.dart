@@ -12,7 +12,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vóley Stats'),
+        title: const Text('RallyStats'),
         actions: const [ThemeToggleSwitch()],
       ),
       body: SafeArea(
@@ -25,7 +25,7 @@ class HomeScreen extends StatelessWidget {
               Icon(Icons.sports_volleyball, size: 84, color: Theme.of(context).colorScheme.secondary),
               const SizedBox(height: 8),
               const Center(
-                child: Text('Vóley Stats',
+                child: Text('RallyStats',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 32),

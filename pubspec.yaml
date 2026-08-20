@@ -1,5 +1,5 @@
-name: volley_stats
-description: "Estadísticas de Vóley — carga en vivo, planillas de equipo y reportes en PDF."
+name: rally_stats
+description: "RallyStats — carga en vivo, planillas de equipo y reportes en PDF de estadísticas de vóley."
 publish_to: 'none'
 version: 1.0.0+1
 

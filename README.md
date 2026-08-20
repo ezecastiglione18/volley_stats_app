@@ -1,6 +1,6 @@
-# volley_stats_app
+# RallyStats
 
-A new Flutter project.
+App de estadísticas de vóley — carga en vivo, planillas de equipo y reportes en PDF.
 
 ## Getting Started
 
