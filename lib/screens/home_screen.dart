@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/theme_toggle_switch.dart';
 import 'matches/match_archive_screen.dart';
 import 'new_match/new_match_screen.dart';
 import 'teams/team_list_screen.dart';
@@ -10,7 +11,10 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Vóley Stats')),
+      appBar: AppBar(
+        title: const Text('Vóley Stats'),
+        actions: const [ThemeToggleSwitch()],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -18,7 +22,7 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 12),
-              const Icon(Icons.sports_volleyball, size: 84, color: Color(0xFF1E5FBF)),
+              Icon(Icons.sports_volleyball, size: 84, color: Theme.of(context).colorScheme.secondary),
               const SizedBox(height: 8),
               const Center(
                 child: Text('Vóley Stats',
@@ -76,7 +80,7 @@ class _HomeButton extends StatelessWidget {
           child: Row(
             children: [
               const SizedBox(width: 20),
-              Icon(icon, size: 32, color: const Color(0xFF1E5FBF)),
+              Icon(icon, size: 32, color: Theme.of(context).colorScheme.secondary),
               const SizedBox(width: 18),
               Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               const Spacer(),

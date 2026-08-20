@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/match_config.dart';
 import '../../models/player.dart';
 import '../../models/team.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import 'lineup_screen.dart';
 
 class RosterScreen extends StatefulWidget {
@@ -106,7 +107,10 @@ class _RosterScreenState extends State<RosterScreen> {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text('Planilla — ${widget.ownTeam.name}')),
+      appBar: AppBar(
+        title: Text('Planilla — ${widget.ownTeam.name}'),
+        actions: const [ThemeToggleSwitch()],
+      ),
       body: SafeArea(
         top: false,
         child: Column(

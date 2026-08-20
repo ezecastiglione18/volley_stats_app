@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../state/match_controller.dart';
 import '../../../utils/grade_labels.dart';
+import '../../../utils/theme.dart';
 import 'player_select_dialog.dart';
 import 'touch_dialog.dart';
 
@@ -90,60 +91,65 @@ class ActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final accent = scheme.secondary;
+    final err = errorColor(context);
+    final surfaceAlt = surfaceAltColor(context);
+
     final buttons = <ActionButtonSpec>[
       ActionButtonSpec(
         label: 'Saque',
         icon: Icons.sports_volleyball,
-        color: const Color(0xFF1E88E5),
+        color: accent,
         enabled: controller.actionServeEnabled,
         onTap: () => _serve(context),
       ),
       ActionButtonSpec(
         label: 'Recepción',
         icon: Icons.front_hand,
-        color: const Color(0xFF1E88E5),
+        color: accent,
         enabled: controller.actionReceptionEnabled,
         onTap: () => _reception(context),
       ),
       ActionButtonSpec(
         label: 'Ataque',
         icon: Icons.sports_kabaddi,
-        color: const Color(0xFF1E88E5),
+        color: accent,
         enabled: controller.actionAttackEnabled,
         onTap: () => _attack(context),
       ),
       ActionButtonSpec(
         label: 'Contra',
         icon: Icons.replay,
-        color: const Color(0xFF1E88E5),
+        color: accent,
         enabled: controller.actionCounterEnabled,
         onTap: () => _counter(context),
       ),
       ActionButtonSpec(
         label: 'Bloqueo\n(Punto)',
         icon: Icons.block,
-        color: const Color(0xFF1E88E5),
+        color: accent,
         enabled: controller.actionBlockEnabled,
         onTap: () => _block(context),
       ),
       ActionButtonSpec(
         label: 'Error\nGeneral',
         icon: Icons.report_gmailerrorred,
-        color: const Color(0xFFE64A3B),
+        color: err,
         enabled: controller.actionGenericErrorEnabled,
         onTap: () => _genericError(context),
       ),
       ActionButtonSpec(
         label: 'Punto\nRival',
         icon: Icons.arrow_circle_down,
-        color: const Color(0xFFE64A3B),
+        color: err,
         enabled: controller.actionOpponentButtonsEnabled,
         onTap: controller.logOpponentPoint,
       ),
       ActionButtonSpec(
         label: 'Error\nRival',
         icon: Icons.arrow_circle_up,
-        color: const Color(0xFFE64A3B),
+        color: err,
         enabled: controller.actionOpponentButtonsEnabled,
         onTap: controller.logOpponentError,
       ),
@@ -158,13 +164,15 @@ class ActionGrid extends StatelessWidget {
       childAspectRatio: 2.4,
       padding: const EdgeInsets.all(12),
       children: buttons.map((b) {
+        // El texto sobre el celeste de acento se ve mejor oscuro que blanco.
+        final onColor = b.color == accent ? const Color(0xFF06222B) : Colors.white;
         return ElevatedButton.icon(
           onPressed: b.enabled ? b.onTap : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: b.enabled ? b.color : Colors.grey.shade300,
-            foregroundColor: b.enabled ? Colors.white : Colors.grey.shade500,
-            disabledBackgroundColor: Colors.grey.shade200,
-            disabledForegroundColor: Colors.grey.shade400,
+            backgroundColor: b.enabled ? b.color : surfaceAlt,
+            foregroundColor: b.enabled ? onColor : scheme.onSurfaceVariant,
+            disabledBackgroundColor: surfaceAlt,
+            disabledForegroundColor: scheme.onSurfaceVariant,
             elevation: b.enabled ? 2 : 0,
           ),
           icon: Icon(b.icon, size: 20),

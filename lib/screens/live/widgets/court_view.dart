@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/player.dart';
 import '../../../state/match_controller.dart';
+import '../../../utils/theme.dart';
 
 class CourtView extends StatelessWidget {
   final MatchController controller;
@@ -9,21 +10,24 @@ class CourtView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     Widget cell(int pos) {
       final playerId = controller.playerAtPosition(pos);
       final player = controller.playerById(playerId);
       final isServer = pos == 1;
       final isLibero = player?.position == PlayerPosition.libero;
+      final warning = warningColor(context);
       return Expanded(
         child: Container(
           margin: const EdgeInsets.all(3),
           height: 62,
           padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: isServer ? const Color(0xFFFFF3E0) : Colors.white,
+            color: isServer ? warning.withOpacity(0.16) : scheme.surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isServer ? Colors.orange : Colors.grey.shade300,
+              color: isServer ? warning : scheme.outline,
               width: isServer ? 2 : 1,
             ),
           ),
@@ -36,7 +40,7 @@ class CourtView extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: scheme.onSurface),
                 ),
                 if (player != null)
                   Text(
@@ -44,7 +48,7 @@ class CourtView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: isLibero ? Colors.deepPurple : Colors.grey.shade600,
+                      color: isLibero ? scheme.secondary : scheme.onSurfaceVariant,
                     ),
                   ),
               ],

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../models/volley_match.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
+import '../../utils/theme.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import '../matches/match_summary_screen.dart';
 import '../new_match/lineup_screen.dart';
 import 'widgets/action_grid.dart';
@@ -45,6 +47,7 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
       appBar: AppBar(
         title: Text('${match.ownTeamName} vs ${match.rivalTeamName}'),
         actions: [
+          const ThemeToggleSwitch(),
           IconButton(
             icon: const Icon(Icons.undo),
             tooltip: 'Deshacer última acción',
@@ -127,7 +130,7 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: errorColor(ctx), foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Abandonar'),
           ),

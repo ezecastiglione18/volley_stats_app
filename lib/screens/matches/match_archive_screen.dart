@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../models/volley_match.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
+import '../../utils/theme.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import '../live/live_match_screen.dart';
 import 'match_summary_screen.dart';
 
@@ -17,7 +19,10 @@ class MatchArchiveScreen extends StatelessWidget {
     final df = DateFormat('dd/MM/yyyy');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Archivo de Partidos')),
+      appBar: AppBar(
+        title: const Text('Archivo de Partidos'),
+        actions: const [ThemeToggleSwitch()],
+      ),
       body: SafeArea(
         top: false,
         child: matches.isEmpty
@@ -29,13 +34,14 @@ class MatchArchiveScreen extends StatelessWidget {
               itemBuilder: (context, i) {
                 final m = matches[i];
                 final finished = m.status == MatchStatus.finished;
+                final statusColor = finished ? successColor(context) : warningColor(context);
                 return Card(
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: finished ? Colors.green.shade100 : Colors.orange.shade100,
+                      backgroundColor: statusColor.withOpacity(0.16),
                       child: Icon(
                         finished ? Icons.check : Icons.play_arrow,
-                        color: finished ? Colors.green : Colors.orange,
+                        color: statusColor,
                       ),
                     ),
                     title: Text('${m.ownTeamName} vs ${m.rivalTeamName}',

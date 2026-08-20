@@ -6,6 +6,8 @@ import '../../models/stat_line.dart';
 import '../../models/volley_match.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/stats_engine.dart';
+import '../../utils/theme.dart';
+import '../../widgets/theme_toggle_switch.dart';
 
 class MatchSummaryScreen extends StatefulWidget {
   final VolleyMatch match;
@@ -39,6 +41,7 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
       appBar: AppBar(
         title: Text('${match.ownTeamName} vs ${match.rivalTeamName}'),
         actions: [
+          const ThemeToggleSwitch(),
           IconButton(
             icon: _loadingPdf
                 ? const SizedBox(
@@ -59,11 +62,11 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: successColor(context).withOpacity(0.14),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text('¡Partido finalizado! Los datos quedaron guardados en el archivo.',
-                  style: TextStyle(color: Colors.green)),
+              child: Text('¡Partido finalizado! Los datos quedaron guardados en el archivo.',
+                  style: TextStyle(color: successColor(context), fontWeight: FontWeight.w600)),
             ),
           Card(
             child: Padding(
@@ -135,10 +138,11 @@ class _StatsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final rows = stats.orderedRows;
 
     TableRow header() => TableRow(
-          decoration: BoxDecoration(color: Colors.grey.shade200),
+          decoration: BoxDecoration(color: surfaceAltColor(context)),
           children: const [
             _H('N°'),
             _H('Jugador'),
@@ -214,12 +218,12 @@ class _StatsTable extends StatelessWidget {
       child: Table(
         defaultColumnWidth: const FixedColumnWidth(56),
         columnWidths: const {1: FixedColumnWidth(140)},
-        border: TableBorder.all(color: Colors.grey.shade300),
+        border: TableBorder.all(color: scheme.outline),
         children: [
           header(),
           for (final r in rows) row(r),
           TableRow(
-            decoration: BoxDecoration(color: Colors.blue.shade50),
+            decoration: BoxDecoration(color: scheme.secondary.withOpacity(0.16)),
             children: [
               const _C(''),
               const Padding(

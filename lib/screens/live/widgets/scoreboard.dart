@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/rally_event.dart';
 import '../../../state/match_controller.dart';
+import '../../../utils/theme.dart';
 
 class Scoreboard extends StatelessWidget {
   final MatchController controller;
@@ -11,22 +12,23 @@ class Scoreboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final match = controller.match;
     final set = controller.currentSet;
+    // El marcador siempre usa el color del AppBar (grafito), tanto en modo
+    // claro como oscuro, para que el score quede siempre bien legible.
+    final bg = Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.primary;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF123A78),
-      ),
+      decoration: BoxDecoration(color: bg),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _teamScore(match.ownTeamName, set.ownScore,
+              _teamScore(context, match.ownTeamName, set.ownScore,
                   controller.servingTeam == TeamSide.own),
               const Text('SET', style: TextStyle(color: Colors.white70, fontSize: 12)),
-              _teamScore(match.rivalTeamName, set.rivalScore,
+              _teamScore(context, match.rivalTeamName, set.rivalScore,
                   controller.servingTeam == TeamSide.rival),
             ],
           ),
@@ -40,7 +42,7 @@ class Scoreboard extends StatelessWidget {
     );
   }
 
-  Widget _teamScore(String name, int score, bool serving) {
+  Widget _teamScore(BuildContext context, String name, int score, bool serving) {
     return Expanded(
       child: Column(
         children: [
@@ -48,9 +50,9 @@ class Scoreboard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (serving)
-                const Padding(
-                  padding: EdgeInsets.only(right: 4),
-                  child: Icon(Icons.sports_volleyball, size: 14, color: Colors.orangeAccent),
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(Icons.sports_volleyball, size: 14, color: warningColor(context)),
                 ),
               Flexible(
                 child: Text(

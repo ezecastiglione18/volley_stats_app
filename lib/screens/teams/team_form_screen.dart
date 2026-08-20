@@ -5,6 +5,7 @@ import '../../models/player.dart';
 import '../../models/team.dart';
 import '../../state/app_data_controller.dart';
 import '../../utils/id_gen.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import 'player_form_screen.dart';
 
 class TeamFormScreen extends StatefulWidget {
@@ -106,6 +107,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
       appBar: AppBar(
         title: Text(widget.isNew ? 'Nuevo equipo' : 'Editar equipo'),
         actions: [
+          const ThemeToggleSwitch(),
           if (!widget.isNew)
             IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteTeam),
         ],

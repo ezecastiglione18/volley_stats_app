@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/team.dart';
@@ -8,9 +9,12 @@ import '../models/volley_match.dart';
 class StorageService {
   static const _teamsBox = 'teams_box';
   static const _matchesBox = 'matches_box';
+  static const _settingsBox = 'settings_box';
+  static const _themeModeKey = 'theme_mode';
 
   late Box _teams;
   late Box _matches;
+  late Box _settings;
 
   static final StorageService instance = StorageService._();
   StorageService._();
@@ -22,6 +26,7 @@ class StorageService {
     await Hive.initFlutter();
     _teams = await Hive.openBox(_teamsBox);
     _matches = await Hive.openBox(_matchesBox);
+    _settings = await Hive.openBox(_settingsBox);
     _ready = true;
   }
 
@@ -58,5 +63,17 @@ class StorageService {
 
   Future<void> deleteMatch(String matchId) async {
     await _matches.delete(matchId);
+  }
+
+  // ---------------- Settings (preferencias de la app) ----------------
+
+  /// Modo de tema elegido manualmente por el usuario. Por defecto, claro.
+  ThemeMode loadThemeMode() {
+    final v = _settings.get(_themeModeKey, defaultValue: 'light') as String;
+    return v == 'dark' ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  Future<void> saveThemeMode(ThemeMode mode) async {
+    await _settings.put(_themeModeKey, mode == ThemeMode.dark ? 'dark' : 'light');
   }
 }

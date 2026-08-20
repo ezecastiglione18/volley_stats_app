@@ -5,6 +5,7 @@ import '../../models/team.dart';
 import '../../state/app_data_controller.dart';
 import '../../utils/id_gen.dart';
 import '../../utils/sample_team.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import 'team_form_screen.dart';
 
 class TeamListScreen extends StatelessWidget {
@@ -35,6 +36,7 @@ class TeamListScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Equipos'),
         actions: [
+          const ThemeToggleSwitch(),
           IconButton(
             icon: const Icon(Icons.auto_awesome),
             tooltip: 'Cargar equipo de ejemplo',

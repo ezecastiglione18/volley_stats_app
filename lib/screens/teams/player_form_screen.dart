@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/player.dart';
+import '../../widgets/theme_toggle_switch.dart';
 
 class PlayerFormScreen extends StatefulWidget {
   final Player player;
@@ -49,7 +50,10 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Jugador')),
+      appBar: AppBar(
+        title: const Text('Jugador'),
+        actions: const [ThemeToggleSwitch()],
+      ),
       body: SafeArea(
         top: false,
         child: ListView(

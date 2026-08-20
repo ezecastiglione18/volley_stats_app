@@ -8,6 +8,7 @@ import '../../models/volley_match.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
 import '../../utils/id_gen.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import '../live/live_match_screen.dart';
 
 class LineupScreen extends StatefulWidget {
@@ -142,7 +143,10 @@ class _LineupScreenState extends State<LineupScreen> {
     const backRow = [5, 6, 1];
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isNextSet ? 'Formación — set siguiente' : 'Formación inicial')),
+      appBar: AppBar(
+        title: Text(_isNextSet ? 'Formación — set siguiente' : 'Formación inicial'),
+        actions: const [ThemeToggleSwitch()],
+      ),
       body: SafeArea(
         top: false,
         child: ListView(
@@ -164,11 +168,17 @@ class _LineupScreenState extends State<LineupScreen> {
           const SizedBox(height: 4),
           const Text('Fila delantera (4 - 3 - 2)',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
-          Row(children: frontRow.map((p) => Expanded(child: _posDropdown(p))).toList()),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: frontRow.map((p) => Expanded(child: _posDropdown(p))).toList(),
+          ),
           const SizedBox(height: 8),
           const Text('Fila trasera (5 - 6 - 1, el 1 saca)',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
-          Row(children: backRow.map((p) => Expanded(child: _posDropdown(p))).toList()),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: backRow.map((p) => Expanded(child: _posDropdown(p))).toList(),
+          ),
           const SizedBox(height: 24),
           const Text('Armador rival (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
@@ -212,30 +222,88 @@ class _LineupScreenState extends State<LineupScreen> {
     );
   }
 
+  Player? _playerAt(int pos) {
+    final id = _positions[pos];
+    if (id == null) return null;
+    for (final p in widget.roster) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
   Widget _posDropdown(int pos) {
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final selectedPlayer = _playerAt(pos);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: DropdownButtonFormField<String?>(
-        initialValue: _positions[pos],
-        decoration: InputDecoration(labelText: 'Pos. $pos'),
-        isExpanded: true,
-        items: _availableFor(pos)
-            .map((p) => DropdownMenuItem(
-                  value: p.id,
-                  child: Text(
-                    '#${p.number} ${p.fullName} · ${p.position.shortLabel}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ))
-            .toList(),
-        selectedItemBuilder: (context) => _availableFor(pos)
-            .map((p) => Text(
-                  '#${p.number} ${p.lastName} · ${p.position.shortLabel}',
-                  overflow: TextOverflow.ellipsis,
-                ))
-            .toList(),
-        onChanged: (v) => setState(() => _positions[pos] = v),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String?>(
+            initialValue: _positions[pos],
+            decoration: InputDecoration(labelText: 'Pos. $pos'),
+            isExpanded: true,
+            items: _availableFor(pos)
+                .map((p) => DropdownMenuItem(
+                      value: p.id,
+                      child: isPortrait
+                          ? _playerItem(p, p.fullName)
+                          : Text(
+                              '#${p.number} ${p.fullName} · ${p.position.shortLabel}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ))
+                .toList(),
+            // El área del campo cerrado tiene una altura fija que el sistema
+            // de decoración del form field no deja agrandar, así que en
+            // vertical se muestra solo el nombre acá y la posición aparte,
+            // debajo (ver el Text condicional más abajo).
+            selectedItemBuilder: (context) => _availableFor(pos)
+                .map((p) => Text(
+                      isPortrait
+                          ? '#${p.number} ${p.lastName}'
+                          : '#${p.number} ${p.lastName} · ${p.position.shortLabel}',
+                      overflow: TextOverflow.ellipsis,
+                    ))
+                .toList(),
+            onChanged: (v) => setState(() => _positions[pos] = v),
+          ),
+          if (isPortrait && selectedPlayer != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 2),
+              child: Text(
+                selectedPlayer.position.shortLabel,
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+            ),
+        ],
       ),
+    );
+  }
+
+  // En vertical no hay ancho suficiente para "#N Nombre · POS" en una sola
+  // línea sin cortar la posición del jugador, así que en la lista desplegada
+  // se muestra como subtítulo debajo del nombre.
+  Widget _playerItem(Player p, String name) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '#${p.number} $name',
+          style: const TextStyle(fontSize: 14, height: 1.15),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+        Text(
+          p.position.shortLabel,
+          style: TextStyle(fontSize: 11, height: 1.15, color: Colors.grey[500]),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ],
     );
   }
 }

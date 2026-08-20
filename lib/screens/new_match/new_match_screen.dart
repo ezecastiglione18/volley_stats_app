@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/match_config.dart';
 import '../../models/team.dart';
 import '../../state/app_data_controller.dart';
+import '../../widgets/theme_toggle_switch.dart';
 import 'roster_screen.dart';
 
 class NewMatchScreen extends StatefulWidget {
@@ -72,7 +73,10 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
     final teams = context.watch<AppDataController>().teams;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuevo Partido')),
+      appBar: AppBar(
+        title: const Text('Nuevo Partido'),
+        actions: const [ThemeToggleSwitch()],
+      ),
       body: SafeArea(
         top: false,
         child: ListView(

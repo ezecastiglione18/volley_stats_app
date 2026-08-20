@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../utils/theme.dart';
+
 /// Cuadrado dividido en 6 partes iguales para elegir la zona de cancha
 /// (1-6) a la que fue dirigido un saque o un ataque. Usa la misma
 /// numeración que el resto de la app: fila cercana a la red = 4-3-2, fila de
@@ -12,6 +14,9 @@ class HitZonePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final surfaceAlt = surfaceAltColor(context);
+
     Widget cell(int zone) {
       final isSel = selectedZone == zone;
       return Expanded(
@@ -22,16 +27,16 @@ class HitZonePicker extends StatelessWidget {
             height: 44,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isSel ? const Color(0xFF1E88E5) : Colors.grey.shade100,
+              color: isSel ? scheme.secondary : surfaceAlt,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: isSel ? const Color(0xFF1E88E5) : Colors.grey.shade300),
+              border: Border.all(color: isSel ? scheme.secondary : scheme.outline),
             ),
             child: Text(
               '$zone',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: isSel ? Colors.white : Colors.black87,
+                color: isSel ? const Color(0xFF06222B) : scheme.onSurface,
               ),
             ),
           ),
@@ -44,10 +49,10 @@ class HitZonePicker extends StatelessWidget {
       children: [
         const Text('Zona de destino (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 2),
-        const Text('Red', style: TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
+        Text('Red', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant), textAlign: TextAlign.center),
         Row(children: [cell(4), cell(3), cell(2)]),
         Row(children: [cell(5), cell(6), cell(1)]),
-        const Text('Fondo', style: TextStyle(fontSize: 10, color: Colors.grey)),
+        Text('Fondo', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
         if (selectedZone != null)
           Align(
             alignment: Alignment.centerLeft,
