@@ -49,7 +49,9 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: SafeArea(
+        top: false,
+        child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
           if (widget.justFinished)
@@ -121,6 +123,7 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           _StatsTable(stats: stats),
           const SizedBox(height: 20),
         ],
+        ),
       ),
     );
   }

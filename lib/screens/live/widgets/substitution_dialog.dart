@@ -26,42 +26,45 @@ Future<void> showSubstitutionDialog({
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 16,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Cambio de jugador',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Cambio regular')),
-                    ButtonSegment(value: true, label: Text('Cambio de líbero')),
-                  ],
-                  selected: {liberoMode},
-                  onSelectionChanged: (s) => setState(() {
-                    liberoMode = s.first;
-                    playerOutId = null;
-                  }),
-                ),
-                const SizedBox(height: 14),
-                if (liberoMode)
-                  _LiberoPanel(controller: controller, setState: setState)
-                else
-                  _RegularPanel(
-                    controller: controller,
-                    playerOutId: playerOutId,
-                    onPlayerOutSelected: (id) => setState(() => playerOutId = id),
-                    setState: setState,
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Cambio de jugador',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Cambio regular')),
+                      ButtonSegment(value: true, label: Text('Cambio de líbero')),
+                    ],
+                    selected: {liberoMode},
+                    onSelectionChanged: (s) => setState(() {
+                      liberoMode = s.first;
+                      playerOutId = null;
+                    }),
                   ),
-              ],
+                  const SizedBox(height: 14),
+                  if (liberoMode)
+                    _LiberoPanel(controller: controller, setState: setState)
+                  else
+                    _RegularPanel(
+                      controller: controller,
+                      playerOutId: playerOutId,
+                      onPlayerOutSelected: (id) => setState(() => playerOutId = id),
+                      setState: setState,
+                    ),
+                ],
+              ),
             ),
           );
         },

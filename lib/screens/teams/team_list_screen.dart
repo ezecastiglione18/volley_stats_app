@@ -42,36 +42,39 @@ class TeamListScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: teams.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Todavía no creaste ningún equipo.\nTocá el botón + para agregar el primero.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: teams.length,
-              itemBuilder: (context, i) {
-                final team = teams[i];
-                return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.groups)),
-                    title: Text(team.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('${team.players.length} jugadores'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => TeamFormScreen(team: team)),
-                    ),
+      body: SafeArea(
+        top: false,
+        child: teams.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Todavía no creaste ningún equipo.\nTocá el botón + para agregar el primero.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
                   ),
-                );
-              },
-            ),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: teams.length,
+                itemBuilder: (context, i) {
+                  final team = teams[i];
+                  return Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.groups)),
+                      title: Text(team.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text('${team.players.length} jugadores'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => TeamFormScreen(team: team)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           final newTeam = Team(id: generateId('team_'), name: '');

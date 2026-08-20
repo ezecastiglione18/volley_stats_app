@@ -143,7 +143,9 @@ class _LineupScreenState extends State<LineupScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(_isNextSet ? 'Formación — set siguiente' : 'Formación inicial')),
-      body: ListView(
+      body: SafeArea(
+        top: false,
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const Text('¿Quién saca primero?', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -205,6 +207,7 @@ class _LineupScreenState extends State<LineupScreen> {
                 : 'Comenzar partido'),
           ),
         ],
+        ),
       ),
     );
   }

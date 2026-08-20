@@ -73,7 +73,9 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nuevo Partido')),
-      body: ListView(
+      body: SafeArea(
+        top: false,
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const Text('Mi equipo', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -219,6 +221,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
             child: const Text('Continuar: elegir planilla de 14'),
           ),
         ],
+        ),
       ),
     );
   }

@@ -18,7 +18,9 @@ class MatchArchiveScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Archivo de Partidos')),
-      body: matches.isEmpty
+      body: SafeArea(
+        top: false,
+        child: matches.isEmpty
           ? const Center(
               child: Text('Todavía no hay partidos guardados', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
@@ -73,6 +75,7 @@ class MatchArchiveScreen extends StatelessWidget {
                 );
               },
             ),
+      ),
     );
   }
 }

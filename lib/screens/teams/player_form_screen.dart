@@ -50,7 +50,9 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Jugador')),
-      body: ListView(
+      body: SafeArea(
+        top: false,
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
@@ -114,6 +116,7 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
           const SizedBox(height: 28),
           ElevatedButton(onPressed: _save, child: const Text('Guardar jugador')),
         ],
+        ),
       ),
     );
   }

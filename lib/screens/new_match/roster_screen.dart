@@ -107,7 +107,9 @@ class _RosterScreenState extends State<RosterScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text('Planilla — ${widget.ownTeam.name}')),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -213,6 +215,7 @@ class _RosterScreenState extends State<RosterScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

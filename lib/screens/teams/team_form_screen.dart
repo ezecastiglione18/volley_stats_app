@@ -110,56 +110,59 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
             IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteTeam),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre del equipo / club'),
-              onChanged: (_) => _save(showSnack: false),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre del equipo / club'),
+                onChanged: (_) => _save(showSnack: false),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text('Jugadores (${players.length}/${Team.maxPlayers})',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _addPlayer,
-                  icon: const Icon(Icons.person_add_alt_1),
-                  label: const Text('Agregar'),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: players.isEmpty
-                ? const Center(
-                    child: Text('Sin jugadores todavía', style: TextStyle(color: Colors.grey)))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: players.length,
-                    itemBuilder: (context, i) {
-                      final p = players[i];
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(child: Text('${p.number}')),
-                          title: Text(p.fullName.isEmpty ? '(sin nombre)' : p.fullName),
-                          subtitle: Text(p.position.label),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                            onPressed: () => _deletePlayer(p),
-                          ),
-                          onTap: () => _editPlayer(p),
-                        ),
-                      );
-                    },
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text('Jugadores (${players.length}/${Team.maxPlayers})',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _addPlayer,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Agregar'),
                   ),
-          ),
-        ],
+                ],
+              ),
+            ),
+            Expanded(
+              child: players.isEmpty
+                  ? const Center(
+                      child: Text('Sin jugadores todavía', style: TextStyle(color: Colors.grey)))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: players.length,
+                      itemBuilder: (context, i) {
+                        final p = players[i];
+                        return Card(
+                          child: ListTile(
+                            leading: CircleAvatar(child: Text('${p.number}')),
+                            title: Text(p.fullName.isEmpty ? '(sin nombre)' : p.fullName),
+                            subtitle: Text(p.position.label),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                              onPressed: () => _deletePlayer(p),
+                            ),
+                            onTap: () => _editPlayer(p),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
