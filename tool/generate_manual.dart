@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 14;
+const _coverTotalPages = 15;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -42,30 +42,32 @@ const _pGestionEquipos = 4;
 const _pCrearEquipo = 4;
 const _pAgregarJugadores = 4;
 const _pEquipoEjemplo = 4;
-const _pCrearPartido = 4;
-const _pDatosRival = 4;
+const _pCrearPartido = 5;
+const _pDatosRival = 5;
 const _pConfigPartido = 5;
 const _pPlanilla = 5;
 const _pSeleccionJugadores = 5;
-const _pFormacionInicial = 5;
+const _pFormacionInicial = 6;
 const _pRolesLibero = 6;
 const _pPantallaVivo = 6;
 const _pMarcador = 6;
 const _pCancha = 6;
-const _pBotonesAccion = 6;
-const _pZonaDestino = 7;
+const _pBotonesAccion = 7;
+const _pZonaDestino = 8;
 const _pCambiosJugador = 8;
 const _pCambioRegular = 8;
 const _pCambioLibero = 8;
-const _pDeshacerCambio = 8;
+const _pDeshacerCambio = 9;
 const _pHerramientas = 9;
 const _pFinSet = 9;
 const _pArchivo = 10;
+const _pExportarPartido = 10;
+const _pImportarPartido = 10;
 const _pResumen = 10;
-const _pExportarPdf = 10;
+const _pExportarPdf = 11;
 const _pGlosario = 11;
 const _pFaq = 12;
-const _pContacto = 14;
+const _pContacto = 15;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -491,6 +493,8 @@ List<pw.Widget> _indexContent() {
     entry('Herramientas durante el partido', _pHerramientas),
     entry('Fin de set y fin de partido', _pFinSet),
     entry('Archivo de partidos', _pArchivo),
+    entry('Exportar un partido', _pExportarPartido, sub: true),
+    entry('Importar un partido', _pImportarPartido, sub: true),
     entry('Resumen del partido y estadísticas', _pResumen),
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
@@ -524,13 +528,22 @@ List<pw.Widget> _section1Introduccion() => [
         [_t('Deshacer un toque o un cambio de jugador cargado por error, sin perder el resto de lo anotado.')],
         [_t('Ver la estadística del partido completo o de un set en particular.')],
         [_t('Exportar y compartir un reporte en PDF con el resultado, la estadística por jugador, la del rival y las zonas de destino de saque, ataque y contraataque.')],
+        [
+          _t('Exportar un partido guardado como archivo (no el PDF) para pasarlo a otro dispositivo '
+              'e importarlo ahí, conservando todos sus datos.')
+        ],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
         [_t('Guardar el archivo histórico de partidos jugados.')],
       ]),
+      _p(
+        'Además del celular o la tablet (Android), RallyStats también tiene una versión de escritorio '
+        'para Windows, con las mismas funciones (ver sección 15 para los requisitos).',
+      ),
       _infoBox(
         'Nota: todos los datos (equipos, jugadores y partidos) se guardan únicamente en el dispositivo '
-        'donde se usa la app. No se suben a internet ni se sincronizan entre dispositivos: conviene '
-        'exportar en PDF los partidos importantes para conservarlos o compartirlos con el cuerpo técnico.',
+        'donde se usa la app. No se suben a internet ni se sincronizan solos entre dispositivos: conviene '
+        'exportar (sección 11.1) o generar el PDF (sección 13) de los partidos importantes para '
+        'conservarlos, pasarlos a otro dispositivo o compartirlos con el cuerpo técnico.',
       ),
     ];
 
@@ -735,7 +748,9 @@ List<pw.Widget> _section7PantallaVivo() => [
       _subHeading('7.1 Marcador'),
       _p(
         'Muestra el nombre y el puntaje de cada equipo en el set actual, un ícono de pelota junto al equipo '
-        'que está sacando, y debajo el resultado en sets y el número de set en curso.',
+        'que está sacando, y debajo el resultado en sets y el número de set en curso. Si se cargó la '
+        'posición del armador rival al armar el set (sección 6), también se muestra ahí abajo como dato '
+        'informativo durante todo el partido.',
       ),
       _subHeading('7.2 Cancha'),
       _p(
@@ -911,8 +926,28 @@ List<pw.Widget> _section11Archivo() => [
       _bullets([
         [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 12).')],
         [_t('Tocar un partido en curso retoma la carga en vivo exactamente donde había quedado, reconstruyendo el marcador, la rotación y los cambios ya realizados.')],
-        [_t('Desde el menú de tres puntos de cada partido se lo puede eliminar del archivo.')],
+        [_t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 11.1) o eliminar del archivo.')],
       ]),
+      _subHeading('11.1 Exportar un partido'),
+      _p(
+        'La opción Exportar del menú de tres puntos de un partido genera un archivo con todos sus datos '
+        '(equipos, marcador, jugada por jugada y cambios de jugador). A diferencia del reporte en PDF '
+        '(sección 13), que es solo para leer o imprimir, este archivo se puede volver a importar en '
+        'RallyStats en otro dispositivo (sección 11.2) para seguir teniéndolo disponible ahí, incluso si '
+        'todavía estaba en curso.',
+      ),
+      _p(
+        'En Android se abre la hoja para compartir de siempre (WhatsApp, correo, Drive, etc.); en la '
+        'versión de Windows, en cambio, se abre un cuadro para elegir en qué carpeta de la computadora '
+        'guardar el archivo.',
+      ),
+      _subHeading('11.2 Importar un partido'),
+      _p(
+        'El ícono de subir archivo, en el encabezado de "Archivo de Partidos", abre un selector para elegir '
+        'un archivo de partido exportado antes (sección 11.1) y agregarlo al archivo de este dispositivo. '
+        'Si ya hay ahí un partido con el mismo identificador (por ejemplo, si el mismo archivo se importa '
+        'dos veces), se guarda como una copia nueva y aparte, sin pisar el que ya estaba.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1044,6 +1079,15 @@ List<pw.Widget> _section15Faq() => [
             'del celular o la tablet actualizado para un mejor funcionamiento.',
       ),
       _faqCard(
+        '¿Qué necesito para usar RallyStats en Windows (PC o notebook)?',
+        'Hace falta Windows 10 de 64 bits o superior (Windows 11 incluido); no funciona en Windows 7, 8 / '
+            '8.1 ni en versiones de 32 bits. La versión de Windows es un ejecutable (volley_stats_app.exe) '
+            'que no requiere instalación, pero viene acompañado de varios archivos .dll necesarios para que '
+            'funcione: hay que conservar todos los archivos de la carpeta juntos (no alcanza con copiar '
+            'solo el .exe a otro lado) y ejecutarlo desde ahí. Tiene las mismas funciones que la versión de '
+            'Android.',
+      ),
+      _faqCard(
         '¿Necesito conexión a internet para poder tomar la estadística?',
         'No. RallyStats funciona completamente sin conexión: la carga en vivo, las planillas de equipo y el '
             'cálculo de estadísticas se hacen en el dispositivo. Solo hace falta conexión para acciones '
@@ -1060,10 +1104,11 @@ List<pw.Widget> _section15Faq() => [
       ),
       _faqCard(
         '¿Puedo pasar un partido de un celular a otro, o verlo en dos dispositivos a la vez?',
-        'No de forma directa: como los datos son locales a cada dispositivo (ver la primera pregunta de '
-            'esta sección), un partido cargado en un celular no aparece en otro. La única forma de sacar '
-            'esa información y llevarla a otro lado es exportando el reporte en PDF (sección 13) y '
-            'compartiéndolo.',
+        'Se puede pasar un partido a otro dispositivo exportándolo (sección 11.1) e importándolo ahí '
+            '(sección 11.2); a diferencia del reporte en PDF (sección 13), que es solo para leer, ese '
+            'archivo se puede volver a abrir en la app, incluso si el partido todavía estaba en curso. Lo '
+            'que no se puede hacer es cargar el mismo partido en vivo desde dos dispositivos a la vez: una '
+            'vez importada, cada copia queda independiente y no se sincroniza sola con el original.',
       ),
       _faqCard(
         '¿Puedo cambiar los datos de un equipo ya creado?',
@@ -1128,11 +1173,11 @@ List<pw.Widget> _section15Faq() => [
       ),
       _faqCard(
         '¿RallyStats está disponible en iOS (iPhone/iPad)?',
-        'Todavía no. El desarrollo está enfocado en Android, que es donde se compiló y probó la app hasta '
-            'ahora (incluida la generación del APK instalable). El proyecto está hecho en Flutter, que sí '
-            'permite compilar para iOS, pero esa parte todavía no se armó ni se probó: para hacerlo hace '
-            'falta una Mac con Xcode, algo que hoy no forma parte del flujo de trabajo del proyecto. Por '
-            'ahora, RallyStats solo está disponible para Android.',
+        'Todavía no. El proyecto está hecho en Flutter, que sí permite compilar para iOS, pero esa parte '
+            'todavía no se armó ni se probó: para hacerlo hace falta una Mac con Xcode, algo que hoy no '
+            'forma parte del flujo de trabajo del proyecto. Por ahora, RallyStats está disponible para '
+            'Android y, como versión de escritorio, para Windows (ver la pregunta anterior); para iOS y '
+            'para Mac todavía no.',
       ),
     ];
 

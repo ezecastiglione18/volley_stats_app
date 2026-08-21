@@ -22,14 +22,16 @@ class MatchExportService {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/$fileName');
       await file.writeAsString(jsonStr);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Partido: ${match.ownTeamName} vs ${match.rivalTeamName}',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Partido: ${match.ownTeamName} vs ${match.rivalTeamName}',
+        ),
       );
       return;
     }
 
-    final savePath = await FilePicker.platform.saveFile(
+    final savedUri = await FilePicker.saveFile(
       dialogTitle: 'Guardar partido',
       fileName: fileName,
       type: FileType.custom,
@@ -38,20 +40,23 @@ class MatchExportService {
     );
     // En Windows/Linux, saveFile ya escribe el archivo con los bytes
     // provistos. En macOS solo devuelve la ruta elegida, hay que escribirlo.
-    if (savePath != null && !await File(savePath).exists()) {
-      await File(savePath).writeAsString(jsonStr);
+    if (savedUri != null && savedUri.scheme == 'file') {
+      final savedFile = File(savedUri.toFilePath());
+      if (!await savedFile.exists()) {
+        await savedFile.writeAsString(jsonStr);
+      }
     }
   }
 
   /// Abre un selector de archivos y devuelve el JSON decodificado del
   /// partido elegido, o null si el usuario canceló.
   static Future<Map<String, dynamic>?> pickMatchJson() async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['json'],
     );
-    if (result == null || result.files.single.path == null) return null;
-    final content = await File(result.files.single.path!).readAsString();
+    if (file == null || file.path == null) return null;
+    final content = await File(file.path!).readAsString();
     return jsonDecode(content) as Map<String, dynamic>;
   }
 
