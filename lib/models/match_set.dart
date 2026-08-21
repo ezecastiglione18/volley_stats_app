@@ -38,6 +38,17 @@ class MatchSet {
   /// Se define una vez, al armar la formación de este set.
   bool trackHitZones;
 
+  /// Líbero designado para la defensa cuando el equipo propio saca en este
+  /// set (opcional). Se elige al armar la formación de cada set porque puede
+  /// cambiar de un set a otro.
+  String? defensiveLiberoId;
+
+  /// Líbero designado para la recepción cuando saca el rival en este set
+  /// (opcional). También es el líbero que entra automáticamente por el
+  /// central que sacó si se pierde ese punto. Puede ser el mismo jugador que
+  /// [defensiveLiberoId].
+  String? receptionLiberoId;
+
   final List<RallyEvent> events = [];
   final List<SubstitutionEvent> substitutions = [];
 
@@ -46,6 +57,8 @@ class MatchSet {
     required this.startingOrderOwn,
     required this.startingServer,
     this.trackHitZones = true,
+    this.defensiveLiberoId,
+    this.receptionLiberoId,
   }) : currentOrderOwn = List<String>.from(startingOrderOwn);
 
   Map<String, dynamic> toJson() => {
@@ -60,6 +73,8 @@ class MatchSet {
         'finished': finished,
         'substitutionsUsedOwn': substitutionsUsedOwn,
         'trackHitZones': trackHitZones,
+        'defensiveLiberoId': defensiveLiberoId,
+        'receptionLiberoId': receptionLiberoId,
         'events': events.map((e) => e.toJson()).toList(),
         'substitutions': substitutions.map((s) => s.toJson()).toList(),
       };
@@ -73,6 +88,8 @@ class MatchSet {
       startingServer: TeamSide.values
           .firstWhere((e) => e.name == json['startingServer']),
       trackHitZones: json['trackHitZones'] as bool? ?? true,
+      defensiveLiberoId: json['defensiveLiberoId'] as String?,
+      receptionLiberoId: json['receptionLiberoId'] as String?,
     );
     final savedCurrentOrder = (json['currentOrderOwn'] as List?)?.map((e) => e.toString()).toList();
     if (savedCurrentOrder != null && savedCurrentOrder.length == s.startingOrderOwn.length) {

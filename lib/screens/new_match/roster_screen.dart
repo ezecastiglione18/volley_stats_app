@@ -38,9 +38,6 @@ class _RosterScreenState extends State<RosterScreen> {
   final Set<String> _selected = {};
   static const int maxRoster = 14;
 
-  String? _defensiveLiberoId;
-  String? _receptionLiberoId;
-
   // Filtro de posición solo para lo que se muestra en la lista: no afecta
   // a [_selected], así que los jugadores elegidos se mantienen aunque se
   // cambie o limpie el filtro.
@@ -50,8 +47,6 @@ class _RosterScreenState extends State<RosterScreen> {
     setState(() {
       if (_selected.contains(p.id)) {
         _selected.remove(p.id);
-        if (_defensiveLiberoId == p.id) _defensiveLiberoId = null;
-        if (_receptionLiberoId == p.id) _receptionLiberoId = null;
       } else {
         if (_selected.length >= maxRoster) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -89,8 +84,6 @@ class _RosterScreenState extends State<RosterScreen> {
           date: widget.date,
           config: widget.config,
           roster: roster,
-          defensiveLiberoId: _defensiveLiberoId,
-          receptionLiberoId: _receptionLiberoId,
         ),
       ),
     );
@@ -102,9 +95,6 @@ class _RosterScreenState extends State<RosterScreen> {
     final filteredPlayers = _positionFilter == null
         ? players
         : players.where((p) => p.position == _positionFilter).toList();
-    final selectedLiberos = players
-        .where((p) => _selected.contains(p.id) && p.position == PlayerPosition.libero)
-        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -165,49 +155,6 @@ class _RosterScreenState extends State<RosterScreen> {
                       subtitle: Text(p.position.label),
                     );
                   }),
-                if (selectedLiberos.isNotEmpty) ...[
-                  const Divider(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Roles de líbero (opcional)',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                        const Text(
-                          'Podés asignar un líbero para la defensa cuando saca tu equipo y otro '
-                          'para la recepción cuando saca el rival. También puede ser el mismo.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String?>(
-                          initialValue: _defensiveLiberoId,
-                          decoration:
-                              const InputDecoration(labelText: 'Líbero defensor (cuando sacamos)'),
-                          items: [
-                            const DropdownMenuItem(value: null, child: Text('Ninguno')),
-                            for (final p in selectedLiberos)
-                              DropdownMenuItem(value: p.id, child: Text('#${p.number} ${p.fullName}')),
-                          ],
-                          onChanged: (v) => setState(() => _defensiveLiberoId = v),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String?>(
-                          initialValue: _receptionLiberoId,
-                          decoration: const InputDecoration(
-                              labelText: 'Líbero receptor (cuando saca el rival)'),
-                          items: [
-                            const DropdownMenuItem(value: null, child: Text('Ninguno')),
-                            for (final p in selectedLiberos)
-                              DropdownMenuItem(value: p.id, child: Text('#${p.number} ${p.fullName}')),
-                          ],
-                          onChanged: (v) => setState(() => _receptionLiberoId = v),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
               ],
             ),
           ),

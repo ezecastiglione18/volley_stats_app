@@ -154,12 +154,16 @@ class MatchController extends ChangeNotifier {
     required List<String> startingOrderOwn,
     required TeamSide startingServer,
     bool trackHitZones = true,
+    String? defensiveLiberoId,
+    String? receptionLiberoId,
   }) {
     final set = MatchSet(
       setNumber: setNumber,
       startingOrderOwn: startingOrderOwn,
       startingServer: startingServer,
       trackHitZones: trackHitZones,
+      defensiveLiberoId: defensiveLiberoId,
+      receptionLiberoId: receptionLiberoId,
     );
     match.sets.add(set);
     match.status = MatchStatus.inProgress;
@@ -319,8 +323,8 @@ class MatchController extends ChangeNotifier {
   /// Líberos declarados para el partido (hasta 2), sin duplicados.
   List<String> get declaredLiberoIds {
     final ids = <String>{};
-    if (match.defensiveLiberoId != null) ids.add(match.defensiveLiberoId!);
-    if (match.receptionLiberoId != null) ids.add(match.receptionLiberoId!);
+    if (currentSet.defensiveLiberoId != null) ids.add(currentSet.defensiveLiberoId!);
+    if (currentSet.receptionLiberoId != null) ids.add(currentSet.receptionLiberoId!);
     return ids.toList();
   }
 
@@ -519,11 +523,34 @@ class MatchController extends ChangeNotifier {
     _persist();
   }
 
+  /// true si el último cambio registrado en el set se puede deshacer: tiene
+  /// que existir alguno y no puede ser automático (los automáticos responden
+  /// a una regla del reglamento —central reemplazado por el líbero receptor,
+  /// o líbero forzado a salir al rotar a la fila delantera—, no a un error
+  /// de carga, así que deshacerlos dejaría la cancha en un estado ilegal).
+  bool get canUndoLastSubstitution =>
+      currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto;
+
+  /// Deshace el último cambio de jugador del set (regular o de líbero),
+  /// devolviendo al jugador que había salido y, si el cambio deshecho
+  /// contaba contra el cupo, sin que quede contado.
+  void undoLastSubstitution() {
+    if (!canUndoLastSubstitution) return;
+    final set = currentSet;
+    final removed = set.substitutions.removeLast();
+    set.currentOrderOwn[removed.slotIndex] = removed.playerOutId;
+    if (removed.countedAgainstLimit) {
+      set.substitutionsUsedOwn = (set.substitutionsUsedOwn - 1).clamp(0, 1 << 30);
+    }
+    notifyListeners();
+    _persist();
+  }
+
   /// Si el equipo propio sacó con un central y perdió el punto, entra
   /// automáticamente el líbero receptor en su lugar (cambio libre), siempre
   /// que esté configurado, en fila trasera y no esté ya en cancha.
   void _maybeAutoSubCentralForLibero(String serverId) {
-    final liberoId = match.receptionLiberoId;
+    final liberoId = currentSet.receptionLiberoId;
     if (liberoId == null || liberoId == serverId) return;
     if (playerById(serverId)?.position != PlayerPosition.central) return;
     if (!canBringLiberoIn(liberoId, serverId)) return;

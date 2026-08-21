@@ -24,12 +24,6 @@ class LineupScreen extends StatefulWidget {
   final MatchConfig config;
   final List<Player> roster;
 
-  // Roles de líbero elegidos en la planilla (opcionales). Solo se usan al
-  // crear el partido (primer set); en un set siguiente el partido ya tiene
-  // estos valores asignados.
-  final String? defensiveLiberoId;
-  final String? receptionLiberoId;
-
   // Si se pasa un [existingController], esta pantalla configura el
   // siguiente set de un partido ya en curso en lugar de crear uno nuevo.
   final MatchController? existingController;
@@ -47,8 +41,6 @@ class LineupScreen extends StatefulWidget {
     required this.date,
     required this.config,
     required this.roster,
-    this.defensiveLiberoId,
-    this.receptionLiberoId,
     this.existingController,
   });
 
@@ -62,7 +54,38 @@ class _LineupScreenState extends State<LineupScreen> {
   int? _rivalSetterPos;
   bool _trackHitZones = true;
 
+  // Roles de líbero de este set (opcionales): se eligen de nuevo en cada
+  // set porque el equipo puede usar líberos distintos set a set. Si hay un
+  // set anterior en el mismo partido, arrancan precargados con lo elegido
+  // ahí (se pueden cambiar); si es el primer set del partido, arrancan vacíos.
+  late String? _defensiveLiberoId;
+  late String? _receptionLiberoId;
+
   bool get _isNextSet => widget.existingController != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final previousSet = widget.existingController?.match.sets.isNotEmpty == true
+        ? widget.existingController!.match.sets.last
+        : null;
+    _defensiveLiberoId = previousSet?.defensiveLiberoId;
+    _receptionLiberoId = previousSet?.receptionLiberoId;
+
+    // El sexteto titular suele repetirse set a set, así que si hay un set
+    // anterior en este mismo partido precargamos su formación inicial acá
+    // (se puede cambiar libremente); si es el primer set del partido, los
+    // 6 puestos arrancan vacíos.
+    final previousOrder = previousSet?.startingOrderOwn;
+    if (previousOrder != null) {
+      for (var i = 0; i < 6 && i < previousOrder.length; i++) {
+        _positions[i + 1] = previousOrder[i];
+      }
+    }
+  }
+
+  List<Player> get _liberos =>
+      widget.roster.where((p) => p.position == PlayerPosition.libero).toList();
 
   List<Player> _availableFor(int pos) {
     final used = _positions.entries
@@ -95,6 +118,8 @@ class _LineupScreenState extends State<LineupScreen> {
         startingOrderOwn: order,
         startingServer: _startingServer,
         trackHitZones: _trackHitZones,
+        defensiveLiberoId: _defensiveLiberoId,
+        receptionLiberoId: _receptionLiberoId,
       );
       controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
       await context.read<AppDataController>().saveMatch(controller.match);
@@ -116,8 +141,6 @@ class _LineupScreenState extends State<LineupScreen> {
       rivalTeamName: widget.rivalTeamName,
       rivalTeamSourceId: widget.rivalTeamSourceId,
       config: widget.config,
-      defensiveLiberoId: widget.defensiveLiberoId,
-      receptionLiberoId: widget.receptionLiberoId,
     );
     final controller = MatchController(match);
     controller.startSet(
@@ -125,6 +148,8 @@ class _LineupScreenState extends State<LineupScreen> {
       startingOrderOwn: order,
       startingServer: _startingServer,
       trackHitZones: _trackHitZones,
+      defensiveLiberoId: _defensiveLiberoId,
+      receptionLiberoId: _receptionLiberoId,
     );
     controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
     await context.read<AppDataController>().saveMatch(match);
@@ -179,6 +204,39 @@ class _LineupScreenState extends State<LineupScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: backRow.map((p) => Expanded(child: _posDropdown(p))).toList(),
           ),
+          if (_liberos.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Text('Roles de líbero (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            const Text(
+              'Podés asignar un líbero para la defensa cuando saca tu equipo y otro para la '
+              'recepción cuando saca el rival (también puede ser el mismo). Se elige para este '
+              'set en particular: en el próximo set lo vas a poder volver a definir.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String?>(
+              initialValue: _liberos.any((p) => p.id == _defensiveLiberoId) ? _defensiveLiberoId : null,
+              decoration: const InputDecoration(labelText: 'Líbero defensor (cuando sacamos)'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Ninguno')),
+                for (final p in _liberos)
+                  DropdownMenuItem(value: p.id, child: Text('#${p.number} ${p.fullName}')),
+              ],
+              onChanged: (v) => setState(() => _defensiveLiberoId = v),
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String?>(
+              initialValue: _liberos.any((p) => p.id == _receptionLiberoId) ? _receptionLiberoId : null,
+              decoration: const InputDecoration(labelText: 'Líbero receptor (cuando saca el rival)'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Ninguno')),
+                for (final p in _liberos)
+                  DropdownMenuItem(value: p.id, child: Text('#${p.number} ${p.fullName}')),
+              ],
+              onChanged: (v) => setState(() => _receptionLiberoId = v),
+            ),
+          ],
           const SizedBox(height: 24),
           const Text('Armador rival (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),

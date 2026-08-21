@@ -5,7 +5,7 @@ class Team {
   String name;
   List<Player> players;
 
-  static const int maxPlayers = 20;
+  static const int maxPlayers = 35;
 
   Team({
     required this.id,

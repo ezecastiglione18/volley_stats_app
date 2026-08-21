@@ -65,8 +65,19 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
                 color: successColor(context).withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text('¡Partido finalizado! Los datos quedaron guardados en el archivo.',
-                  style: TextStyle(color: successColor(context), fontWeight: FontWeight.w600)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('¡Partido finalizado! Los datos quedaron guardados en el archivo.',
+                      style: TextStyle(color: successColor(context), fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.home_outlined),
+                    label: const Text('Volver al inicio'),
+                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  ),
+                ],
+              ),
             ),
           Card(
             child: Padding(

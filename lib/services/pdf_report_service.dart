@@ -12,6 +12,10 @@ import '../models/volley_match.dart';
 import 'stats_engine.dart';
 
 class PdfReportService {
+  /// Fondo suave para resaltar la fila del líbero en la tabla de
+  /// estadísticas (el resto de las filas queda en blanco).
+  static const _liberoRowColor = PdfColor.fromInt(0xFFDCEFFA);
+
   static Future<void> shareMatchReport(VolleyMatch match) async {
     final bytes = await _buildPdf(match);
     await Printing.sharePdf(bytes: bytes, filename: _fileName(match));
@@ -236,6 +240,13 @@ class PdfReportService {
       ];
     }).toList();
 
+    // Marca qué filas son de un líbero, para resaltarlas con un color de
+    // fondo suave (la fila de TOTAL EQUIPO, al final, nunca lo es).
+    final isLiberoRow = [
+      for (final r in stats.orderedRows) r.position == PlayerPosition.libero,
+      false,
+    ];
+
     // Fila de totales del equipo.
     final t = stats.team;
     rows.add([
@@ -280,7 +291,7 @@ class PdfReportService {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         _statsGroupBand(compact),
-        pw.Table.fromTextArray(
+        pw.TableHelper.fromTextArray(
           headers: [for (final c in _statCols) c.label],
           data: rows,
           columnWidths: columnWidths,
@@ -289,7 +300,14 @@ class PdfReportService {
           headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: fontSize),
           cellStyle: pw.TextStyle(fontSize: fontSize),
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          // Filas blancas para el resto del equipo; solo se resalta con un
+          // celeste suave la fila del líbero, para diferenciarla a simple
+          // vista sin depender de alternar colores par/impar.
+          cellDecoration: (index, data, rowNum) {
+            final dataRow = rowNum - 1;
+            final isLibero = dataRow >= 0 && dataRow < isLiberoRow.length && isLiberoRow[dataRow];
+            return pw.BoxDecoration(color: isLibero ? _liberoRowColor : PdfColors.white);
+          },
           cellAlignment: pw.Alignment.center,
           cellAlignments: {
             for (var i = 0; i < _statCols.length; i++)
@@ -367,30 +385,35 @@ class PdfReportService {
         flexSum += _statCols[j].flex;
         j++;
       }
+      final bandHeight = compact ? 11.0 : 13.0;
       children.add(
         pw.Expanded(
           flex: flexSum,
-          child: pw.Container(
-            height: compact ? 11 : 13,
-            alignment: pw.Alignment.center,
-            decoration: const pw.BoxDecoration(
-              color: PdfColors.blueGrey100,
-              border: pw.Border(
-                left: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
-                right: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
-                top: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
-              ),
-            ),
-            child: group == null
-                ? null
-                : pw.Text(
+          // Las columnas sin grupo (N°, Jugador, Pts, Err, Blq Pts, Err Gen)
+          // no tienen un título que mostrar acá arriba, así que en vez de
+          // dibujar el recuadro con color y borde vacío, dejamos el espacio
+          // en blanco y sin decoración.
+          child: group == null
+              ? pw.SizedBox(height: bandHeight)
+              : pw.Container(
+                  height: bandHeight,
+                  alignment: pw.Alignment.center,
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.blueGrey100,
+                    border: pw.Border(
+                      left: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
+                      right: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
+                      top: pw.BorderSide(width: 0.5, color: PdfColors.grey600),
+                    ),
+                  ),
+                  child: pw.Text(
                     group,
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       fontSize: compact ? 6.5 : 7.5,
                     ),
                   ),
-          ),
+                ),
         ),
       );
       i = j;

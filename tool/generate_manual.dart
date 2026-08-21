@@ -1,0 +1,1131 @@
+// Genera manual_usuario_rallystats.pdf en la raíz del repo.
+//
+// No existe ningún archivo fuente "editable" del manual (se armó en algún
+// momento con una herramienta externa y solo quedó commiteado el PDF final),
+// así que este script lo reconstruye por completo con package:pdf, tomando
+// la paleta real de la app (ver lib/utils/theme.dart) para que el documento
+// se sienta parte de RallyStats. Correrlo con:
+//
+//   dart run tool/generate_manual.dart
+//
+// Los números de página del índice (_toc más abajo) están escritos a mano:
+// package:pdf no expone una forma simple de resolver "en qué página cayó
+// este widget" dentro del mismo pase de armado. Después de generar, conviene
+// revisar el PDF resultante y ajustar esos números si algún contenido corrió
+// de página.
+import 'dart:io';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+// ---------------------------------------------------------------------------
+// Paleta (misma que AppColors en lib/utils/theme.dart, tokens de modo claro).
+// ---------------------------------------------------------------------------
+final _navy = PdfColor.fromInt(0xFF1E2A38);
+final _cyan = PdfColor.fromInt(0xFF3DC2EC);
+final _textDark = PdfColor.fromInt(0xFF1B1F24);
+final _textGrey = PdfColor.fromInt(0xFF6B7280);
+final _border = PdfColor.fromInt(0xFFE5E7EB);
+final _surfaceAlt = PdfColor.fromInt(0xFFEEF1F4);
+const _white = PdfColors.white;
+
+/// Total de páginas del documento, para el pie de la portada (que se arma
+/// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
+/// total). Ajustar tras generar si cambia la paginación real.
+const _coverTotalPages = 14;
+
+/// Página donde arranca cada sección/subsección, para el índice. Ajustar
+/// tras generar y revisar el PDF si algún contenido corrió de página.
+const _pIntroduccion = 3;
+const _pPantallaPrincipal = 3;
+const _pGestionEquipos = 4;
+const _pCrearEquipo = 4;
+const _pAgregarJugadores = 4;
+const _pEquipoEjemplo = 4;
+const _pCrearPartido = 4;
+const _pDatosRival = 4;
+const _pConfigPartido = 5;
+const _pPlanilla = 5;
+const _pSeleccionJugadores = 5;
+const _pFormacionInicial = 5;
+const _pRolesLibero = 6;
+const _pPantallaVivo = 6;
+const _pMarcador = 6;
+const _pCancha = 6;
+const _pBotonesAccion = 6;
+const _pZonaDestino = 7;
+const _pCambiosJugador = 7;
+const _pCambioRegular = 7;
+const _pCambioLibero = 8;
+const _pDeshacerCambio = 8;
+const _pHerramientas = 8;
+const _pFinSet = 9;
+const _pArchivo = 9;
+const _pResumen = 9;
+const _pExportarPdf = 10;
+const _pGlosario = 10;
+const _pFaq = 11;
+const _pContacto = 13;
+
+Future<void> main() async {
+  final doc = pw.Document();
+  final logoBytes = File('assets/icon/app_icon_petals.png').readAsBytesSync();
+  final logo = pw.MemoryImage(logoBytes);
+
+  doc.addPage(_coverPage(logo));
+  doc.addPage(_bodyPages(logo));
+
+  final bytes = await doc.save();
+  final outFile = File('manual_usuario_rallystats.pdf');
+  await outFile.writeAsBytes(bytes);
+  // ignore: avoid_print
+  print('Manual generado: ${outFile.path} (${bytes.length} bytes)');
+}
+
+// ---------------------------------------------------------------------------
+// Portada
+// ---------------------------------------------------------------------------
+
+pw.Page _coverPage(pw.MemoryImage logo) {
+  return pw.Page(
+    pageFormat: PdfPageFormat.a4,
+    margin: pw.EdgeInsets.zero,
+    build: (context) => pw.Container(
+      color: _navy,
+      padding: const pw.EdgeInsets.fromLTRB(50, 40, 50, 32),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Row(children: [
+                pw.Image(logo, width: 16, height: 16),
+                pw.SizedBox(width: 8),
+                pw.Text('RALLYSTATS',
+                    style: pw.TextStyle(
+                        color: _white, fontSize: 10, letterSpacing: 1.5, fontWeight: pw.FontWeight.bold)),
+              ]),
+              pw.Text('MANUAL DE USUARIO',
+                  style: pw.TextStyle(color: PdfColors.blueGrey200, fontSize: 10, letterSpacing: 1)),
+            ],
+          ),
+          pw.SizedBox(height: 14),
+          pw.Container(height: 1, color: PdfColors.blueGrey700),
+          pw.Expanded(
+            child: pw.Center(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0xFF212B37),
+                  borderRadius: pw.BorderRadius.circular(18),
+                ),
+                child: pw.Column(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  children: [
+                    pw.Container(
+                      width: 72,
+                      height: 72,
+                      alignment: pw.Alignment.center,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromInt(0xFF29323F),
+                        borderRadius: pw.BorderRadius.circular(16),
+                      ),
+                      child: pw.Image(logo, width: 54, height: 54),
+                    ),
+                    pw.SizedBox(height: 20),
+                    pw.RichText(
+                      text: pw.TextSpan(children: [
+                        pw.TextSpan(
+                            text: 'Rally',
+                            style: pw.TextStyle(color: _white, fontSize: 32, fontWeight: pw.FontWeight.bold)),
+                        pw.TextSpan(
+                            text: 'Stats',
+                            style: pw.TextStyle(color: _cyan, fontSize: 32, fontWeight: pw.FontWeight.bold)),
+                      ]),
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text('Manual de Usuario', style: pw.TextStyle(color: _cyan, fontSize: 15)),
+                    pw.SizedBox(height: 16),
+                    pw.Text(
+                      'Carga de estadísticas en vivo, planillas de equipo y reportes en PDF\npara partidos de vóley.',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(color: PdfColors.blueGrey100, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          pw.Container(height: 1, color: PdfColors.blueGrey700),
+          pw.SizedBox(height: 10),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.RichText(
+                text: pw.TextSpan(
+                  style: pw.TextStyle(color: PdfColors.blueGrey200, fontSize: 9),
+                  children: [
+                    const pw.TextSpan(text: 'Versión de la app '),
+                    pw.TextSpan(text: '1.0', style: pw.TextStyle(color: _white, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+              ),
+              pw.Text('Saque · Recepción · Ataque · Bloqueo · Reportes PDF',
+                  style: pw.TextStyle(color: PdfColors.blueGrey200, fontSize: 9)),
+              pw.Text('1 / $_coverTotalPages', style: pw.TextStyle(color: PdfColors.blueGrey200, fontSize: 9)),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Resto del documento: índice + secciones, como un único MultiPage para que
+// la numeración de página y el pie ("N / total") salgan solos.
+// ---------------------------------------------------------------------------
+
+pw.MultiPage _bodyPages(pw.MemoryImage logo) {
+  return pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.fromLTRB(50, 34, 50, 34),
+    header: (context) => _pageHeader(logo),
+    footer: (context) => _pageFooter(context),
+    build: (context) => [
+      ..._indexContent(),
+      pw.NewPage(),
+      ..._section1Introduccion(),
+      ..._section2PantallaPrincipal(),
+      ..._section3GestionEquipos(),
+      ..._section4CrearPartido(),
+      ..._section5Planilla(),
+      ..._section6FormacionInicial(),
+      ..._section7PantallaVivo(),
+      ..._section8CambiosJugador(),
+      ..._section9Herramientas(),
+      ..._section10FinSet(),
+      ..._section11Archivo(),
+      ..._section12Resumen(),
+      ..._section13ExportarPdf(),
+      ..._section14Glosario(),
+      ..._section15Faq(),
+      ..._section16Contacto(),
+    ],
+  );
+}
+
+pw.Widget _pageHeader(pw.MemoryImage logo) {
+  return pw.Column(children: [
+    pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Row(children: [
+          pw.Image(logo, width: 12, height: 12),
+          pw.SizedBox(width: 6),
+          pw.Text('RallyStats', style: pw.TextStyle(color: _navy, fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        ]),
+        pw.Text('Manual de Usuario', style: pw.TextStyle(color: _textGrey, fontSize: 9)),
+      ],
+    ),
+    pw.SizedBox(height: 8),
+    pw.Container(height: 0.75, color: _border),
+    pw.SizedBox(height: 12),
+  ]);
+}
+
+pw.Widget _pageFooter(pw.Context context) {
+  // context.pageNumber/pagesCount ya son globales al documento completo (o
+  // sea que ya cuentan la portada, que es una página aparte agregada antes
+  // que este MultiPage), así que no hace falta compensarlos a mano.
+  final page = context.pageNumber;
+  final total = context.pagesCount;
+  return pw.Column(children: [
+    pw.Container(height: 0.75, color: _border),
+    pw.SizedBox(height: 6),
+    pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text('RallyStats - Manual de Usuario', style: pw.TextStyle(color: _textGrey, fontSize: 8)),
+        pw.Text('$page / $total', style: pw.TextStyle(color: _textGrey, fontSize: 8)),
+      ],
+    ),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de contenido
+// ---------------------------------------------------------------------------
+
+pw.Widget _sectionTitle(int number, String title) {
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.SizedBox(height: 18),
+      pw.Container(height: 0.75, color: _border),
+      pw.SizedBox(height: 18),
+      pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+        pw.Container(
+          width: 22,
+          height: 22,
+          alignment: pw.Alignment.center,
+          decoration: pw.BoxDecoration(color: _navy, borderRadius: pw.BorderRadius.circular(6)),
+          child: pw.Text('$number', style: pw.TextStyle(color: _white, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Text(title, style: pw.TextStyle(color: _textDark, fontSize: 16, fontWeight: pw.FontWeight.bold)),
+      ]),
+      pw.SizedBox(height: 4),
+      pw.Container(width: 42, height: 2.5, color: _cyan),
+      pw.SizedBox(height: 12),
+    ],
+  );
+}
+
+pw.Widget _subHeading(String text) => pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 10, bottom: 6),
+      child: pw.Text(text, style: pw.TextStyle(color: _cyan, fontSize: 12.5, fontWeight: pw.FontWeight.bold)),
+    );
+
+pw.Widget _p(String text, {double fontSize = 10.2, PdfColor? color, double bottom = 8}) => pw.Padding(
+      padding: pw.EdgeInsets.only(bottom: bottom),
+      child: pw.Text(text, style: pw.TextStyle(color: color ?? _textDark, fontSize: fontSize, lineSpacing: 2)),
+    );
+
+pw.TextSpan _b(String text) => pw.TextSpan(text: text, style: pw.TextStyle(fontWeight: pw.FontWeight.bold));
+pw.TextSpan _t(String text) => pw.TextSpan(text: text);
+
+pw.Widget _bullets(List<List<pw.InlineSpan>> items, {double bottom = 10}) => pw.Padding(
+      padding: pw.EdgeInsets.only(bottom: bottom),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: items
+            .map((spans) => pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 5),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(
+                        width: 4,
+                        height: 4,
+                        margin: const pw.EdgeInsets.only(right: 8, top: 4.5),
+                        decoration: pw.BoxDecoration(color: _textGrey, shape: pw.BoxShape.circle),
+                      ),
+                      pw.Expanded(
+                        child: pw.RichText(
+                          text: pw.TextSpan(
+                              style: pw.TextStyle(color: _textDark, fontSize: 10.2, lineSpacing: 2), children: spans),
+                        ),
+                      ),
+                    ],
+                  ),
+                ))
+            .toList(),
+      ),
+    );
+
+pw.Widget _numbered(List<List<pw.InlineSpan>> items) => pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: List.generate(items.length, (i) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 6),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  width: 15,
+                  height: 15,
+                  margin: const pw.EdgeInsets.only(right: 8, top: 1),
+                  alignment: pw.Alignment.center,
+                  decoration: pw.BoxDecoration(color: _cyan, shape: pw.BoxShape.circle),
+                  child: pw.Text('${i + 1}', style: pw.TextStyle(color: _white, fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Expanded(
+                  child: pw.RichText(
+                    text: pw.TextSpan(
+                        style: pw.TextStyle(color: _textDark, fontSize: 10.2, lineSpacing: 2), children: items[i]),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+
+pw.Widget _infoBox(String text) => pw.Container(
+      width: double.infinity,
+      margin: const pw.EdgeInsets.only(top: 4, bottom: 10),
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(color: _surfaceAlt, borderRadius: pw.BorderRadius.circular(8)),
+      child: pw.Text(text, style: pw.TextStyle(color: _textDark, fontSize: 9.6, lineSpacing: 2)),
+    );
+
+pw.Widget _faqCard(String question, String answer) => pw.Container(
+      width: double.infinity,
+      margin: const pw.EdgeInsets.only(bottom: 8),
+      padding: const pw.EdgeInsets.all(11),
+      decoration: pw.BoxDecoration(color: _surfaceAlt, borderRadius: pw.BorderRadius.circular(8)),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(question, style: pw.TextStyle(color: _textDark, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 4),
+          pw.Text(answer, style: pw.TextStyle(color: _textDark, fontSize: 9.6, lineSpacing: 2)),
+        ],
+      ),
+    );
+
+pw.Widget _pill(String text, {double fontSize = 8}) => pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: pw.BoxDecoration(color: _navy, borderRadius: pw.BorderRadius.circular(5)),
+      child: pw.Text(text, style: pw.TextStyle(color: _white, fontSize: fontSize, fontWeight: pw.FontWeight.bold)),
+    );
+
+/// Tabla con encabezado navy y, opcionalmente, la primera columna renderizada
+/// como una "pastilla" oscura (como los botones/íconos del manual original).
+pw.Widget _table({
+  required List<String> headers,
+  required List<List<String>> rows,
+  List<int>? flex,
+  bool pillFirstColumn = false,
+}) {
+  final widths = flex == null
+      ? null
+      : {for (var i = 0; i < flex.length; i++) i: pw.FlexColumnWidth(flex[i].toDouble())};
+  return pw.Table(
+    border: pw.TableBorder.all(color: _border, width: 0.6),
+    columnWidths: widths,
+    children: [
+      pw.TableRow(
+        decoration: pw.BoxDecoration(color: _navy),
+        children: headers
+            .map((h) => pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                  child: pw.Text(h, style: pw.TextStyle(color: _white, fontSize: 9.2, fontWeight: pw.FontWeight.bold)),
+                ))
+            .toList(),
+      ),
+      for (var r = 0; r < rows.length; r++)
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: r.isOdd ? _surfaceAlt : _white),
+          children: List.generate(rows[r].length, (c) {
+            final cell = rows[r][c];
+            return pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              child: (pillFirstColumn && c == 0)
+                  ? pw.Align(alignment: pw.Alignment.centerLeft, child: _pill(cell))
+                  : pw.Text(cell, style: pw.TextStyle(color: _textDark, fontSize: 9.2, lineSpacing: 1.6)),
+            );
+          }),
+        ),
+    ],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Índice
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _indexContent() {
+  pw.Widget entry(String title, int page, {bool sub = false}) => pw.Padding(
+        padding: pw.EdgeInsets.only(left: sub ? 16 : 0, bottom: sub ? 6 : 9),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            sub
+                ? pw.Text('-  ', style: pw.TextStyle(color: _textGrey, fontSize: 9.5))
+                : pw.Container(
+                    width: 5,
+                    height: 5,
+                    margin: const pw.EdgeInsets.only(right: 9),
+                    decoration: pw.BoxDecoration(color: _cyan, shape: pw.BoxShape.circle),
+                  ),
+            pw.Expanded(
+              child: pw.Text(title,
+                  style: pw.TextStyle(
+                    color: sub ? _textGrey : _textDark,
+                    fontSize: sub ? 9.5 : 10.8,
+                    fontWeight: sub ? pw.FontWeight.normal : pw.FontWeight.bold,
+                  )),
+            ),
+            pw.Text('$page',
+                style: pw.TextStyle(
+                  color: sub ? _textGrey : _cyan,
+                  fontSize: sub ? 9.5 : 10.8,
+                  fontWeight: sub ? pw.FontWeight.normal : pw.FontWeight.bold,
+                )),
+          ],
+        ),
+      );
+
+  return [
+    pw.SizedBox(height: 6),
+    pw.Text('Índice', style: pw.TextStyle(color: _textDark, fontSize: 22, fontWeight: pw.FontWeight.bold)),
+    pw.SizedBox(height: 20),
+    entry('Introducción', _pIntroduccion),
+    entry('Pantalla principal', _pPantallaPrincipal),
+    entry('Gestión de equipos', _pGestionEquipos),
+    entry('Crear un equipo', _pCrearEquipo, sub: true),
+    entry('Agregar y editar jugadores', _pAgregarJugadores, sub: true),
+    entry('Equipo de ejemplo', _pEquipoEjemplo, sub: true),
+    entry('Crear un partido nuevo', _pCrearPartido),
+    entry('Datos del rival y del partido', _pDatosRival, sub: true),
+    entry('Configuración del partido', _pConfigPartido, sub: true),
+    entry('Planilla del partido (14 jugadores)', _pPlanilla),
+    entry('Selección de jugadores', _pSeleccionJugadores, sub: true),
+    entry('Formación inicial', _pFormacionInicial),
+    entry('Roles de líbero (por set)', _pRolesLibero, sub: true),
+    entry('Pantalla de partido en vivo', _pPantallaVivo),
+    entry('Marcador', _pMarcador, sub: true),
+    entry('Cancha', _pCancha, sub: true),
+    entry('Botones de acción y calificación', _pBotonesAccion, sub: true),
+    entry('Zona de destino (opcional)', _pZonaDestino, sub: true),
+    entry('Cambios de jugador', _pCambiosJugador),
+    entry('Cambio regular', _pCambioRegular, sub: true),
+    entry('Cambio de líbero', _pCambioLibero, sub: true),
+    entry('Deshacer un cambio', _pDeshacerCambio, sub: true),
+    entry('Herramientas durante el partido', _pHerramientas),
+    entry('Fin de set y fin de partido', _pFinSet),
+    entry('Archivo de partidos', _pArchivo),
+    entry('Resumen del partido y estadísticas', _pResumen),
+    entry('Exportar el reporte en PDF', _pExportarPdf),
+    entry('Glosario de calificaciones y abreviaturas', _pGlosario),
+    entry('Preguntas frecuentes', _pFaq),
+    entry('Contacto', _pContacto),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// 1. Introducción
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section1Introduccion() => [
+      _sectionTitle(1, 'Introducción'),
+      _p(
+        'RallyStats es una aplicación para registrar, en tiempo real y desde el celular o la tablet, '
+        'las estadísticas de un partido de vóley: saque, recepción, ataque, contraataque, bloqueo y '
+        'errores, jugada por jugada y jugador por jugador. Con esos datos, la app arma automáticamente '
+        'una planilla de estadísticas y permite compartirla o imprimirla como reporte en PDF.',
+      ),
+      _p('Con RallyStats podés:', bottom: 6),
+      _bullets([
+        [_t('Guardar tus equipos y planteles de jugadores (hasta 35 por equipo).')],
+        [_t('Configurar un partido nuevo (rival, torneo, formato de sets, cambios permitidos).')],
+        [_t('Armar la planilla de 14 jugadores habilitados y la formación inicial de cada set.')],
+        [_t('Cargar el partido en vivo, punto por punto, con calificación de cada toque.')],
+        [
+          _t('Registrar cambios de jugador respetando las reglas oficiales de la FIVB (cambio regular y '
+              'cambio de líbero), eligiendo los roles de líbero de nuevo en cada set.')
+        ],
+        [_t('Deshacer un toque o un cambio de jugador cargado por error, sin perder el resto de lo anotado.')],
+        [_t('Ver la estadística del partido completo o de un set en particular.')],
+        [_t('Exportar y compartir un reporte en PDF con el resultado, la estadística por jugador y las zonas de destino de saque y ataque.')],
+        [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
+        [_t('Guardar el archivo histórico de partidos jugados.')],
+      ]),
+      _infoBox(
+        'Nota: todos los datos (equipos, jugadores y partidos) se guardan únicamente en el dispositivo '
+        'donde se usa la app. No se suben a internet ni se sincronizan entre dispositivos: conviene '
+        'exportar en PDF los partidos importantes para conservarlos o compartirlos con el cuerpo técnico.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 2. Pantalla principal
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section2PantallaPrincipal() => [
+      _sectionTitle(2, 'Pantalla principal'),
+      _p(
+        'Al abrir la app aparece la pantalla principal con tres accesos, que son también el orden natural '
+        'en el que se usa la app para armar y jugar un partido:',
+        bottom: 6,
+      ),
+      _numbered([
+        [_b('Nuevo Partido: '), _t('inicia el asistente para configurar y arrancar un partido nuevo.')],
+        [_b('Archivo de Partidos: '), _t('lista todos los partidos guardados, terminados o en curso.')],
+        [_b('Equipos: '), _t('administra los equipos propios y sus planteles de jugadores.')],
+      ]),
+      _p(
+        'En la parte superior derecha de todas las pantallas hay un interruptor de modo claro / modo '
+        'oscuro (ícono de sol / luna) para alternar entre los dos. La preferencia elegida queda guardada '
+        'en el dispositivo y se aplica automáticamente la próxima vez que se abre la app.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 3. Gestión de equipos
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section3GestionEquipos() => [
+      _sectionTitle(3, 'Gestión de equipos'),
+      _p(
+        'Antes de cargar un partido hace falta tener creado, al menos, el equipo propio con sus jugadores. '
+        'Desde la pantalla principal, tocá Equipos para ver la lista de equipos guardados.',
+      ),
+      _subHeading('3.1 Crear un equipo'),
+      _numbered([
+        [_b('En la pantalla "Equipos", tocá el botón '), _b('+ Nuevo equipo'), _t('.')],
+        [_t('Escribí el nombre del equipo o club.')],
+        [_t('El equipo se guarda automáticamente a medida que se completan los datos (no hace falta un botón "Guardar" aparte para el nombre).')],
+      ]),
+      _p(
+        'Desde la lista de equipos también podés tocar cualquier equipo existente para editarlo, o usar el '
+        'ícono de tacho para borrar un jugador.',
+      ),
+      _subHeading('3.2 Agregar y editar jugadores'),
+      _p(
+        'Dentro de la pantalla de un equipo ("Editar equipo"), tocá Agregar para sumar un jugador nuevo, o '
+        'tocá un jugador de la lista para editarlo. Cada equipo admite hasta 35 jugadores cargados; de esa '
+        'lista después se elige, para cada partido, una planilla de hasta 14 habilitados.',
+      ),
+      _p('Los datos que se cargan por jugador son:', bottom: 6),
+      _bullets([
+        [_t('Apellido y Nombre.')],
+        [_t('Número de camiseta.')],
+        [_t('Posición: Armador, Opuesto, Central, Punta/Receptor o Líbero.')],
+        [_t('Datos físicos (opcionales): altura y peso.')],
+        [_t('Mano de ataque (opcional): derecha o izquierda.')],
+      ]),
+      _p(
+        'Para borrar un equipo completo, entrá a su pantalla de edición y usá el ícono de tacho de basura '
+        'del encabezado; la app pide confirmación antes de eliminarlo.',
+      ),
+      _subHeading('3.3 Equipo de ejemplo'),
+      _p(
+        'En la pantalla "Equipos", el ícono con forma de estrella del encabezado carga automáticamente un '
+        'equipo de ejemplo (Club Atlético Central) con 20 jugadores ya cargados, repartidos en partes '
+        'iguales entre las 5 posiciones. Es útil para probar la app rápidamente sin tener que escribir un '
+        'plantel entero a mano.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 4. Crear un partido nuevo
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section4CrearPartido() => [
+      _sectionTitle(4, 'Crear un partido nuevo'),
+      _p(
+        'Tocá Nuevo Partido en la pantalla principal. El armado de un partido tiene cuatro pasos: datos del '
+        'partido, planilla de 14, formación inicial y, recién ahí, arranca la carga en vivo.',
+      ),
+      _subHeading('4.1 Datos del rival y del partido'),
+      _bullets([
+        [_b('Mi equipo: '), _t('elegí uno de los equipos ya cargados en "Equipos".')],
+        [
+          _b('Rival: '),
+          _t('escribí el nombre del equipo rival. Si el rival también está precargado como equipo propio '
+              'en la app, se lo puede seleccionar desde "Equipo rival precargado" para autocompletar el nombre.')
+        ],
+        [_b('Fecha del partido '), _t('(por defecto, la fecha de hoy).')],
+        [_b('Torneo / Liga, Instancia, Categoría y Cancha / sede '), _t('(todos opcionales, quedan en el reporte).')],
+      ]),
+      _subHeading('4.2 Configuración del partido'),
+      _p(
+        'Desplegando "Configuración del partido" se pueden ajustar las reglas con las que se juega, con '
+        'valores por defecto ya cargados según el reglamento estándar:',
+      ),
+      _table(
+        headers: ['Parámetro', 'Valor por defecto', 'Qué controla'],
+        flex: [3, 2, 5],
+        rows: [
+          ['Cantidad máxima de sets', '5', 'Sets totales que se juegan como máximo (mejor de 5).'],
+          ['Puntos para ganar un set (1° al 4°)', '25', 'Puntos necesarios para ganar los sets regulares.'],
+          ['Diferencia mínima (sets 1° al 4°)', '2', 'Ventaja mínima de puntos para cerrar esos sets.'],
+          ['Puntos para ganar el tie-break', '15', 'Puntos del set decisivo (el último posible).'],
+          ['Diferencia mínima (tie-break)', '2', 'Ventaja mínima de puntos para cerrar el tie-break.'],
+          ['Cambios permitidos por set', '6', 'Cambios regulares de jugador habilitados por set y por equipo.'],
+        ],
+      ),
+      pw.SizedBox(height: 10),
+      _p('Cuando todo esté completo, tocá Continuar: elegir planilla de 14.'),
+    ];
+
+// ---------------------------------------------------------------------------
+// 5. Planilla del partido
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section5Planilla() => [
+      _sectionTitle(5, 'Planilla del partido (14 jugadores)'),
+      _p(
+        'En esta pantalla se eligen, del plantel completo del equipo, los jugadores habilitados para este '
+        'partido en particular (mínimo 6, máximo 14). Los chips de arriba (Todos, ARM, OP, CEN, P/R, LIB) '
+        'sirven solo para filtrar la lista visible; no afectan a los jugadores ya seleccionados.',
+      ),
+      _subHeading('5.1 Selección de jugadores'),
+      _p('Tocá cada jugador de la lista para marcarlo o desmarcarlo como habilitado para el partido.'),
+      _p('Tocá Continuar: formación inicial para seguir.'),
+    ];
+
+// ---------------------------------------------------------------------------
+// 6. Formación inicial
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section6FormacionInicial() => [
+      _sectionTitle(6, 'Formación inicial'),
+      _p('Antes de arrancar el set (o cada set siguiente) hay que definir:', bottom: 6),
+      _bullets([
+        [_b('Quién saca primero: '), _t('el equipo propio o el rival.')],
+        [
+          _b('La formación '),
+          _t('de las 6 posiciones en cancha, asignando un jugador a cada una: fila delantera (4-3-2) y '
+              'fila trasera (5-6-1, donde el puesto 1 es el que saca). El líbero nunca ocupa una de estas 6 '
+              'posiciones: se asigna aparte, más abajo, y entra en cancha durante el set mediante el cambio '
+              'de líbero (ver sección 8.2). A partir del segundo set del partido, las 6 posiciones aparecen '
+              'precargadas con la misma formación titular del set anterior, para no tener que volver a '
+              'elegir jugador por jugador cuando el equipo repite sexteto; se puede cambiar libremente antes '
+              'de tocar Comenzar set.')
+        ],
+        [
+          _b('Roles de líbero '),
+          _t('(opcional): si entre los jugadores habilitados hay uno o más líberos, aparece acá, debajo del '
+              'sexteto, la sección "Roles de líbero" (ver más abajo).')
+        ],
+        [_b('Armador rival '), _t('(opcional): solo a modo informativo, en qué posición arranca.')],
+        [
+          _b('Registrar zona de destino en saque y ataque: '),
+          _t('si está activada, al calificar un saque o un ataque se va a poder marcar (opcionalmente) a '
+              'qué zona de la cancha rival fue dirigido. Esta opción se define una vez por set.')
+        ],
+      ]),
+      _subHeading('6.1 Roles de líbero (por set)'),
+      _p(
+        'Si el equipo tiene uno o más líberos entre los jugadores habilitados para el partido, debajo del '
+        'sexteto inicial aparecen dos selectores opcionales: líbero defensor (el que entra cuando saca el '
+        'equipo propio) y líbero receptor (el que entra cuando saca el rival). Ambos roles pueden recaer en '
+        'el mismo jugador.',
+      ),
+      _p(
+        'Esta elección se hace de nuevo antes de cada set, porque el equipo puede usar líberos distintos '
+        'set a set: a partir del segundo set los selectores aparecen precargados con lo elegido en el set '
+        'anterior, pero se pueden cambiar libremente. Definirlos habilita, durante ese set, la sugerencia '
+        'automática de cambio de líbero cuando corresponde (ver sección 8.2).',
+      ),
+      _p('Con todas las posiciones asignadas, tocá Comenzar partido (o Comenzar set N si es un set siguiente '
+          'dentro de un partido ya en curso) para pasar a la pantalla de carga en vivo.'),
+    ];
+
+// ---------------------------------------------------------------------------
+// 7. Pantalla de partido en vivo
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section7PantallaVivo() => [
+      _sectionTitle(7, 'Pantalla de partido en vivo'),
+      _p(
+        'Es la pantalla principal de uso durante el partido. Se divide en tres partes: el marcador, la '
+        'cancha con la formación actual y la grilla de botones de acción.',
+      ),
+      _subHeading('7.1 Marcador'),
+      _p(
+        'Muestra el nombre y el puntaje de cada equipo en el set actual, un ícono de pelota junto al equipo '
+        'que está sacando, y debajo el resultado en sets y el número de set en curso.',
+      ),
+      _subHeading('7.2 Cancha'),
+      _p(
+        'Representa las 6 posiciones de la cancha propia (fila delantera 4-3-2 arriba, fila trasera 5-6-1 '
+        'abajo) con el jugador que ocupa cada una en este momento. El puesto que saca (posición 1) se '
+        'resalta en color. La cancha se actualiza sola con cada rotación y con cada cambio de jugador.',
+      ),
+      _subHeading('7.3 Botones de acción y calificación'),
+      _p(
+        'Debajo de la cancha hay ocho botones de acción. La app solo habilita en cada momento los botones '
+        'que corresponden a la etapa actual del punto (por ejemplo, no deja registrar un ataque si todavía '
+        'no hubo recepción); los botones deshabilitados se ven en gris.',
+      ),
+      _table(
+        headers: ['Botón', 'Cuándo se habilita', 'Qué registra'],
+        flex: [3, 4, 6],
+        pillFirstColumn: true,
+        rows: [
+          ['Saque', 'Cuando le toca sacar al equipo propio.', 'Calificación del saque del jugador que está en el puesto 1.'],
+          ['Recepción', 'Cuando el rival sacó.', 'Calificación de la recepción, eligiendo qué jugador recibió.'],
+          ['Ataque', 'Después de una recepción no terminal.', 'Calificación del primer ataque (K1), eligiendo el jugador.'],
+          ['Contra', 'Con la pelota en juego del lado rival.', 'Calificación de un contraataque (posterior a defensa/bloqueo).'],
+          ['Bloqueo (Punto)', 'Con la pelota en juego del lado rival.', 'Punto de bloqueo; permite elegir uno o más bloqueadores.'],
+          ['Error General', 'En cualquier momento.', 'Error no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
+          ['Punto Rival', 'Al recibir o defender.', 'Punto directo del rival no atribuible a una acción propia cargada aparte.'],
+          ['Error Rival', 'Al recibir o defender.', 'Error no forzado del rival que le da el punto al equipo propio.'],
+        ],
+      ),
+      pw.SizedBox(height: 10),
+      _p(
+        'Al tocar Saque, Recepción, Ataque o Contra se abre un panel donde, si corresponde, primero se '
+        'elige el jugador y después se toca la calificación del toque. Las escalas de calificación son:',
+      ),
+      _table(
+        headers: ['Fase', 'Escala de calificación'],
+        flex: [3, 7],
+        rows: [
+          ['Saque / Ataque / Contra', 'PP punto directo · P bueno · N negativo · NN error'],
+          ['Ataque / Contra', 'Además puede calificarse BLOQ (bloqueado por el rival)'],
+          ['Recepción', 'PP perfecta · P buena · ! efectiva · N negativa · V- muy negativa · NN error'],
+        ],
+      ),
+      pw.SizedBox(height: 10),
+      _p('Para el bloqueo se puede elegir uno o más jugadores (bloqueo doble o triple); para "Error General" se puede elegir un jugador o dejarlo sin asignar.'),
+      _subHeading('7.4 Zona de destino (opcional)'),
+      _p(
+        'Si en la formación del set se activó "Registrar zona de destino", al calificar un saque o un '
+        'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival (numeradas igual que '
+        'las posiciones: 4-3-2 junto a la red, 5-6-1 en el fondo) para marcar, de forma opcional, hacia '
+        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 13).',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 8. Cambios de jugador
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section8CambiosJugador() => [
+      _sectionTitle(8, 'Cambios de jugador'),
+      _p(
+        'Se registran desde el ícono de flechas cruzadas del encabezado de la pantalla en vivo. El panel de '
+        'cambios tiene dos modos: Cambio regular y Cambio de líbero, cada uno con sus propias reglas (las '
+        'mismas que usa el reglamento oficial de la FIVB, vigente también en los torneos de FeVA y de las '
+        'federaciones metropolitanas):',
+      ),
+      _subHeading('8.1 Cambio regular'),
+      _bullets([
+        [_t('Cada titular tiene, como máximo, un único suplente fijo: puede salir por él una vez y volver a entrar una vez más, siempre entre esos dos mismos jugadores.')],
+        [_t('Un líbero nunca puede intervenir en un cambio regular.')],
+        [_t('Cada cambio regular consume un cupo del total configurado para el partido (por defecto, 6 por set); el contador de cambios usados se muestra arriba del panel.')],
+        [_t('Para hacerlo: elegí primero quién sale (solo se pueden elegir jugadores en cancha habilitados según la regla anterior) y después quién entra del banco.')],
+      ]),
+      _subHeading('8.2 Cambio de líbero'),
+      _p('Solo está disponible si el equipo tiene al menos un líbero declarado en la formación de este set (sección 6.1). Reglas:', bottom: 6),
+      _bullets([
+        [_t('El líbero solo puede entrar en un puesto de fila trasera (posiciones 1, 5 o 6), y no puede ocupar el puesto que está a punto de sacar.')],
+        [_t('Solo puede haber un líbero en cancha a la vez, aunque el equipo haya declarado dos.')],
+        [_t('El líbero en cancha solo puede salir por el mismo jugador al que reemplazó, o cambiarse directamente por el otro líbero declarado (si el equipo tiene dos).')],
+        [_t('El cambio de líbero no consume el cupo de cambios regulares del set, y es prácticamente ilimitado (con al menos una jugada de diferencia entre dos cambios seguidos en el mismo puesto).')],
+      ]),
+      _p('La app además automatiza dos situaciones, sin necesitar acción manual:', bottom: 6),
+      _bullets([
+        [_b('Central que saca y pierde el punto: '), _t('si estaba configurado un líbero receptor, entra automáticamente por ese central en cuanto el punto pasa a manos del rival.')],
+        [_b('Líbero que rota a la fila delantera: '), _t('sale automáticamente y vuelve el jugador al que había reemplazado, ya que un líbero nunca puede jugar adelante.')],
+      ]),
+      _p('Cuando corresponde, el panel de cambio de líbero también sugiere directamente el cambio recomendado para un central que quedó en el fondo, con un botón para aplicarlo en un toque.'),
+      _subHeading('8.3 Deshacer un cambio'),
+      _p(
+        'Si te equivocaste al registrar un cambio (regular o de líbero), el mismo panel de cambios tiene un '
+        'botón Deshacer último cambio. Solo deshace el cambio más reciente del set (no uno anterior), '
+        'devuelve a la cancha al jugador que había salido y, si el cambio deshecho era regular, no queda '
+        'contado contra el cupo de cambios del set.',
+      ),
+      _p(
+        'Los cambios automáticos (central reemplazado por el líbero receptor al perder el saque, o líbero '
+        'que sale obligado al rotar a la fila delantera) no se pueden deshacer desde este botón, porque '
+        'responden a una regla del reglamento y no a un error de carga.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 9. Herramientas durante el partido
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section9Herramientas() => [
+      _sectionTitle(9, 'Herramientas durante el partido'),
+      _p('En el encabezado de la pantalla en vivo hay accesos rápidos adicionales:'),
+      _table(
+        headers: ['Ícono', 'Función'],
+        flex: [3, 7],
+        pillFirstColumn: true,
+        rows: [
+          ['Deshacer', 'Anula la última acción cargada (toque, punto o cambio de jugador) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error.'],
+          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 12).'],
+          ['Cambio de jugador', 'Abre el panel de cambios (ver sección 8), que también permite deshacer el último cambio (sección 8.3).'],
+          ['Simular resto del set', 'Carga puntos al azar (jugador, calificación y resultado) hasta terminar el set actual. Cada acción simulada se puede deshacer igual que una cargada a mano. Pensado para probar la app o mostrar cómo funciona sin cargar todo el set manualmente.'],
+          ['Abandonar partido', 'Borra por completo el partido en curso (no se puede deshacer). La app pide confirmación antes de eliminarlo.'],
+        ],
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 10. Fin de set y fin de partido
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section10FinSet() => [
+      _sectionTitle(10, 'Fin de set y fin de partido'),
+      _p(
+        'Cuando un equipo llega a los puntos necesarios con la diferencia mínima configurada, el set '
+        'termina automáticamente y aparece un aviso con el resultado del set y el resultado en sets del '
+        'partido.',
+        bottom: 6,
+      ),
+      _bullets([
+        [_t('Si todavía no está definido el partido, tocando Configurar set siguiente se vuelve a la pantalla de formación (sección 6) para armar el próximo set.')],
+        [
+          _t('Si el partido queda definido (un equipo alcanza los sets necesarios para ganar), la app guarda '
+              'el partido automáticamente en el archivo y pasa directo a la pantalla de resumen (sección 12), '
+              'donde aparece un botón Volver al inicio para salir directo a la pantalla principal sin tener '
+              'que retroceder pantalla por pantalla.')
+        ],
+      ]),
+    ];
+
+// ---------------------------------------------------------------------------
+// 11. Archivo de partidos
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section11Archivo() => [
+      _sectionTitle(11, 'Archivo de partidos'),
+      _p(
+        'Desde la pantalla principal, Archivo de Partidos lista todos los partidos guardados, con fecha, '
+        'torneo, resultado en sets y un ícono que indica si están terminados (tilde, en verde) o todavía en '
+        'curso (flecha de reproducir, en naranja).',
+        bottom: 6,
+      ),
+      _bullets([
+        [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 12).')],
+        [_t('Tocar un partido en curso retoma la carga en vivo exactamente donde había quedado, reconstruyendo el marcador, la rotación y los cambios ya realizados.')],
+        [_t('Desde el menú de tres puntos de cada partido se lo puede eliminar del archivo.')],
+      ]),
+    ];
+
+// ---------------------------------------------------------------------------
+// 12. Resumen del partido y estadísticas
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section12Resumen() => [
+      _sectionTitle(12, 'Resumen del partido y estadísticas'),
+      _p(
+        'Esta pantalla se abre automáticamente al terminar un partido, o desde el ícono de estadísticas '
+        'durante la carga en vivo, o tocando un partido terminado en el archivo. Muestra:',
+        bottom: 6,
+      ),
+      _bullets([
+        [_t('Los datos generales del partido (fecha, torneo, instancia, categoría, cancha) y el resultado final.')],
+        [_t('Si acabás de terminar el partido, un aviso y un botón Volver al inicio para ir directo a la pantalla principal.')],
+        [_t('El resultado punto a punto de cada set jugado.')],
+        [_t('Una tabla de estadísticas por jugador, con una fila de TOTAL EQUIPO al final.')],
+      ]),
+      _p(
+        'El selector Estadística permite elegir entre el partido completo o un set en particular. La tabla '
+        'incluye, por jugador: puntos totales, errores totales, el desglose de saque, ataque y contraataque '
+        'por calificación (PP/P/N/Bl/NN), puntos de bloqueo, errores generales, y el desglose de recepción '
+        '(total, PP/P/!/N/V-/NN) junto con el porcentaje de efectividad de recepción (definido como (PP + P) '
+        'sobre el total de recepciones).',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 13. Exportar el reporte en PDF
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section13ExportarPdf() => [
+      _sectionTitle(13, 'Exportar el reporte en PDF'),
+      _p(
+        'Desde la pantalla de resumen del partido (sección 12), el ícono de PDF del encabezado genera y '
+        'abre el diálogo para compartir o guardar un reporte completo en PDF, listo para enviar por '
+        'WhatsApp o correo, o para imprimir.',
+        bottom: 6,
+      ),
+      _p('El reporte incluye:', bottom: 6),
+      _numbered([
+        [_t('Encabezado con equipos, fecha, torneo, instancia, categoría y cancha.')],
+        [_t('Resultado de cada set y el equipo ganador del partido.')],
+        [_t('La tabla de estadística completa por jugador (la misma información que en la sección 12), con una referencia al pie que explica cada abreviatura.')],
+        [_t('Si se registraron zonas de destino durante el partido: un desglose de saque y de ataque por zona de cancha (1 a 6), tanto a nivel equipo como por jugador.')],
+        [_t('Si el partido tuvo más de un set: el detalle de estadística de cada set por separado.')],
+      ]),
+      _infoBox(
+        'Nota: el reporte en PDF es, hoy, la única forma de sacar los datos de un partido fuera del '
+        'dispositivo. Conviene exportarlo y guardarlo (o enviarlo al cuerpo técnico) apenas termina cada '
+        'partido importante.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 14. Glosario
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section14Glosario() => [
+      _sectionTitle(14, 'Glosario de calificaciones y abreviaturas'),
+      _subHeading('Calificaciones de saque, ataque y contraataque'),
+      _table(
+        headers: ['', 'Significado'],
+        flex: [2, 8],
+        pillFirstColumn: true,
+        rows: [
+          ['PP', 'Punto directo (el toque termina el punto a favor propio).'],
+          ['P', 'Toque bueno / positivo, el punto sigue en juego.'],
+          ['N', 'Toque negativo, dificulta la jugada propia pero no termina el punto.'],
+          ['BLOQ', 'Solo en ataque/contra: el toque fue bloqueado por el rival (termina el punto en contra).'],
+          ['NN', 'Error (el toque termina el punto a favor del rival).'],
+        ],
+      ),
+      pw.SizedBox(height: 14),
+      _subHeading('Calificaciones de recepción'),
+      _table(
+        headers: ['', 'Significado'],
+        flex: [2, 8],
+        pillFirstColumn: true,
+        rows: [
+          ['PP', 'Recepción perfecta.'],
+          ['P', 'Recepción buena.'],
+          ['!', 'Recepción efectiva.'],
+          ['N', 'Recepción negativa.'],
+          ['V-', 'Recepción muy negativa.'],
+          ['NN', 'Error de recepción (termina el punto a favor del rival).'],
+        ],
+      ),
+      pw.SizedBox(height: 14),
+      _subHeading('Abreviaturas de la tabla de estadísticas'),
+      _table(
+        headers: ['', 'Significado'],
+        flex: [3, 7],
+        rows: [
+          ['Pts', 'Puntos totales convertidos por el jugador (o por el equipo).'],
+          ['Err', 'Errores totales cometidos.'],
+          ['Saq / Atq / Ctr', 'Saque / Ataque / Contraataque.'],
+          ['Blq', 'Puntos de bloqueo.'],
+          ['E. Gen', 'Errores generales (rotación, cuatro toques, etc.).'],
+          ['Rec Tot', 'Total de recepciones registradas.'],
+          ['Rec %', 'Efectividad de recepción: (PP + P) / total de recepciones.'],
+          ['ARM · OP · CEN · P/R · LIB', 'Posiciones: Armador · Opuesto · Central · Punta/Receptor · Líbero.'],
+          ['Z1 a Z6', 'Zonas de destino de la cancha rival (numeración estándar 1 a 6).'],
+        ],
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 15. Preguntas frecuentes
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section15Faq() => [
+      _sectionTitle(15, 'Preguntas frecuentes'),
+      _faqCard(
+        '¿Dónde se guardan los datos de la app?',
+        'Todo se guarda de forma local en el dispositivo (equipos, jugadores y partidos). Desinstalar la '
+            'app o borrar sus datos elimina también esa información, así que conviene exportar en PDF los '
+            'partidos que se quieran conservar.',
+      ),
+      _faqCard(
+        '¿Qué versión de Android necesito para usar RallyStats?',
+        'RallyStats necesita Android 7.0 (API 24) o superior. Se recomienda mantener el sistema operativo '
+            'del celular o la tablet actualizado para un mejor funcionamiento.',
+      ),
+      _faqCard(
+        '¿Necesito conexión a internet para poder tomar la estadística?',
+        'No. RallyStats funciona completamente sin conexión: la carga en vivo, las planillas de equipo y el '
+            'cálculo de estadísticas se hacen en el dispositivo. Solo hace falta conexión para acciones '
+            'puntuales que dependen del sistema operativo, como enviar el reporte en PDF por WhatsApp o '
+            'correo (sección 13).',
+      ),
+      _faqCard(
+        '¿Qué pasa si la aplicación deja de funcionar mientras estoy anotando? ¿Pierdo el progreso?',
+        'No debería perderse: cada toque, punto o cambio de jugador se guarda en el dispositivo apenas se '
+            'carga, sin esperar a que termine el set ni el partido. Si la app se cierra sola, se traba o el '
+            'celular se apaga, al volver a abrirla el partido va a aparecer "en curso" en Archivo de '
+            'Partidos (sección 11) y se puede retomar exactamente donde había quedado. Como mucho se puede '
+            'llegar a perder la última acción que se estaba por confirmar justo en el momento del cierre.',
+      ),
+      _faqCard(
+        '¿Puedo pasar un partido de un celular a otro, o verlo en dos dispositivos a la vez?',
+        'No de forma directa: como los datos son locales a cada dispositivo (ver la primera pregunta de '
+            'esta sección), un partido cargado en un celular no aparece en otro. La única forma de sacar '
+            'esa información y llevarla a otro lado es exportando el reporte en PDF (sección 13) y '
+            'compartiéndolo.',
+      ),
+      _faqCard(
+        '¿Puedo cambiar los datos de un equipo ya creado?',
+        'Sí. Desde "Equipos", tocá el equipo que querés modificar para entrar a "Editar equipo": ahí se '
+            'puede cambiar el nombre, agregar o quitar jugadores, y editar los datos de cada uno (nombre, '
+            'número, posición, altura, peso, mano de ataque). Los cambios se guardan automáticamente, igual '
+            'que al crear el equipo (sección 3.1).',
+      ),
+      _faqCard(
+        '¿Hace falta cargar el equipo rival como equipo propio antes de jugar?',
+        'No. En "Datos del rival y del partido" (sección 4.1) alcanza con escribir el nombre del rival a '
+            'mano. Precargarlo como equipo propio en "Equipos" es opcional, y solo sirve para autocompletar '
+            'el nombre más rápido si se enfrenta seguido al mismo rival.',
+      ),
+      _faqCard(
+        'Me equivoqué al cargar un toque, ¿cómo lo corrijo?',
+        'Usá el botón de Deshacer en el encabezado de la pantalla en vivo, tantas veces como haga falta; '
+            'deshace un toque a la vez, empezando por el último cargado.',
+      ),
+      _faqCard(
+        'Me equivoqué en un cambio de jugador, ¿cómo lo corrijo?',
+        'Desde el panel de Cambio de jugador, tocá Deshacer último cambio (sección 8.3). Solo funciona '
+            'para el cambio más reciente del set y, si era un cambio regular, no queda contado contra el '
+            'cupo de cambios.',
+      ),
+      _faqCard(
+        '¿Para qué sirve "Simular resto del set"?',
+        'Carga automáticamente puntos al azar hasta terminar el set. Sirve para probar rápidamente la app o '
+            'demostrar su funcionamiento sin tener que cargar cada toque a mano; no está pensado para usarse '
+            'durante un partido real.',
+      ),
+      _faqCard(
+        '¿Puedo cambiar la configuración de sets o de cambios una vez arrancado el partido?',
+        'No: la configuración se define al crear el partido (sección 4.2) y se mantiene durante todos sus '
+            'sets.',
+      ),
+      _faqCard(
+        '¿Qué pasa si abandono un partido por error?',
+        '"Abandonar partido" borra el partido por completo y no se puede deshacer. Si el partido ya tenía '
+            'un set terminado o estaba definido, se recomienda exportar el PDF (sección 13) antes de '
+            'abandonarlo, por si se necesitan esos datos más adelante.',
+      ),
+      _faqCard(
+        '¿Puedo corregir las estadísticas de un partido que ya terminó?',
+        'No directamente: una vez que el partido queda definido, la pantalla de resumen (sección 12) solo '
+            'permite consultar y exportar los datos, no modificar los toques cargados. Para corregir algo, '
+            'hacelo antes de que el partido termine, con Deshacer (sección 9) las veces que haga falta. Si '
+            'el partido ya terminó y tiene un error importante, se puede eliminar desde el menú de tres '
+            'puntos en Archivo de Partidos (sección 11) y cargarlo de nuevo desde cero.',
+      ),
+      _faqCard(
+        '¿El líbero puede sacar?',
+        'No. Por eso la app no permite que un líbero entre en el puesto que está a punto de sacar (posición '
+            '1 cuando saca el equipo propio); ver la sección 8.2.',
+      ),
+      _faqCard(
+        '¿Cómo cambio entre modo claro y modo oscuro?',
+        'Con el interruptor de modo claro / modo oscuro (ícono de sol / luna) que aparece en la esquina '
+            'superior derecha de cualquier pantalla de la app (ver sección 2). La elección queda guardada '
+            'en el dispositivo.',
+      ),
+      _faqCard(
+        '¿RallyStats está disponible en iOS (iPhone/iPad)?',
+        'Todavía no. El desarrollo está enfocado en Android, que es donde se compiló y probó la app hasta '
+            'ahora (incluida la generación del APK instalable). El proyecto está hecho en Flutter, que sí '
+            'permite compilar para iOS, pero esa parte todavía no se armó ni se probó: para hacerlo hace '
+            'falta una Mac con Xcode, algo que hoy no forma parte del flujo de trabajo del proyecto. Por '
+            'ahora, RallyStats solo está disponible para Android.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 16. Contacto
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section16Contacto() => [
+      _sectionTitle(16, 'Contacto'),
+      _p(
+        'Para consultas, reportar un problema o sugerir una mejora para RallyStats, podés escribir a:',
+      ),
+      pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: pw.BoxDecoration(color: _surfaceAlt, borderRadius: pw.BorderRadius.circular(8)),
+        child: pw.Text('ezecastiglione18@gmail.com',
+            style: pw.TextStyle(color: _navy, fontSize: 12, fontWeight: pw.FontWeight.bold)),
+      ),
+      pw.SizedBox(height: 24),
+      pw.Container(height: 0.75, color: _border),
+      pw.SizedBox(height: 16),
+      pw.Center(
+        child: pw.Text(
+          'Fin del manual. Ante cualquier duda adicional, este documento puede actualizarse a medida que '
+          'la app incorpore nuevas funciones.',
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(color: _textGrey, fontSize: 9.5),
+        ),
+      ),
+    ];

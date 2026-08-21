@@ -39,8 +39,27 @@ Future<void> showSubstitutionDialog({
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Cambio de jugador',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Cambio de jugador',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.undo, size: 18),
+                        label: const Text('Deshacer último cambio'),
+                        onPressed: controller.canUndoLastSubstitution
+                            ? () {
+                                controller.undoLastSubstitution();
+                                setState(() {});
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(content: Text('Cambio deshecho')),
+                                );
+                              }
+                            : null,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   SegmentedButton<bool>(
                     segments: const [
@@ -242,8 +261,8 @@ class _LiberoPanel extends StatelessWidget {
       }
       suggestedFor.add(p.id);
       final recommendedId = controller.servingTeam == TeamSide.own
-          ? controller.match.defensiveLiberoId
-          : controller.match.receptionLiberoId;
+          ? controller.currentSet.defensiveLiberoId
+          : controller.currentSet.receptionLiberoId;
       final canSuggest = recommendedId != null && controller.canBringLiberoIn(recommendedId, p.id);
       final recommended = recommendedId == null ? null : controller.playerById(recommendedId);
       final roleLabel = controller.servingTeam == TeamSide.own ? 'defensor' : 'receptor';
