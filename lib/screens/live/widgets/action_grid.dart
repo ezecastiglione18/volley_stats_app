@@ -1,9 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../../../models/rally_event.dart' show RivalAction;
 import '../../../state/match_controller.dart';
 import '../../../utils/grade_labels.dart';
 import '../../../utils/theme.dart';
 import 'player_select_dialog.dart';
+import 'rival_action_dialog.dart';
 import 'touch_dialog.dart';
 
 class ActionButtonSpec {
@@ -23,7 +27,14 @@ class ActionButtonSpec {
 
 class ActionGrid extends StatelessWidget {
   final MatchController controller;
-  const ActionGrid({super.key, required this.controller});
+
+  /// En pantallas anchas (ventana de escritorio), en vez de una grilla con
+  /// alto fijo (que puede necesitar scroll) se arma con celdas `Expanded`
+  /// para que los 8 botones siempre llenen el alto disponible sin scroll,
+  /// achicándose si hace falta.
+  final bool compact;
+
+  const ActionGrid({super.key, required this.controller, this.compact = false});
 
   void _serve(BuildContext context) {
     final serverId = controller.playerAtPosition(1);
@@ -89,6 +100,32 @@ class ActionGrid extends StatelessWidget {
     );
   }
 
+  void _opponentPoint(BuildContext context) {
+    showRivalActionDialog(
+      context: context,
+      title: 'Punto rival — ¿con qué tocó?',
+      options: const [
+        RivalActionOption(RivalAction.attack, 'Ataque'),
+        RivalActionOption(RivalAction.counter, 'Contraataque'),
+      ],
+      onSelected: (type) => controller.logOpponentPoint(rivalActionType: type),
+    );
+  }
+
+  void _opponentError(BuildContext context) {
+    showRivalActionDialog(
+      context: context,
+      title: 'Error rival — ¿con qué tocó?',
+      options: const [
+        RivalActionOption(RivalAction.serve, 'Saque'),
+        RivalActionOption(RivalAction.attack, 'Ataque'),
+        RivalActionOption(RivalAction.counter, 'Contraataque'),
+        RivalActionOption(RivalAction.generic, 'Genérico'),
+      ],
+      onSelected: (type) => controller.logOpponentError(rivalActionType: type),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -144,41 +181,84 @@ class ActionGrid extends StatelessWidget {
         icon: Icons.arrow_circle_down,
         color: err,
         enabled: controller.actionOpponentButtonsEnabled,
-        onTap: controller.logOpponentPoint,
+        onTap: () => _opponentPoint(context),
       ),
       ActionButtonSpec(
         label: 'Error\nRival',
         icon: Icons.arrow_circle_up,
         color: err,
         enabled: controller.actionOpponentButtonsEnabled,
-        onTap: controller.logOpponentError,
+        onTap: () => _opponentError(context),
       ),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 2.4,
-      padding: const EdgeInsets.all(12),
-      children: buttons.map((b) {
-        // El texto sobre el celeste de acento se ve mejor oscuro que blanco.
-        final onColor = b.color == accent ? const Color(0xFF06222B) : Colors.white;
-        return ElevatedButton.icon(
-          onPressed: b.enabled ? b.onTap : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: b.enabled ? b.color : surfaceAlt,
-            foregroundColor: b.enabled ? onColor : scheme.onSurfaceVariant,
-            disabledBackgroundColor: surfaceAlt,
-            disabledForegroundColor: scheme.onSurfaceVariant,
-            elevation: b.enabled ? 2 : 0,
+    Widget button(ActionButtonSpec b, {double iconSize = 20, double fontSize = 13}) {
+      // El texto sobre el celeste de acento se ve mejor oscuro que blanco.
+      final onColor = b.color == accent ? const Color(0xFF06222B) : Colors.white;
+      return ElevatedButton.icon(
+        onPressed: b.enabled ? b.onTap : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: b.enabled ? b.color : surfaceAlt,
+          foregroundColor: b.enabled ? onColor : scheme.onSurfaceVariant,
+          disabledBackgroundColor: surfaceAlt,
+          disabledForegroundColor: scheme.onSurfaceVariant,
+          elevation: b.enabled ? 2 : 0,
+        ),
+        icon: Icon(b.icon, size: iconSize),
+        label: Text(b.label, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600)),
+      );
+    }
+
+    if (!compact) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 2.4,
+        padding: const EdgeInsets.all(12),
+        children: buttons.map((b) => button(b)).toList(),
+      );
+    }
+
+    // Modo compacto: filas de 2 botones con `Expanded` (mismo patrón que
+    // `CourtView`) para que las 4 filas llenen siempre el alto disponible
+    // sin necesitar scroll. El ícono y el texto escalan con el alto que le
+    // toca a cada fila para verse proporcionales al tamaño de la ventana.
+    const outerPadding = 7.0;
+    const rowGap = 10.0; // padding vertical (5+5) entre filas consecutivas.
+    final rowCount = (buttons.length / 2).ceil();
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final availableHeight = constraints.maxHeight - outerPadding * 2;
+      final rowHeight = rowCount > 0
+          ? (availableHeight - rowGap * (rowCount - 1)) / rowCount
+          : availableHeight;
+      final clampedIconSize = math.min(32.0, math.max(16.0, rowHeight * 0.26));
+      final clampedFontSize = math.min(17.0, math.max(11.0, rowHeight * 0.15));
+
+      final rows = <Widget>[];
+      for (var i = 0; i < buttons.length; i += 2) {
+        rows.add(Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final b in buttons.skip(i).take(2))
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: button(b, iconSize: clampedIconSize, fontSize: clampedFontSize),
+                  ),
+                ),
+            ],
           ),
-          icon: Icon(b.icon, size: 20),
-          label: Text(b.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-        );
-      }).toList(),
-    );
+        ));
+      }
+      return Padding(
+        padding: const EdgeInsets.all(outerPadding),
+        child: Column(children: rows),
+      );
+    });
   }
 }

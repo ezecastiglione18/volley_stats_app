@@ -1,10 +1,14 @@
 class MatchConfig {
+  /// Valor sentinela de [maxSubstitutionsPerSet] que representa "sin límite"
+  /// de cambios por set.
+  static const int unlimited = -1;
+
   int maxSets; // total sets playable (best of maxSets). Default 5.
   int setPoints; // points to win a regular set. Default 25.
   int setWinMargin; // minimum point margin to win a regular set. Default 2.
   int tieBreakPoints; // points to win the deciding set. Default 15.
   int tieBreakWinMargin; // minimum margin for the deciding set. Default 2.
-  int maxSubstitutionsPerSet; // cambios de jugador permitidos por set (1-10). Default 6.
+  int maxSubstitutionsPerSet; // cambios de jugador permitidos por set (1-10, o [unlimited]). Default 6.
 
   MatchConfig({
     this.maxSets = 5,
@@ -14,6 +18,8 @@ class MatchConfig {
     this.tieBreakWinMargin = 2,
     this.maxSubstitutionsPerSet = 6,
   });
+
+  bool get hasUnlimitedSubstitutions => maxSubstitutionsPerSet < 0;
 
   int get setsToWin => (maxSets / 2).ceil();
 

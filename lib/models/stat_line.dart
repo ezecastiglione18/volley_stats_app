@@ -61,25 +61,55 @@ class PlayerStatLine {
       recepcion.nn;
 }
 
-/// Estadística de saque y ataque (ataque + contra combinados) por zona de
-/// cancha de destino (1-6), solo con los toques que tienen zona registrada.
+/// Errores del equipo rival por tipo de toque (los cuenta el equipo propio
+/// al marcar "Error Rival" con la opción correspondiente). `generic` incluye
+/// también los errores rivales cargados antes de este campo (sin subtipo
+/// guardado).
+class RivalErrorStats {
+  int serve = 0;
+  int attack = 0;
+  int counter = 0;
+  int generic = 0;
+
+  int get total => serve + attack + counter + generic;
+}
+
+/// Puntos ganados por el rival con su propio toque (ataque o contra), sin
+/// que medie un error propio. `unclassified` cubre los puntos rivales
+/// cargados antes de este campo (sin subtipo guardado).
+class RivalPointStats {
+  int attack = 0;
+  int counter = 0;
+  int unclassified = 0;
+
+  int get total => attack + counter + unclassified;
+}
+
+/// Estadística de saque, ataque y contraataque por zona de cancha de
+/// destino (1-6), solo con los toques que tienen zona registrada.
 class ZoneStats {
   final Map<int, TouchStats> serveByZone;
   final Map<int, TouchStats> attackByZone;
+  final Map<int, TouchStats> counterByZone;
 
-  /// Igual que [serveByZone] / [attackByZone], pero desglosado por jugador
-  /// (clave = playerId). Cada jugador solo aparece si tuvo al menos un
-  /// toque con zona registrada.
+  /// Igual que [serveByZone] / [attackByZone] / [counterByZone], pero
+  /// desglosado por jugador (clave = playerId). Cada jugador solo aparece si
+  /// tuvo al menos un toque con zona registrada.
   final Map<String, Map<int, TouchStats>> serveByZoneByPlayer;
   final Map<String, Map<int, TouchStats>> attackByZoneByPlayer;
+  final Map<String, Map<int, TouchStats>> counterByZoneByPlayer;
 
   ZoneStats({
     required this.serveByZone,
     required this.attackByZone,
+    required this.counterByZone,
     required this.serveByZoneByPlayer,
     required this.attackByZoneByPlayer,
+    required this.counterByZoneByPlayer,
   });
 
   bool get hasAnyData =>
-      serveByZone.values.any((s) => s.total > 0) || attackByZone.values.any((s) => s.total > 0);
+      serveByZone.values.any((s) => s.total > 0) ||
+      attackByZone.values.any((s) => s.total > 0) ||
+      counterByZone.values.any((s) => s.total > 0);
 }

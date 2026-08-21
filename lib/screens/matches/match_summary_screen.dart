@@ -135,8 +135,38 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           ),
           const SizedBox(height: 8),
           _StatsTable(stats: stats),
+          const SizedBox(height: 14),
+          _RivalStatsCard(stats: stats),
           const SizedBox(height: 20),
         ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RivalStatsCard extends StatelessWidget {
+  final MatchStats stats;
+  const _RivalStatsCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final err = stats.rivalErrors;
+    final pts = stats.rivalPoints;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Estadística del rival', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Errores rival — Saque: ${err.serve} · Ataque: ${err.attack} · '
+                'Contra: ${err.counter} · Genérico: ${err.generic} · Total: ${err.total}'),
+            const SizedBox(height: 4),
+            Text('Puntos rival — Ataque: ${pts.attack} · Contra: ${pts.counter}'
+                '${pts.unclassified > 0 ? ' · Sin clasificar: ${pts.unclassified}' : ''} · Total: ${pts.total}'),
+          ],
         ),
       ),
     );

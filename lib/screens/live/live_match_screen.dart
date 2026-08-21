@@ -51,7 +51,7 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
           IconButton(
             icon: const Icon(Icons.undo),
             tooltip: 'Deshacer última acción',
-            onPressed: controller.currentSet.events.isEmpty ? null : controller.undoLast,
+            onPressed: controller.canUndoLastAction ? controller.undoLastAction : null,
           ),
           IconButton(
             icon: const Icon(Icons.bar_chart),
@@ -79,15 +79,33 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Scoreboard(controller: controller),
-              CourtView(controller: controller),
-              const Divider(height: 1),
-              ActionGrid(controller: controller),
-            ],
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // En ventanas angostas (celular) se mantiene el scroll vertical
+            // de siempre. En ventanas anchas (computadora) se arma un layout
+            // de alto fijo con los botones en modo compacto, para que las 8
+            // acciones entren siempre en pantalla sin necesitar scroll.
+            if (constraints.maxWidth < 600) {
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Scoreboard(controller: controller),
+                    CourtView(controller: controller),
+                    const Divider(height: 1),
+                    ActionGrid(controller: controller),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              children: [
+                Scoreboard(controller: controller),
+                CourtView(controller: controller),
+                const Divider(height: 1),
+                Expanded(child: ActionGrid(controller: controller, compact: true)),
+              ],
+            );
+          },
         ),
       ),
     );

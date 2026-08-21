@@ -54,18 +54,18 @@ const _pMarcador = 6;
 const _pCancha = 6;
 const _pBotonesAccion = 6;
 const _pZonaDestino = 7;
-const _pCambiosJugador = 7;
-const _pCambioRegular = 7;
+const _pCambiosJugador = 8;
+const _pCambioRegular = 8;
 const _pCambioLibero = 8;
 const _pDeshacerCambio = 8;
-const _pHerramientas = 8;
+const _pHerramientas = 9;
 const _pFinSet = 9;
-const _pArchivo = 9;
-const _pResumen = 9;
+const _pArchivo = 10;
+const _pResumen = 10;
 const _pExportarPdf = 10;
-const _pGlosario = 10;
-const _pFaq = 11;
-const _pContacto = 13;
+const _pGlosario = 11;
+const _pFaq = 12;
+const _pContacto = 14;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -523,7 +523,7 @@ List<pw.Widget> _section1Introduccion() => [
         ],
         [_t('Deshacer un toque o un cambio de jugador cargado por error, sin perder el resto de lo anotado.')],
         [_t('Ver la estadística del partido completo o de un set en particular.')],
-        [_t('Exportar y compartir un reporte en PDF con el resultado, la estadística por jugador y las zonas de destino de saque y ataque.')],
+        [_t('Exportar y compartir un reporte en PDF con el resultado, la estadística por jugador, la del rival y las zonas de destino de saque, ataque y contraataque.')],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
         [_t('Guardar el archivo histórico de partidos jugados.')],
       ]),
@@ -588,7 +588,13 @@ List<pw.Widget> _section3GestionEquipos() => [
         [_t('Apellido y Nombre.')],
         [_t('Número de camiseta.')],
         [_t('Posición: Armador, Opuesto, Central, Punta/Receptor o Líbero.')],
-        [_t('Datos físicos (opcionales): altura y peso.')],
+        [
+          _b('Edad: '),
+          _t('obligatoria. Se puede escribir a mano, o dejar que se calcule sola cargando la fecha de '
+              'nacimiento (opcional); si hay fecha de nacimiento cargada, tiene prioridad y la edad se '
+              'recalcula sola, sin poder editarse a mano.')
+        ],
+        [_t('Datos físicos (opcionales): altura, peso, alcance en bloqueo y alcance en ataque (en cm).')],
         [_t('Mano de ataque (opcional): derecha o izquierda.')],
       ]),
       _p(
@@ -598,9 +604,10 @@ List<pw.Widget> _section3GestionEquipos() => [
       _subHeading('3.3 Equipo de ejemplo'),
       _p(
         'En la pantalla "Equipos", el ícono con forma de estrella del encabezado carga automáticamente un '
-        'equipo de ejemplo (Club Atlético Central) con 20 jugadores ya cargados, repartidos en partes '
-        'iguales entre las 5 posiciones. Es útil para probar la app rápidamente sin tener que escribir un '
-        'plantel entero a mano.',
+        'equipo de ejemplo (Club Atlético Central) con 35 jugadores ya cargados, repartidos en partes '
+        'iguales entre las 5 posiciones (7 por posición) y con la edad cargada de las dos formas posibles '
+        '(algunos con edad a mano, otros con fecha de nacimiento). Es útil para probar la app rápidamente '
+        'sin tener que escribir un plantel entero a mano.',
       ),
     ];
 
@@ -639,7 +646,7 @@ List<pw.Widget> _section4CrearPartido() => [
           ['Diferencia mínima (sets 1° al 4°)', '2', 'Ventaja mínima de puntos para cerrar esos sets.'],
           ['Puntos para ganar el tie-break', '15', 'Puntos del set decisivo (el último posible).'],
           ['Diferencia mínima (tie-break)', '2', 'Ventaja mínima de puntos para cerrar el tie-break.'],
-          ['Cambios permitidos por set', '6', 'Cambios regulares de jugador habilitados por set y por equipo.'],
+          ['Cambios permitidos por set', '6', 'Cambios regulares de jugador habilitados por set y por equipo. Se puede tildar "Sin límite" para no restringirlos.'],
         ],
       ),
       pw.SizedBox(height: 10),
@@ -670,7 +677,12 @@ List<pw.Widget> _section6FormacionInicial() => [
       _sectionTitle(6, 'Formación inicial'),
       _p('Antes de arrancar el set (o cada set siguiente) hay que definir:', bottom: 6),
       _bullets([
-        [_b('Quién saca primero: '), _t('el equipo propio o el rival.')],
+        [
+          _b('Quién saca primero: '),
+          _t('el equipo propio o el rival. A partir del segundo set, la app sugiere alternar el saque '
+              'respecto al set anterior (se puede cambiar si hace falta corregirlo); en el set decisivo '
+              '(tie-break) no sugiere nada, porque el reglamento indica un nuevo sorteo.')
+        ],
         [
           _b('La formación '),
           _t('de las 6 posiciones en cancha, asignando un jugador a cada una: fila delantera (4-3-2) y '
@@ -747,12 +759,17 @@ List<pw.Widget> _section7PantallaVivo() => [
           ['Ataque', 'Después de una recepción no terminal.', 'Calificación del primer ataque (K1), eligiendo el jugador.'],
           ['Contra', 'Con la pelota en juego del lado rival.', 'Calificación de un contraataque (posterior a defensa/bloqueo).'],
           ['Bloqueo (Punto)', 'Con la pelota en juego del lado rival.', 'Punto de bloqueo; permite elegir uno o más bloqueadores.'],
-          ['Error General', 'En cualquier momento.', 'Error no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
-          ['Punto Rival', 'Al recibir o defender.', 'Punto directo del rival no atribuible a una acción propia cargada aparte.'],
-          ['Error Rival', 'Al recibir o defender.', 'Error no forzado del rival que le da el punto al equipo propio.'],
+          ['Error General', 'En cualquier momento.', 'Error propio no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
+          ['Punto Rival', 'Al recibir o defender.', 'Punto directo del rival no atribuible a una acción propia cargada aparte; pide elegir si fue de ataque o de contraataque.'],
+          ['Error Rival', 'Al recibir o defender.', 'Error no forzado del rival que le da el punto al equipo propio; pide elegir si fue de saque, ataque, contraataque o genérico.'],
         ],
       ),
       pw.SizedBox(height: 10),
+      _p(
+        'Al tocar Punto Rival o Error Rival se abre un panel chico para elegir con qué tocó el rival, antes '
+        'de registrar el punto. Es una clasificación distinta e independiente de Error General, que sigue '
+        'siendo para errores propios (de rotación, cuatro toques, etc.), no del rival.',
+      ),
       _p(
         'Al tocar Saque, Recepción, Ataque o Contra se abre un panel donde, si corresponde, primero se '
         'elige el jugador y después se toca la calificación del toque. Las escalas de calificación son:',
@@ -774,6 +791,11 @@ List<pw.Widget> _section7PantallaVivo() => [
         'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival (numeradas igual que '
         'las posiciones: 4-3-2 junto a la red, 5-6-1 en el fondo) para marcar, de forma opcional, hacia '
         'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 13).',
+      ),
+      _p(
+        'Al usar la app en una ventana ancha (por ejemplo, en una computadora), los ocho botones de acción '
+        'se acomodan solos en un formato más compacto para entrar siempre completos en pantalla, sin '
+        'necesidad de hacer scroll para llegar a los de más abajo.',
       ),
     ];
 
@@ -821,6 +843,12 @@ List<pw.Widget> _section8CambiosJugador() => [
         'Los cambios automáticos (central reemplazado por el líbero receptor al perder el saque, o líbero '
         'que sale obligado al rotar a la fila delantera) no se pueden deshacer desde este botón, porque '
         'responden a una regla del reglamento y no a un error de carga.',
+      ),
+      _p(
+        'El botón Deshacer del encabezado (sección 9) es más general: deshace lo último que haya pasado en '
+        'el set, sea una jugada o un cambio de jugador manual. Si un cambio automático quedó colgando '
+        'justo después de la última jugada (por ejemplo, el líbero receptor que entró solo al perder el '
+        'saque), ese botón lo revierte junto con la jugada, para dejar la cancha como estaba antes.',
       ),
     ];
 
@@ -903,13 +931,17 @@ List<pw.Widget> _section12Resumen() => [
         [_t('Si acabás de terminar el partido, un aviso y un botón Volver al inicio para ir directo a la pantalla principal.')],
         [_t('El resultado punto a punto de cada set jugado.')],
         [_t('Una tabla de estadísticas por jugador, con una fila de TOTAL EQUIPO al final.')],
+        [
+          _t('Una sección aparte, "Estadística del rival", con sus errores por tipo (saque, ataque, contra, '
+              'genérico) y los puntos que ganó con su propio toque (ataque o contra).')
+        ],
       ]),
       _p(
-        'El selector Estadística permite elegir entre el partido completo o un set en particular. La tabla '
-        'incluye, por jugador: puntos totales, errores totales, el desglose de saque, ataque y contraataque '
-        'por calificación (PP/P/N/Bl/NN), puntos de bloqueo, errores generales, y el desglose de recepción '
-        '(total, PP/P/!/N/V-/NN) junto con el porcentaje de efectividad de recepción (definido como (PP + P) '
-        'sobre el total de recepciones).',
+        'El selector Estadística permite elegir entre el partido completo o un set en particular (afecta '
+        'también a la sección "Estadística del rival"). La tabla por jugador incluye: puntos totales, '
+        'errores totales, el desglose de saque, ataque y contraataque por calificación (PP/P/N/Bl/NN), '
+        'puntos de bloqueo, errores generales, y el desglose de recepción (total, PP/P/!/N/V-/NN) junto con '
+        'el porcentaje de efectividad de recepción (definido como (PP + P) sobre el total de recepciones).',
       ),
     ];
 
@@ -930,7 +962,8 @@ List<pw.Widget> _section13ExportarPdf() => [
         [_t('Encabezado con equipos, fecha, torneo, instancia, categoría y cancha.')],
         [_t('Resultado de cada set y el equipo ganador del partido.')],
         [_t('La tabla de estadística completa por jugador (la misma información que en la sección 12), con una referencia al pie que explica cada abreviatura.')],
-        [_t('Si se registraron zonas de destino durante el partido: un desglose de saque y de ataque por zona de cancha (1 a 6), tanto a nivel equipo como por jugador.')],
+        [_t('Una tabla con los errores del rival por tipo (saque, ataque, contra, genérico) y los puntos que ganó con su propio toque (ataque o contra).')],
+        [_t('Si se registraron zonas de destino durante el partido: un desglose de saque, ataque y contraataque por separado, por zona de cancha (1 a 6), tanto a nivel equipo como por jugador.')],
         [_t('Si el partido tuvo más de un set: el detalle de estadística de cada set por separado.')],
       ]),
       _infoBox(
@@ -1036,8 +1069,8 @@ List<pw.Widget> _section15Faq() => [
         '¿Puedo cambiar los datos de un equipo ya creado?',
         'Sí. Desde "Equipos", tocá el equipo que querés modificar para entrar a "Editar equipo": ahí se '
             'puede cambiar el nombre, agregar o quitar jugadores, y editar los datos de cada uno (nombre, '
-            'número, posición, altura, peso, mano de ataque). Los cambios se guardan automáticamente, igual '
-            'que al crear el equipo (sección 3.1).',
+            'número, posición, edad o fecha de nacimiento, altura, peso, alcances y mano de ataque). Los '
+            'cambios se guardan automáticamente, igual que al crear el equipo (sección 3.1).',
       ),
       _faqCard(
         '¿Hace falta cargar el equipo rival como equipo propio antes de jugar?',
@@ -1048,7 +1081,8 @@ List<pw.Widget> _section15Faq() => [
       _faqCard(
         'Me equivoqué al cargar un toque, ¿cómo lo corrijo?',
         'Usá el botón de Deshacer en el encabezado de la pantalla en vivo, tantas veces como haga falta; '
-            'deshace un toque a la vez, empezando por el último cargado.',
+            'deshace de a una acción por vez, empezando por la última (sea un toque o un cambio de jugador '
+            'manual), respetando siempre el orden en que se cargaron.',
       ),
       _faqCard(
         'Me equivoqué en un cambio de jugador, ¿cómo lo corrijo?',

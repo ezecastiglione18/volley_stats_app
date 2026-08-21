@@ -26,6 +26,19 @@ class Grade {
   static const bloq = 'BLOQ';
 }
 
+/// Subtipo de la jugada rival que originó un error propio a favor (Error
+/// Rival: qué tocó el rival y falló) o un punto directo del rival (Punto
+/// Rival: con qué tocó el rival para ganar el punto). Se guarda en
+/// [RallyEvent.rivalActionType]; en partidos cargados antes de este campo
+/// queda `null` (la estadística lo trata como "genérico" en errores y "sin
+/// clasificar" en puntos).
+class RivalAction {
+  static const serve = 'serve';
+  static const attack = 'attack';
+  static const counter = 'counter';
+  static const generic = 'generic';
+}
+
 class RallyEvent {
   final String id;
   final int setNumber;
@@ -46,6 +59,10 @@ class RallyEvent {
   /// zonas (`MatchSet.trackHitZones`); en el resto de los casos es null.
   final int? targetZone;
 
+  /// Solo para `opponentError`/`opponentPoint`: con qué tocó el rival (ver
+  /// [RivalAction]). Null en el resto de las fases.
+  final String? rivalActionType;
+
   RallyEvent({
     required this.id,
     required this.setNumber,
@@ -61,6 +78,7 @@ class RallyEvent {
     required this.rivalScoreAfter,
     required this.timestamp,
     this.targetZone,
+    this.rivalActionType,
   });
 
   Map<String, dynamic> toJson() => {
@@ -78,6 +96,7 @@ class RallyEvent {
         'rivalScoreAfter': rivalScoreAfter,
         'timestamp': timestamp.toIso8601String(),
         'targetZone': targetZone,
+        'rivalActionType': rivalActionType,
       };
 
   factory RallyEvent.fromJson(Map<dynamic, dynamic> json) => RallyEvent(
@@ -103,5 +122,6 @@ class RallyEvent {
             DateTime.tryParse(json['timestamp'] as String? ?? '') ??
                 DateTime.now(),
         targetZone: (json['targetZone'] as num?)?.toInt(),
+        rivalActionType: json['rivalActionType'] as String?,
       );
 }

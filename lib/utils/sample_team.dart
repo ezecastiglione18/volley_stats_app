@@ -2,8 +2,11 @@ import '../models/player.dart';
 import '../models/team.dart';
 import 'id_gen.dart';
 
-/// Equipo de ejemplo ("Club Atlético Central") con 20 jugadores repartidos
-/// en partes iguales entre las 5 posiciones (4 jugadores por posición).
+/// Equipo de ejemplo ("Club Atlético Central") con 35 jugadores repartidos
+/// en partes iguales entre las 5 posiciones (7 jugadores por posición). La
+/// edad está cargada de las dos formas que admite la app: en algunos
+/// jugadores a mano (`age`) y en otros a partir de la fecha de nacimiento
+/// (`birthDate`), para que el equipo de ejemplo muestre ambos casos.
 Team buildSampleTeam() {
   final players = <Player>[
     // Armadores
@@ -16,6 +19,7 @@ Team buildSampleTeam() {
       heightCm: 180,
       weightKg: 74,
       dominantHand: DominantHand.derecha,
+      age: 24,
     ),
     Player(
       id: generateId('pl_'),
@@ -26,6 +30,7 @@ Team buildSampleTeam() {
       heightCm: 183,
       weightKg: 76,
       dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(1999, 5, 10),
     ),
     Player(
       id: generateId('pl_'),
@@ -36,6 +41,7 @@ Team buildSampleTeam() {
       heightCm: 179,
       weightKg: 73,
       dominantHand: DominantHand.derecha,
+      age: 21,
     ),
     Player(
       id: generateId('pl_'),
@@ -46,6 +52,40 @@ Team buildSampleTeam() {
       heightCm: 182,
       weightKg: 75,
       dominantHand: DominantHand.derecha,
+      birthDate: DateTime(2003, 2, 18),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Mateo',
+      lastName: 'Villalba',
+      number: 21,
+      position: PlayerPosition.armador,
+      heightCm: 178,
+      weightKg: 72,
+      dominantHand: DominantHand.derecha,
+      age: 19,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Dante',
+      lastName: 'Ponce',
+      number: 26,
+      position: PlayerPosition.armador,
+      heightCm: 181,
+      weightKg: 75,
+      dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(1996, 7, 22),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Lautaro',
+      lastName: 'Cabrera',
+      number: 31,
+      position: PlayerPosition.armador,
+      heightCm: 184,
+      weightKg: 77,
+      dominantHand: DominantHand.derecha,
+      age: 26,
     ),
 
     // Opuestos
@@ -58,6 +98,7 @@ Team buildSampleTeam() {
       heightCm: 195,
       weightKg: 88,
       dominantHand: DominantHand.derecha,
+      birthDate: DateTime(2000, 3, 12),
     ),
     Player(
       id: generateId('pl_'),
@@ -68,6 +109,7 @@ Team buildSampleTeam() {
       heightCm: 192,
       weightKg: 85,
       dominantHand: DominantHand.derecha,
+      age: 28,
     ),
     Player(
       id: generateId('pl_'),
@@ -78,6 +120,7 @@ Team buildSampleTeam() {
       heightCm: 197,
       weightKg: 90,
       dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(1997, 6, 5),
     ),
     Player(
       id: generateId('pl_'),
@@ -88,6 +131,40 @@ Team buildSampleTeam() {
       heightCm: 193,
       weightKg: 86,
       dominantHand: DominantHand.derecha,
+      age: 22,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Elías',
+      lastName: 'Godoy',
+      number: 22,
+      position: PlayerPosition.opuesto,
+      heightCm: 191,
+      weightKg: 84,
+      dominantHand: DominantHand.derecha,
+      age: 20,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Bautista',
+      lastName: 'Juárez',
+      number: 27,
+      position: PlayerPosition.opuesto,
+      heightCm: 194,
+      weightKg: 87,
+      dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(2002, 4, 14),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Simón',
+      lastName: 'Peralta',
+      number: 32,
+      position: PlayerPosition.opuesto,
+      heightCm: 196,
+      weightKg: 89,
+      dominantHand: DominantHand.derecha,
+      age: 32,
     ),
 
     // Centrales
@@ -100,6 +177,7 @@ Team buildSampleTeam() {
       heightCm: 200,
       weightKg: 92,
       dominantHand: DominantHand.derecha,
+      age: 27,
     ),
     Player(
       id: generateId('pl_'),
@@ -110,6 +188,7 @@ Team buildSampleTeam() {
       heightCm: 198,
       weightKg: 90,
       dominantHand: DominantHand.derecha,
+      birthDate: DateTime(1998, 1, 20),
     ),
     Player(
       id: generateId('pl_'),
@@ -120,6 +199,7 @@ Team buildSampleTeam() {
       heightCm: 202,
       weightKg: 94,
       dominantHand: DominantHand.derecha,
+      age: 23,
     ),
     Player(
       id: generateId('pl_'),
@@ -130,6 +210,40 @@ Team buildSampleTeam() {
       heightCm: 199,
       weightKg: 91,
       dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(2004, 5, 9),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Renzo',
+      lastName: 'Ortiz',
+      number: 23,
+      position: PlayerPosition.central,
+      heightCm: 197,
+      weightKg: 89,
+      dominantHand: DominantHand.derecha,
+      age: 18,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Thiago',
+      lastName: 'Domínguez',
+      number: 28,
+      position: PlayerPosition.central,
+      heightCm: 201,
+      weightKg: 93,
+      dominantHand: DominantHand.derecha,
+      birthDate: DateTime(1995, 7, 30),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Ivo',
+      lastName: 'Bianchi',
+      number: 33,
+      position: PlayerPosition.central,
+      heightCm: 203,
+      weightKg: 95,
+      dominantHand: DominantHand.izquierda,
+      age: 25,
     ),
 
     // Puntas/Receptores
@@ -142,6 +256,7 @@ Team buildSampleTeam() {
       heightCm: 190,
       weightKg: 82,
       dominantHand: DominantHand.derecha,
+      birthDate: DateTime(2001, 6, 25),
     ),
     Player(
       id: generateId('pl_'),
@@ -152,6 +267,7 @@ Team buildSampleTeam() {
       heightCm: 188,
       weightKg: 80,
       dominantHand: DominantHand.derecha,
+      age: 21,
     ),
     Player(
       id: generateId('pl_'),
@@ -162,6 +278,7 @@ Team buildSampleTeam() {
       heightCm: 193,
       weightKg: 84,
       dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(1999, 2, 11),
     ),
     Player(
       id: generateId('pl_'),
@@ -172,6 +289,40 @@ Team buildSampleTeam() {
       heightCm: 189,
       weightKg: 81,
       dominantHand: DominantHand.derecha,
+      age: 19,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Facundo',
+      lastName: 'Salas',
+      number: 24,
+      position: PlayerPosition.puntaReceptor,
+      heightCm: 187,
+      weightKg: 79,
+      dominantHand: DominantHand.derecha,
+      birthDate: DateTime(2003, 4, 17),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Rodrigo',
+      lastName: 'Funes',
+      number: 29,
+      position: PlayerPosition.puntaReceptor,
+      heightCm: 191,
+      weightKg: 83,
+      dominantHand: DominantHand.izquierda,
+      age: 30,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Nahuel',
+      lastName: 'Quiroga',
+      number: 34,
+      position: PlayerPosition.puntaReceptor,
+      heightCm: 194,
+      weightKg: 85,
+      dominantHand: DominantHand.derecha,
+      birthDate: DateTime(1997, 1, 8),
     ),
 
     // Líberos
@@ -184,6 +335,7 @@ Team buildSampleTeam() {
       heightCm: 174,
       weightKg: 68,
       dominantHand: DominantHand.derecha,
+      age: 26,
     ),
     Player(
       id: generateId('pl_'),
@@ -194,6 +346,7 @@ Team buildSampleTeam() {
       heightCm: 172,
       weightKg: 66,
       dominantHand: DominantHand.derecha,
+      birthDate: DateTime(1994, 3, 3),
     ),
     Player(
       id: generateId('pl_'),
@@ -204,6 +357,7 @@ Team buildSampleTeam() {
       heightCm: 176,
       weightKg: 69,
       dominantHand: DominantHand.izquierda,
+      age: 20,
     ),
     Player(
       id: generateId('pl_'),
@@ -214,6 +368,40 @@ Team buildSampleTeam() {
       heightCm: 173,
       weightKg: 67,
       dominantHand: DominantHand.derecha,
+      birthDate: DateTime(2005, 6, 19),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Cristian',
+      lastName: 'Bustos',
+      number: 25,
+      position: PlayerPosition.libero,
+      heightCm: 171,
+      weightKg: 65,
+      dominantHand: DominantHand.derecha,
+      age: 24,
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Leandro',
+      lastName: 'Aráoz',
+      number: 30,
+      position: PlayerPosition.libero,
+      heightCm: 175,
+      weightKg: 68,
+      dominantHand: DominantHand.izquierda,
+      birthDate: DateTime(1999, 7, 27),
+    ),
+    Player(
+      id: generateId('pl_'),
+      firstName: 'Martín',
+      lastName: 'Cardozo',
+      number: 35,
+      position: PlayerPosition.libero,
+      heightCm: 177,
+      weightKg: 70,
+      dominantHand: DominantHand.derecha,
+      age: 33,
     ),
   ];
 

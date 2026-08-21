@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/player.dart';
+import '../../utils/age_utils.dart';
 import '../../widgets/theme_toggle_switch.dart';
 
 class PlayerFormScreen extends StatefulWidget {
@@ -17,8 +18,12 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
   late TextEditingController _number;
   late TextEditingController _height;
   late TextEditingController _weight;
+  late TextEditingController _blockReach;
+  late TextEditingController _attackReach;
+  late TextEditingController _age;
   late PlayerPosition _position;
   DominantHand? _hand;
+  DateTime? _birthDate;
 
   @override
   void initState() {
@@ -29,11 +34,46 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
     _number = TextEditingController(text: p.number == 0 ? '' : '${p.number}');
     _height = TextEditingController(text: p.heightCm?.toStringAsFixed(0) ?? '');
     _weight = TextEditingController(text: p.weightKg?.toStringAsFixed(0) ?? '');
+    _blockReach = TextEditingController(text: p.blockReachCm?.toStringAsFixed(0) ?? '');
+    _attackReach = TextEditingController(text: p.attackReachCm?.toStringAsFixed(0) ?? '');
+    _birthDate = p.birthDate;
+    _age = TextEditingController(
+        text: _birthDate != null ? '${calculateAge(_birthDate!)}' : (p.age?.toString() ?? ''));
     _position = p.position;
     _hand = p.dominantHand;
   }
 
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate ?? DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(now.year - 80),
+      lastDate: now,
+    );
+    if (picked != null) {
+      setState(() {
+        _birthDate = picked;
+        _age.text = '${calculateAge(picked)}';
+      });
+    }
+  }
+
+  void _clearBirthDate() {
+    setState(() {
+      _birthDate = null;
+      _age.clear();
+    });
+  }
+
   void _save() {
+    final manualAge = int.tryParse(_age.text.trim());
+    if (_birthDate == null && manualAge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La edad es obligatoria (o cargá la fecha de nacimiento)')),
+      );
+      return;
+    }
     final result = Player(
       id: widget.player.id,
       firstName: _firstName.text.trim(),
@@ -43,6 +83,10 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
       heightCm: double.tryParse(_height.text.trim()),
       weightKg: double.tryParse(_weight.text.trim()),
       dominantHand: _hand,
+      blockReachCm: double.tryParse(_blockReach.text.trim()),
+      attackReachCm: double.tryParse(_attackReach.text.trim()),
+      birthDate: _birthDate,
+      age: _birthDate != null ? calculateAge(_birthDate!) : manualAge,
     );
     Navigator.pop(context, result);
   }
@@ -84,6 +128,35 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
             onChanged: (v) => setState(() => _position = v ?? _position),
           ),
           const SizedBox(height: 20),
+          const Text('Edad', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(_birthDate == null
+                ? 'Fecha de nacimiento (opcional)'
+                : 'Nace el ${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}'),
+            trailing: _birthDate == null
+                ? const Icon(Icons.calendar_today)
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Quitar fecha de nacimiento',
+                    onPressed: _clearBirthDate,
+                  ),
+            onTap: _pickBirthDate,
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _age,
+            enabled: _birthDate == null,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Edad',
+              helperText: _birthDate != null
+                  ? 'Calculada automáticamente a partir de la fecha de nacimiento'
+                  : 'Obligatoria si no cargaste la fecha de nacimiento',
+            ),
+          ),
+          const SizedBox(height: 20),
           const Text('Datos físicos (opcional)',
               style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
           const SizedBox(height: 8),
@@ -102,6 +175,26 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
                   controller: _weight,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Peso (kg)'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _blockReach,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Alcance en bloqueo (cm)'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _attackReach,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Alcance en ataque (cm)'),
                 ),
               ),
             ],

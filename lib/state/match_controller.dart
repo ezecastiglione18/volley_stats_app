@@ -34,6 +34,11 @@ class _SlotSubState {
 class MatchController extends ChangeNotifier {
   VolleyMatch match;
   int _rotationOffsetOwn = 0;
+
+  /// Rotación acumulada del rival, en la misma unidad que [_rotationOffsetOwn]
+  /// pero solo para ubicar a su armador: avanza 1 cada vez que el rival gana
+  /// el saque en un side-out. No llevamos identidad del resto de su equipo.
+  int _rivalRotationOffset = 0;
   TeamSide _servingTeam = TeamSide.own;
   RallyStage _stage = RallyStage.serveOwn;
   int _rallyCounter = 1;
@@ -55,6 +60,7 @@ class MatchController extends ChangeNotifier {
     final set = match.sets.last;
 
     controller._rotationOffsetOwn = 0;
+    controller._rivalRotationOffset = 0;
     controller._servingTeam = set.startingServer;
     controller._rallyCounter = 1;
 
@@ -67,6 +73,8 @@ class MatchController extends ChangeNotifier {
         if (ev.pointWinner != wasServing) {
           if (ev.pointWinner == TeamSide.own) {
             controller._rotationOffsetOwn = (controller._rotationOffsetOwn + 1) % 6;
+          } else {
+            controller._rivalRotationOffset = (controller._rivalRotationOffset + 1) % 6;
           }
           controller._servingTeam = ev.pointWinner!;
         }
@@ -108,6 +116,16 @@ class MatchController extends ChangeNotifier {
   RallyStage get stage => _stage;
   TeamSide get servingTeam => _servingTeam;
   int get rotationOffsetOwn => _rotationOffsetOwn;
+
+  /// Posición actual (1-6) del armador rival, solo si se cargó su posición
+  /// inicial al armar la formación de este set (dato opcional). Se recalcula
+  /// rotando 1 puesto cada vez que el rival gana el saque en un side-out;
+  /// es puramente informativo, no llevamos el resto de su rotación.
+  int? get rivalSetterPosition {
+    final start = currentSet.rivalSetterStartPosition;
+    if (start == null) return null;
+    return ((start - 1 - _rivalRotationOffset) % 6 + 6) % 6 + 1;
+  }
 
   /// Jugador propio actualmente en la posición [pos] (1 a 6), considerando
   /// los cambios de jugador ya realizados en este set.
@@ -168,6 +186,7 @@ class MatchController extends ChangeNotifier {
     match.sets.add(set);
     match.status = MatchStatus.inProgress;
     _rotationOffsetOwn = 0;
+    _rivalRotationOffset = 0;
     _servingTeam = startingServer;
     _rallyCounter = 1;
     needsNextSetSetup = false;
@@ -273,23 +292,28 @@ class MatchController extends ChangeNotifier {
     );
   }
 
-  void logOpponentPoint() {
+  /// [rivalActionType] indica con qué tocó el rival para ganar el punto
+  /// (ver [RivalAction]: solo `attack` o `counter` tienen sentido acá).
+  void logOpponentPoint({required String rivalActionType}) {
     _addEvent(
       phase: RallyPhase.opponentPoint,
       team: TeamSide.rival,
       grade: null,
       endsRally: true,
       winner: TeamSide.rival,
+      rivalActionType: rivalActionType,
     );
   }
 
-  void logOpponentError() {
+  /// [rivalActionType] indica qué tocó el rival y falló (ver [RivalAction]).
+  void logOpponentError({String rivalActionType = RivalAction.generic}) {
     _addEvent(
       phase: RallyPhase.opponentError,
       team: TeamSide.rival,
       grade: null,
       endsRally: true,
       winner: TeamSide.own,
+      rivalActionType: rivalActionType,
     );
   }
 
@@ -313,10 +337,13 @@ class MatchController extends ChangeNotifier {
   /// Cambios regulares ya usados en el set (no cuenta cambios de líbero).
   int get substitutionsUsedOwn => currentSet.substitutionsUsedOwn;
 
-  /// Cambios regulares que todavía se pueden hacer en el set actual.
-  int get substitutionsRemaining =>
-      (match.config.maxSubstitutionsPerSet - currentSet.substitutionsUsedOwn)
-          .clamp(0, match.config.maxSubstitutionsPerSet);
+  /// Cambios regulares que todavía se pueden hacer en el set actual (un
+  /// número muy grande si el partido tiene cambios "sin límite").
+  int get substitutionsRemaining {
+    if (match.config.hasUnlimitedSubstitutions) return 1 << 30;
+    return (match.config.maxSubstitutionsPerSet - currentSet.substitutionsUsedOwn)
+        .clamp(0, match.config.maxSubstitutionsPerSet);
+  }
 
   bool get canRegisterSubstitution => substitutionsRemaining > 0;
 
@@ -531,17 +558,23 @@ class MatchController extends ChangeNotifier {
   bool get canUndoLastSubstitution =>
       currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto;
 
+  /// Revierte en memoria un cambio ya registrado (devuelve al jugador que
+  /// había salido y descuenta el cupo si correspondía), sin notificar ni
+  /// persistir: lo hacen los métodos públicos que lo usan.
+  void _revertSubstitution(SubstitutionEvent removed) {
+    final set = currentSet;
+    set.currentOrderOwn[removed.slotIndex] = removed.playerOutId;
+    if (removed.countedAgainstLimit) {
+      set.substitutionsUsedOwn = (set.substitutionsUsedOwn - 1).clamp(0, 1 << 30);
+    }
+  }
+
   /// Deshace el último cambio de jugador del set (regular o de líbero),
   /// devolviendo al jugador que había salido y, si el cambio deshecho
   /// contaba contra el cupo, sin que quede contado.
   void undoLastSubstitution() {
     if (!canUndoLastSubstitution) return;
-    final set = currentSet;
-    final removed = set.substitutions.removeLast();
-    set.currentOrderOwn[removed.slotIndex] = removed.playerOutId;
-    if (removed.countedAgainstLimit) {
-      set.substitutionsUsedOwn = (set.substitutionsUsedOwn - 1).clamp(0, 1 << 30);
-    }
+    _revertSubstitution(currentSet.substitutions.removeLast());
     notifyListeners();
     _persist();
   }
@@ -555,6 +588,28 @@ class MatchController extends ChangeNotifier {
     if (playerById(serverId)?.position != PlayerPosition.central) return;
     if (!canBringLiberoIn(liberoId, serverId)) return;
     bringLiberoIn(liberoId, serverId);
+  }
+
+  /// Si hay un líbero en cancha y el equipo declaró dos líberos distintos,
+  /// se asegura de que sea el que corresponde según quién saca ahora: el
+  /// defensor si sacamos nosotros, el receptor si saca el rival. Se dispara
+  /// en cada cambio de saque (side-out) para que el líbero correcto quede
+  /// siempre en cancha sin necesidad de un cambio manual.
+  void _maybeAutoSwapLiberoForServe() {
+    final liberoIds = declaredLiberoIds;
+    if (liberoIds.length < 2) return;
+    final desiredId = _servingTeam == TeamSide.own
+        ? currentSet.defensiveLiberoId
+        : currentSet.receptionLiberoId;
+    if (desiredId == null) return;
+    for (var slot = 0; slot < 6; slot++) {
+      final st = _slotState(slot);
+      if (st.liberoOnCourtId == null) continue;
+      if (st.liberoOnCourtId != desiredId && canSendLiberoOut(slot)) {
+        swapLiberoToOther(slot);
+      }
+      return;
+    }
   }
 
   /// Al rotar, un líbero no puede quedar en fila delantera: si su puesto
@@ -589,9 +644,12 @@ class MatchController extends ChangeNotifier {
       }
       // Restaurar quién sacaba antes de este punto y, si hubo side-out a
       // favor propio, revertir la rotación que se disparó.
-      if (removed.pointWinner != removed.servingTeamBefore &&
-          removed.pointWinner == TeamSide.own) {
-        _rotationOffsetOwn = (_rotationOffsetOwn - 1) % 6;
+      if (removed.pointWinner != removed.servingTeamBefore) {
+        if (removed.pointWinner == TeamSide.own) {
+          _rotationOffsetOwn = (_rotationOffsetOwn - 1) % 6;
+        } else {
+          _rivalRotationOffset = (_rivalRotationOffset - 1) % 6;
+        }
       }
       _servingTeam = removed.servingTeamBefore;
 
@@ -632,6 +690,39 @@ class MatchController extends ChangeNotifier {
     _persist();
   }
 
+  /// true si hay algo para deshacer con [undoLastAction]: una jugada, o un
+  /// cambio manual (los automáticos no cuentan como acción propia, siempre
+  /// se deshacen junto con la jugada que los disparó).
+  bool get canUndoLastAction =>
+      currentSet.events.isNotEmpty ||
+      (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto);
+
+  /// Deshace la última acción cargada en el set, sea una jugada (saque,
+  /// ataque, punto/error rival, etc.) o un cambio de jugador manual, lo que
+  /// haya pasado más recientemente. Los cambios automáticos que hayan
+  /// quedado colgando al final (líbero por rotación, central -> líbero
+  /// receptor) se revierten primero: son un efecto colateral del último
+  /// punto resuelto, no una acción independiente, así que deshacer esa
+  /// jugada tiene que deshacerlos también.
+  void undoLastAction() {
+    while (currentSet.substitutions.isNotEmpty && currentSet.substitutions.last.auto) {
+      _revertSubstitution(currentSet.substitutions.removeLast());
+    }
+    final lastSub = currentSet.substitutions.isNotEmpty ? currentSet.substitutions.last : null;
+    final lastEvent = currentSet.events.isNotEmpty ? currentSet.events.last : null;
+    if (lastSub != null && (lastEvent == null || lastSub.timestamp.isAfter(lastEvent.timestamp))) {
+      currentSet.substitutions.removeLast();
+      _revertSubstitution(lastSub);
+      notifyListeners();
+      _persist();
+    } else if (lastEvent != null) {
+      undoLast();
+    } else {
+      notifyListeners();
+      _persist();
+    }
+  }
+
   // ---------------- Simulación ----------------
 
   final Random _rng = Random();
@@ -655,6 +746,15 @@ class MatchController extends ChangeNotifier {
   }
 
   String _randomGrade(List<String> pool) => pool[_rng.nextInt(pool.length)];
+
+  static const _rivalErrorTypePool = [
+    RivalAction.serve,
+    RivalAction.attack,
+    RivalAction.counter,
+    RivalAction.generic,
+  ];
+
+  String _randomRivalErrorType() => _rivalErrorTypePool[_rng.nextInt(_rivalErrorTypePool.length)];
 
   int? _randomZone() => currentSet.trackHitZones ? 1 + _rng.nextInt(6) : null;
 
@@ -695,9 +795,10 @@ class MatchController extends ChangeNotifier {
     } else if (roll < 0.8) {
       logGenericError(playerId: _rng.nextBool() ? _randomPlayerId() : null);
     } else if (roll < 0.9) {
-      logOpponentPoint();
+      logOpponentPoint(
+          rivalActionType: _rng.nextBool() ? RivalAction.attack : RivalAction.counter);
     } else {
-      logOpponentError();
+      logOpponentError(rivalActionType: _randomRivalErrorType());
     }
   }
 
@@ -756,6 +857,7 @@ class MatchController extends ChangeNotifier {
     required bool endsRally,
     TeamSide? winner,
     int? targetZone,
+    String? rivalActionType,
   }) {
     final set = currentSet;
     final servingBefore = _servingTeam;
@@ -781,6 +883,7 @@ class MatchController extends ChangeNotifier {
       rivalScoreAfter: set.rivalScore,
       timestamp: DateTime.now(),
       targetZone: set.trackHitZones ? targetZone : null,
+      rivalActionType: rivalActionType,
     );
     set.events.add(event);
 
@@ -799,12 +902,16 @@ class MatchController extends ChangeNotifier {
     _rallyCounter++;
 
     if (winner != wasServing) {
-      // Side-out: el equipo que gana pasa a sacar y, si es el propio, rota.
+      // Side-out: el equipo que gana pasa a sacar y rota (la del rival es
+      // solo para ubicar a su armador; no llevamos el resto de su equipo).
       if (winner == TeamSide.own) {
         _rotationOffsetOwn = (_rotationOffsetOwn + 1) % 6;
         _releaseLiberosRotatingToFrontRow();
+      } else {
+        _rivalRotationOffset = (_rivalRotationOffset + 1) % 6;
       }
       _servingTeam = winner;
+      _maybeAutoSwapLiberoForServe();
     }
 
     if (winner == TeamSide.rival && wasServing == TeamSide.own && serverIdForThisRally != null) {

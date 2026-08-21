@@ -37,6 +37,14 @@ class Scoreboard extends StatelessWidget {
             'Sets: ${match.ownSetsWon} - ${match.rivalSetsWon}   ·   Set N° ${set.setNumber}',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
+          if (controller.rivalSetterPosition != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Armador rival: posición ${controller.rivalSetterPosition}',
+                style: const TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ),
         ],
       ),
     );

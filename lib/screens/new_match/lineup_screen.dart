@@ -72,6 +72,17 @@ class _LineupScreenState extends State<LineupScreen> {
     _defensiveLiberoId = previousSet?.defensiveLiberoId;
     _receptionLiberoId = previousSet?.receptionLiberoId;
 
+    // El saque inicial se alterna set a set (regla FIVB), excepto en el
+    // set decisivo (tie-break), donde se vuelve a sortear: ahí no se
+    // sugiere nada y queda la elección manual del usuario.
+    if (previousSet != null) {
+      final nextSetNumber = widget.existingController!.match.sets.length + 1;
+      if (!widget.config.isTieBreakSet(nextSetNumber)) {
+        _startingServer =
+            previousSet.startingServer == TeamSide.own ? TeamSide.rival : TeamSide.own;
+      }
+    }
+
     // El sexteto titular suele repetirse set a set, así que si hay un set
     // anterior en este mismo partido precargamos su formación inicial acá
     // (se puede cambiar libremente); si es el primer set del partido, los
@@ -187,6 +198,16 @@ class _LineupScreenState extends State<LineupScreen> {
             selected: {_startingServer},
             onSelectionChanged: (s) => setState(() => _startingServer = s.first),
           ),
+          if (_isNextSet)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                widget.config.isTieBreakSet(widget.existingController!.match.sets.length + 1)
+                    ? 'Tie-break: se vuelve a sortear el saque, elegilo a mano.'
+                    : 'Sugerido alternando respecto al set anterior; podés cambiarlo si hace falta.',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
           const SizedBox(height: 20),
           Text('Formación de ${widget.ownTeamName}',
               style: const TextStyle(fontWeight: FontWeight.w600)),

@@ -114,7 +114,8 @@ class _RegularPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Cambios usados: ${controller.substitutionsUsedOwn} / ${controller.match.config.maxSubstitutionsPerSet}',
+          'Cambios usados: ${controller.substitutionsUsedOwn} / '
+          '${controller.match.config.hasUnlimitedSubstitutions ? 'Sin límite' : controller.match.config.maxSubstitutionsPerSet}',
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const Text(

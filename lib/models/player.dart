@@ -1,3 +1,5 @@
+import '../utils/age_utils.dart';
+
 enum PlayerPosition {
   armador, // Colocador / Setter
   opuesto, // Opposite
@@ -53,6 +55,15 @@ class Player {
   double? heightCm;
   double? weightKg;
   DominantHand? dominantHand;
+  double? blockReachCm;
+  double? attackReachCm;
+
+  /// Fecha de nacimiento (opcional). Si está cargada, tiene prioridad sobre
+  /// [age] para calcular la edad (ver [effectiveAge]).
+  DateTime? birthDate;
+
+  /// Edad cargada a mano, solo se usa si no hay [birthDate].
+  int? age;
 
   Player({
     required this.id,
@@ -63,10 +74,20 @@ class Player {
     this.heightCm,
     this.weightKg,
     this.dominantHand,
+    this.blockReachCm,
+    this.attackReachCm,
+    this.birthDate,
+    this.age,
   });
 
   String get fullName => '$lastName, $firstName';
   String get displayShort => '#$number $lastName';
+
+  /// Edad efectiva: calculada desde [birthDate] si está cargada, si no la
+  /// edad manual [age]. Puede ser null si no hay ninguno de los dos datos
+  /// (partidos/jugadores guardados antes de este campo).
+  int? get effectiveAge =>
+      birthDate != null ? calculateAge(birthDate!) : age;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -77,6 +98,10 @@ class Player {
         'heightCm': heightCm,
         'weightKg': weightKg,
         'dominantHand': dominantHand?.name,
+        'blockReachCm': blockReachCm,
+        'attackReachCm': attackReachCm,
+        'birthDate': birthDate?.toIso8601String(),
+        'age': age,
       };
 
   factory Player.fromJson(Map<dynamic, dynamic> json) => Player(
@@ -96,6 +121,12 @@ class Player {
                 (e) => e.name == json['dominantHand'],
                 orElse: () => DominantHand.derecha,
               ),
+        blockReachCm: (json['blockReachCm'] as num?)?.toDouble(),
+        attackReachCm: (json['attackReachCm'] as num?)?.toDouble(),
+        birthDate: json['birthDate'] == null
+            ? null
+            : DateTime.tryParse(json['birthDate'] as String),
+        age: (json['age'] as num?)?.toInt(),
       );
 
   Player copyWith({
@@ -106,9 +137,16 @@ class Player {
     double? heightCm,
     double? weightKg,
     DominantHand? dominantHand,
+    double? blockReachCm,
+    double? attackReachCm,
+    DateTime? birthDate,
+    int? age,
     bool clearHeight = false,
     bool clearWeight = false,
     bool clearHand = false,
+    bool clearBlockReach = false,
+    bool clearAttackReach = false,
+    bool clearBirthDate = false,
   }) {
     return Player(
       id: id,
@@ -119,6 +157,10 @@ class Player {
       heightCm: clearHeight ? null : (heightCm ?? this.heightCm),
       weightKg: clearWeight ? null : (weightKg ?? this.weightKg),
       dominantHand: clearHand ? null : (dominantHand ?? this.dominantHand),
+      blockReachCm: clearBlockReach ? null : (blockReachCm ?? this.blockReachCm),
+      attackReachCm: clearAttackReach ? null : (attackReachCm ?? this.attackReachCm),
+      birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
+      age: age ?? this.age,
     );
   }
 }

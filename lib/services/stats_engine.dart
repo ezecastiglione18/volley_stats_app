@@ -8,8 +8,15 @@ const String unassignedId = '__no_asignado__';
 class MatchStats {
   final Map<String, PlayerStatLine> byPlayer; // incluye fila "No Asignado"
   final PlayerStatLine team; // fila "Total Equipo"
+  final RivalErrorStats rivalErrors;
+  final RivalPointStats rivalPoints;
 
-  MatchStats({required this.byPlayer, required this.team});
+  MatchStats({
+    required this.byPlayer,
+    required this.team,
+    required this.rivalErrors,
+    required this.rivalPoints,
+  });
 
   List<PlayerStatLine> get orderedRows {
     final rows = byPlayer.values.where((r) => r.playerId != unassignedId).toList()
@@ -58,10 +65,18 @@ class StatsEngine {
         ? match.sets
         : match.sets.where((s) => s.setNumber == setNumber).toList();
 
+    final rivalErrors = RivalErrorStats();
+    final rivalPoints = RivalPointStats();
+
     for (final set in sets) {
       for (final ev in set.events) {
-        if (ev.team != TeamSide.own) continue; // solo estadística propia
-        _applyEvent(ev, lineFor);
+        if (ev.team == TeamSide.own) {
+          _applyEvent(ev, lineFor);
+        } else if (ev.phase == RallyPhase.opponentError) {
+          _bumpRivalError(rivalErrors, ev.rivalActionType);
+        } else if (ev.phase == RallyPhase.opponentPoint) {
+          _bumpRivalPoint(rivalPoints, ev.rivalActionType);
+        }
       }
     }
 
@@ -75,7 +90,36 @@ class StatsEngine {
       _accumulateRecepcion(team.recepcion, l.recepcion);
     }
 
-    return MatchStats(byPlayer: lines, team: team);
+    return MatchStats(byPlayer: lines, team: team, rivalErrors: rivalErrors, rivalPoints: rivalPoints);
+  }
+
+  static void _bumpRivalError(RivalErrorStats stats, String? rivalActionType) {
+    switch (rivalActionType) {
+      case RivalAction.serve:
+        stats.serve++;
+        break;
+      case RivalAction.attack:
+        stats.attack++;
+        break;
+      case RivalAction.counter:
+        stats.counter++;
+        break;
+      default:
+        stats.generic++; // null (partido viejo) o 'generic'.
+    }
+  }
+
+  static void _bumpRivalPoint(RivalPointStats stats, String? rivalActionType) {
+    switch (rivalActionType) {
+      case RivalAction.attack:
+        stats.attack++;
+        break;
+      case RivalAction.counter:
+        stats.counter++;
+        break;
+      default:
+        stats.unclassified++; // partido viejo, sin subtipo guardado.
+    }
   }
 
   static void _applyEvent(RallyEvent ev, PlayerStatLine Function(String) lineFor) {
@@ -174,8 +218,10 @@ class StatsEngine {
   static ZoneStats computeZones(VolleyMatch match, {int? setNumber}) {
     final serveByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
     final attackByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
+    final counterByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
     final serveByZoneByPlayer = <String, Map<int, TouchStats>>{};
     final attackByZoneByPlayer = <String, Map<int, TouchStats>>{};
+    final counterByZoneByPlayer = <String, Map<int, TouchStats>>{};
 
     Map<int, TouchStats> zoneMapFor(
       Map<String, Map<int, TouchStats>> store,
@@ -196,9 +242,12 @@ class StatsEngine {
         if (ev.phase == RallyPhase.serve) {
           _bumpTouch(serveByZone[zone]!, ev.grade);
           _bumpTouch(zoneMapFor(serveByZoneByPlayer, playerId)[zone]!, ev.grade);
-        } else if (ev.phase == RallyPhase.attack || ev.phase == RallyPhase.counter) {
+        } else if (ev.phase == RallyPhase.attack) {
           _bumpTouch(attackByZone[zone]!, ev.grade);
           _bumpTouch(zoneMapFor(attackByZoneByPlayer, playerId)[zone]!, ev.grade);
+        } else if (ev.phase == RallyPhase.counter) {
+          _bumpTouch(counterByZone[zone]!, ev.grade);
+          _bumpTouch(zoneMapFor(counterByZoneByPlayer, playerId)[zone]!, ev.grade);
         }
       }
     }
@@ -206,8 +255,10 @@ class StatsEngine {
     return ZoneStats(
       serveByZone: serveByZone,
       attackByZone: attackByZone,
+      counterByZone: counterByZone,
       serveByZoneByPlayer: serveByZoneByPlayer,
       attackByZoneByPlayer: attackByZoneByPlayer,
+      counterByZoneByPlayer: counterByZoneByPlayer,
     );
   }
 

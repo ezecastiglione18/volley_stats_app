@@ -72,17 +72,29 @@ class PdfReportService {
               ],
             ),
           ),
+          pw.SizedBox(height: 12),
+          pw.Inseparable(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Errores y puntos del rival',
+                    style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 6),
+                _rivalStatsTable(stats),
+              ],
+            ),
+          ),
           pw.SizedBox(height: 16),
           if (zones.hasAnyData) ...[
             pw.Inseparable(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('Zonas de destino de saque y ataque',
+                  pw.Text('Zonas de destino de saque, ataque y contraataque',
                       style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    'Zonas 1 a 6 de la cancha rival (numeración estándar). "Ataque" incluye contraataques. '
+                    'Zonas 1 a 6 de la cancha rival (numeración estándar). '
                     'Solo se cuentan los toques con zona registrada.',
                     style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                   ),
@@ -91,31 +103,37 @@ class PdfReportService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Expanded(child: _zoneTable('Saque por zona', zones.serveByZone)),
-                      pw.SizedBox(width: 16),
+                      pw.SizedBox(width: 12),
                       pw.Expanded(child: _zoneTable('Ataque por zona', zones.attackByZone)),
+                      pw.SizedBox(width: 12),
+                      pw.Expanded(child: _zoneTable('Contraataque por zona', zones.counterByZone)),
                     ],
                   ),
                 ],
               ),
             ),
-            if (zones.serveByZoneByPlayer.isNotEmpty || zones.attackByZoneByPlayer.isNotEmpty) ...[
+            if (zones.serveByZoneByPlayer.isNotEmpty ||
+                zones.attackByZoneByPlayer.isNotEmpty ||
+                zones.counterByZoneByPlayer.isNotEmpty) ...[
               pw.SizedBox(height: 10),
-              pw.Inseparable(
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Expanded(
-                      child: _zonePlayerTable(
-                          'Saque por zona y jugador', zones.serveByZoneByPlayer, stats),
-                    ),
-                    pw.SizedBox(width: 16),
-                    pw.Expanded(
-                      child: _zonePlayerTable(
-                          'Ataque por zona y jugador', zones.attackByZoneByPlayer, stats),
-                    ),
-                  ],
+              if (zones.serveByZoneByPlayer.isNotEmpty) ...[
+                pw.Inseparable(
+                  child: _zonePlayerTable('Saque por zona y jugador', zones.serveByZoneByPlayer, stats),
                 ),
-              ),
+                pw.SizedBox(height: 10),
+              ],
+              if (zones.attackByZoneByPlayer.isNotEmpty) ...[
+                pw.Inseparable(
+                  child: _zonePlayerTable('Ataque por zona y jugador', zones.attackByZoneByPlayer, stats),
+                ),
+                pw.SizedBox(height: 10),
+              ],
+              if (zones.counterByZoneByPlayer.isNotEmpty) ...[
+                pw.Inseparable(
+                  child: _zonePlayerTable(
+                      'Contraataque por zona y jugador', zones.counterByZoneByPlayer, stats),
+                ),
+              ],
             ],
             pw.SizedBox(height: 16),
           ],
@@ -485,6 +503,56 @@ class PdfReportService {
           'Referencias: Z1-Z6 zona de destino de cada toque (numeración estándar) · '
           'Total toques con zona registrada · % Efec = (PP+P) / Total.  $_positionLegend',
           style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700),
+        ),
+      ],
+    );
+  }
+
+  /// Tabla con los errores del rival por tipo de toque (a favor del equipo
+  /// propio) y los puntos que ganó el rival con su propio toque, a nivel de
+  /// partido completo.
+  static pw.Widget _rivalStatsTable(MatchStats stats) {
+    final err = stats.rivalErrors;
+    final pts = stats.rivalPoints;
+    final showUnclassified = pts.unclassified > 0;
+
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Expanded(
+          child: pw.Table.fromTextArray(
+            headers: const ['Error Saque', 'Error Ataque', 'Error Contra', 'Error Genérico', 'Total'],
+            data: [
+              ['${err.serve}', '${err.attack}', '${err.counter}', '${err.generic}', '${err.total}'],
+            ],
+            headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
+            cellAlignment: pw.Alignment.center,
+          ),
+        ),
+        pw.SizedBox(width: 16),
+        pw.Expanded(
+          child: pw.Table.fromTextArray(
+            headers: [
+              'Punto Ataque',
+              'Punto Contra',
+              if (showUnclassified) 'Sin clasificar',
+              'Total',
+            ],
+            data: [
+              [
+                '${pts.attack}',
+                '${pts.counter}',
+                if (showUnclassified) '${pts.unclassified}',
+                '${pts.total}',
+              ],
+            ],
+            headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
+            cellAlignment: pw.Alignment.center,
+          ),
         ),
       ],
     );

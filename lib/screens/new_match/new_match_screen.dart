@@ -206,13 +206,24 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
                         min: 1,
                         max: 5,
                       ),
-                      _NumberField(
-                        label: 'Cambios permitidos por set',
-                        value: _config.maxSubstitutionsPerSet,
-                        onChanged: (v) => setState(() => _config.maxSubstitutionsPerSet = v),
-                        min: 1,
-                        max: 10,
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: _config.hasUnlimitedSubstitutions,
+                        title: const Text('Cambios permitidos por set: sin límite'),
+                        onChanged: (v) => setState(() {
+                          _config.maxSubstitutionsPerSet =
+                              (v ?? false) ? MatchConfig.unlimited : 6;
+                        }),
                       ),
+                      if (!_config.hasUnlimitedSubstitutions)
+                        _NumberField(
+                          label: 'Cambios permitidos por set',
+                          value: _config.maxSubstitutionsPerSet,
+                          onChanged: (v) => setState(() => _config.maxSubstitutionsPerSet = v),
+                          min: 1,
+                          max: 10,
+                        ),
                     ],
                   ),
                 ),
