@@ -9,14 +9,19 @@ estadísticas exportable como reporte en PDF.
 
 ## Funcionalidades
 
-- Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional.
-- Planteles de equipo de hasta 35 jugadores, con una planilla de hasta 14 habilitados por partido.
+- Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional
+  (saque, ataque y contraataque).
+- Planteles de equipo de hasta 35 jugadores, con edad (a mano o calculada desde la fecha de nacimiento),
+  datos físicos y alcances de bloqueo/ataque opcionales, y una planilla de hasta 14 habilitados por
+  partido.
 - Cambios de jugador según el reglamento oficial de la FIVB (cambio regular y cambio de líbero), con los
-  roles de líbero configurables set a set y opción de deshacer el último cambio o la última jugada
-  cargada por error.
+  roles de líbero configurables set a set, cambios por set ilimitados si se prefiere, y opción de
+  deshacer el último cambio o la última jugada cargada por error.
 - Formato de partido configurable (cantidad de sets, puntos por set, cambios permitidos por set).
-- Estadísticas del partido completo o por set, con reporte en PDF listo para compartir (incluye
-  desglose por jugador y zonas de destino de saque y ataque).
+- Estadísticas del partido completo o por set (propias y del rival), con reporte en PDF listo para
+  compartir (incluye desglose por jugador y zonas de destino de saque, ataque y contraataque).
+- Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
+  conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
 - Modo claro y modo oscuro.
 - 100% offline: todos los datos (equipos, jugadores y partidos) se guardan solo en el dispositivo, sin
@@ -26,7 +31,8 @@ estadísticas exportable como reporte en PDF.
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) estable (probado con Flutter 3.47 / Dart
   ^3.3).
-- Para instalar y correr la app compilada: Android 7.0 (API 24) o superior.
+- Para instalar y correr la app compilada: Android 7.0 (API 24) o superior, o Windows 10 de 64 bits o
+  superior (incluye Windows 11) para la versión de escritorio.
 
 ## Cómo correr el proyecto
 
@@ -35,10 +41,17 @@ flutter pub get
 flutter run
 ```
 
-Para generar el APK de instalación:
+Para generar el APK de Android:
 
 ```bash
-flutter build apk
+flutter build apk --release
+```
+
+Para generar el ejecutable de Windows (queda en `build\windows\x64\runner\Release\`, junto con los
+`.dll` que necesita — hay que compartir esa carpeta entera, no solo el `.exe`):
+
+```bash
+flutter build windows --release
 ```
 
 ## Estructura del proyecto
@@ -48,7 +61,7 @@ lib/
   models/     # Team, Player, VolleyMatch, MatchSet, RallyEvent, SubstitutionEvent, MatchConfig
   state/      # MatchController (reglas del juego y estado en vivo), AppDataController, ThemeController
   screens/    # pantallas: home, equipos, armado de partido, carga en vivo, resumen y archivo
-  services/   # persistencia local (Hive) y generación de reportes en PDF
+  services/   # persistencia local (Hive), estadísticas, reportes en PDF y exportar/importar partidos
 ```
 
 ## Manual de usuario
