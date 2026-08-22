@@ -210,7 +210,7 @@ class _StatsTable extends StatelessWidget {
             _H('Rec P'),
             _H('Rec !'),
             _H('Rec N'),
-            _H('Rec V-'),
+            _H('Rec V/'),
             _H('Rec NN'),
             _H('Rec %'),
           ],

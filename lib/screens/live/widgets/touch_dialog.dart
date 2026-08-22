@@ -69,12 +69,12 @@ Future<void> showTouchDialog({
                   const Text('Calificación', style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   GridView.count(
-                    crossAxisCount: grades.length <= 4 ? grades.length : 3,
+                    crossAxisCount: grades.length <= 2 ? grades.length : 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    childAspectRatio: 1.3,
+                    childAspectRatio: 1.9,
                     children: grades.map((g) {
                       return ElevatedButton(
                         style: ElevatedButton.styleFrom(

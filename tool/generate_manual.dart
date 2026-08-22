@@ -51,7 +51,7 @@ const _pFormacionInicial = 6;
 const _pRolesLibero = 6;
 const _pPantallaVivo = 6;
 const _pMarcador = 6;
-const _pCancha = 6;
+const _pCancha = 7;
 const _pBotonesAccion = 7;
 const _pZonaDestino = 8;
 const _pCambiosJugador = 8;
@@ -596,19 +596,24 @@ List<pw.Widget> _section3GestionEquipos() => [
         'tocá un jugador de la lista para editarlo. Cada equipo admite hasta 35 jugadores cargados; de esa '
         'lista después se elige, para cada partido, una planilla de hasta 14 habilitados.',
       ),
-      _p('Los datos que se cargan por jugador son:', bottom: 6),
+      _p(
+        'Los campos obligatorios son Apellido, Nombre, Número de camiseta y Posición (están marcados con '
+        'un asterisco); el resto de los datos son opcionales. Los datos que se cargan por jugador son, en '
+        'el orden en que aparecen en el formulario:',
+        bottom: 6,
+      ),
       _bullets([
-        [_t('Apellido y Nombre.')],
-        [_t('Número de camiseta.')],
-        [_t('Posición: Armador, Opuesto, Central, Punta/Receptor o Líbero.')],
+        [_t('Apellido y Nombre (obligatorios).')],
+        [_t('Número de camiseta (obligatorio).')],
+        [_t('Mano hábil (opcional): derecha o izquierda.')],
+        [_t('Posición (obligatoria): Armador, Opuesto, Central, Punta/Receptor o Líbero.')],
         [
-          _b('Edad: '),
-          _t('obligatoria. Se puede escribir a mano, o dejar que se calcule sola cargando la fecha de '
-              'nacimiento (opcional); si hay fecha de nacimiento cargada, tiene prioridad y la edad se '
+          _b('Edad (opcional): '),
+          _t('se puede escribir a mano, o dejar que se calcule sola cargando la fecha de '
+              'nacimiento (también opcional); si hay fecha de nacimiento cargada, tiene prioridad y la edad se '
               'recalcula sola, sin poder editarse a mano.')
         ],
         [_t('Datos físicos (opcionales): altura, peso, alcance en bloqueo y alcance en ataque (en cm).')],
-        [_t('Mano de ataque (opcional): derecha o izquierda.')],
       ]),
       _p(
         'Para borrar un equipo completo, entrá a su pantalla de edición y usá el ícono de tacho de basura '
@@ -770,9 +775,9 @@ List<pw.Widget> _section7PantallaVivo() => [
         pillFirstColumn: true,
         rows: [
           ['Saque', 'Cuando le toca sacar al equipo propio.', 'Calificación del saque del jugador que está en el puesto 1.'],
+          ['Contra', 'Con la pelota en juego del lado rival.', 'Calificación de un contraataque (posterior a defensa/bloqueo).'],
           ['Recepción', 'Cuando el rival sacó.', 'Calificación de la recepción, eligiendo qué jugador recibió.'],
           ['Ataque', 'Después de una recepción no terminal.', 'Calificación del primer ataque (K1), eligiendo el jugador.'],
-          ['Contra', 'Con la pelota en juego del lado rival.', 'Calificación de un contraataque (posterior a defensa/bloqueo).'],
           ['Bloqueo (Punto)', 'Con la pelota en juego del lado rival.', 'Punto de bloqueo; permite elegir uno o más bloqueadores.'],
           ['Error General', 'En cualquier momento.', 'Error propio no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
           ['Punto Rival', 'Al recibir o defender.', 'Punto directo del rival no atribuible a una acción propia cargada aparte; pide elegir si fue de ataque o de contraataque.'],
@@ -793,9 +798,9 @@ List<pw.Widget> _section7PantallaVivo() => [
         headers: ['Fase', 'Escala de calificación'],
         flex: [3, 7],
         rows: [
-          ['Saque / Ataque / Contra', 'PP punto directo · P bueno · N negativo · NN error'],
-          ['Ataque / Contra', 'Además puede calificarse BLOQ (bloqueado por el rival)'],
-          ['Recepción', 'PP perfecta · P buena · ! efectiva · N negativa · V- muy negativa · NN error'],
+          ['Saque', 'PP Punto (Doble Positiva) · P Positiva · N Negativa · NN Error (Doble Negativa)'],
+          ['Ataque / Contra', 'PP Punto (Doble Positiva) · P Positiva · N Negativa · BLOQ Bloqueado · NN Error (Doble Negativa)'],
+          ['Recepción', 'PP Perfecta (Doble Positiva) · P Positiva · ! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa)'],
         ],
       ),
       pw.SizedBox(height: 10),
@@ -975,7 +980,7 @@ List<pw.Widget> _section12Resumen() => [
         'El selector Estadística permite elegir entre el partido completo o un set en particular (afecta '
         'también a la sección "Estadística del rival"). La tabla por jugador incluye: puntos totales, '
         'errores totales, el desglose de saque, ataque y contraataque por calificación (PP/P/N/Bl/NN), '
-        'puntos de bloqueo, errores generales, y el desglose de recepción (total, PP/P/!/N/V-/NN) junto con '
+        'puntos de bloqueo, errores generales, y el desglose de recepción (total, PP, P, !, N, V/, NN) junto con '
         'el porcentaje de efectividad de recepción (definido como (PP + P) sobre el total de recepciones).',
       ),
     ];
@@ -1020,11 +1025,11 @@ List<pw.Widget> _section14Glosario() => [
         flex: [2, 8],
         pillFirstColumn: true,
         rows: [
-          ['PP', 'Punto directo (el toque termina el punto a favor propio).'],
-          ['P', 'Toque bueno / positivo, el punto sigue en juego.'],
-          ['N', 'Toque negativo, dificulta la jugada propia pero no termina el punto.'],
-          ['BLOQ', 'Solo en ataque/contra: el toque fue bloqueado por el rival (termina el punto en contra).'],
-          ['NN', 'Error (el toque termina el punto a favor del rival).'],
+          ['PP', 'Punto (Doble Positiva): punto directo, el toque termina el punto a favor propio.'],
+          ['P', 'Positiva: toque bueno, el punto sigue en juego.'],
+          ['N', 'Negativa: toque que dificulta la jugada propia pero no termina el punto.'],
+          ['BLOQ', 'Bloqueado: solo en ataque/contra, el toque fue bloqueado por el rival (termina el punto en contra).'],
+          ['NN', 'Error (Doble Negativa): el toque termina el punto a favor del rival.'],
         ],
       ),
       pw.SizedBox(height: 14),
@@ -1034,12 +1039,12 @@ List<pw.Widget> _section14Glosario() => [
         flex: [2, 8],
         pillFirstColumn: true,
         rows: [
-          ['PP', 'Recepción perfecta.'],
-          ['P', 'Recepción buena.'],
-          ['!', 'Recepción efectiva.'],
-          ['N', 'Recepción negativa.'],
-          ['V-', 'Recepción muy negativa.'],
-          ['NN', 'Error de recepción (termina el punto a favor del rival).'],
+          ['PP', 'Perfecta (Doble Positiva): recepción perfecta.'],
+          ['P', 'Positiva: recepción buena.'],
+          ['!', 'Exclamativa: recepción efectiva.'],
+          ['N', 'Negativa: recepción negativa.'],
+          ['V/', 'Vendida: recepción muy negativa, prácticamente regalada al rival.'],
+          ['NN', 'Error (Doble Negativa): error de recepción, termina el punto a favor del rival.'],
         ],
       ),
       pw.SizedBox(height: 14),
@@ -1072,6 +1077,12 @@ List<pw.Widget> _section15Faq() => [
         'Todo se guarda de forma local en el dispositivo (equipos, jugadores y partidos). Desinstalar la '
             'app o borrar sus datos elimina también esa información, así que conviene exportar en PDF los '
             'partidos que se quieran conservar.',
+      ),
+      _faqCard(
+        '¿Cuántos partidos puedo cargar en el Archivo de Partidos?',
+        'No hay un límite fijo: la app no pone ningún tope a la cantidad de partidos guardados. En la '
+            'práctica, el único límite es el espacio libre en el dispositivo, y como cada partido ocupa muy '
+            'poco, se pueden acumular miles de partidos sin problema.',
       ),
       _faqCard(
         '¿Qué versión de Android necesito para usar RallyStats?',

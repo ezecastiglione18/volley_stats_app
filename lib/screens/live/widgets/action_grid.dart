@@ -142,6 +142,13 @@ class ActionGrid extends StatelessWidget {
         onTap: () => _serve(context),
       ),
       ActionButtonSpec(
+        label: 'Contra',
+        icon: Icons.replay,
+        color: accent,
+        enabled: controller.actionCounterEnabled,
+        onTap: () => _counter(context),
+      ),
+      ActionButtonSpec(
         label: 'Recepción',
         icon: Icons.front_hand,
         color: accent,
@@ -154,13 +161,6 @@ class ActionGrid extends StatelessWidget {
         color: accent,
         enabled: controller.actionAttackEnabled,
         onTap: () => _attack(context),
-      ),
-      ActionButtonSpec(
-        label: 'Contra',
-        icon: Icons.replay,
-        color: accent,
-        enabled: controller.actionCounterEnabled,
-        onTap: () => _counter(context),
       ),
       ActionButtonSpec(
         label: 'Bloqueo\n(Punto)',

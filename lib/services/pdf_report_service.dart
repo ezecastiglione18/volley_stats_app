@@ -334,9 +334,9 @@ class PdfReportService {
         ),
         pw.SizedBox(height: 3),
         pw.Text(
-          'Referencias - Saque/Ataque/Contra: PP punto directo · P positivo · N negativo · '
-          'Bl bloqueado · NN error.  Recepción: PP perfecta · P buena · ! efectiva · N negativa · '
-          'V- muy negativa · NN error.  Pts puntos · Err errores totales · Blq Pts puntos de bloqueo · '
+          'Referencias - Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva · N Negativa · '
+          'Bl Bloqueado · NN Error (Doble Negativa).  Recepción: PP Perfecta (Doble Positiva) · P Positiva · '
+          '! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa).  Pts puntos · Err errores totales · Blq Pts puntos de bloqueo · '
           'Err Gen errores generales · Tot toques totales · % efectividad de recepción.  $_positionLegend',
           style: pw.TextStyle(fontSize: compact ? 5.5 : 6.5, color: PdfColors.grey700),
         ),
@@ -383,7 +383,7 @@ class PdfReportService {
     _StatCol('P', 9, group: 'Recepción'),
     _StatCol('!', 8, group: 'Recepción'),
     _StatCol('N', 9, group: 'Recepción'),
-    _StatCol('V-', 9, group: 'Recepción'),
+    _StatCol('V/', 9, group: 'Recepción'),
     _StatCol('NN', 9, group: 'Recepción'),
     _StatCol('%', 10, group: 'Recepción'),
   ];
@@ -609,8 +609,8 @@ class PdfReportService {
         ),
         pw.SizedBox(height: 3),
         pw.Text(
-          'Referencias: PP punto directo · P positivo · N negativo'
-          '${includeBloq ? ' · BLOQ bloqueado' : ''} · NN error.',
+          'Referencias: PP Punto (Doble Positiva) · P Positiva · N Negativa'
+          '${includeBloq ? ' · BLOQ Bloqueado' : ''} · NN Error (Doble Negativa).',
           style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700),
         ),
       ],

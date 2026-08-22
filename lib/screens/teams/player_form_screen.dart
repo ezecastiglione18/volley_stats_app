@@ -13,6 +13,7 @@ class PlayerFormScreen extends StatefulWidget {
 }
 
 class _PlayerFormScreenState extends State<PlayerFormScreen> {
+  final _formKey = GlobalKey<FormState>();
   late TextEditingController _firstName;
   late TextEditingController _lastName;
   late TextEditingController _number;
@@ -67,13 +68,8 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
   }
 
   void _save() {
+    if (!_formKey.currentState!.validate()) return;
     final manualAge = int.tryParse(_age.text.trim());
-    if (_birthDate == null && manualAge == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La edad es obligatoria (o cargá la fecha de nacimiento)')),
-      );
-      return;
-    }
     final result = Player(
       id: widget.player.id,
       firstName: _firstName.text.trim(),
@@ -100,35 +96,55 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
       ),
       body: SafeArea(
         top: false,
+        child: Form(
+        key: _formKey,
         child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(
+          TextFormField(
             controller: _lastName,
-            decoration: const InputDecoration(labelText: 'Apellido'),
+            decoration: const InputDecoration(labelText: 'Apellido *'),
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'Obligatorio' : null,
           ),
           const SizedBox(height: 12),
-          TextField(
+          TextFormField(
             controller: _firstName,
-            decoration: const InputDecoration(labelText: 'Nombre'),
+            decoration: const InputDecoration(labelText: 'Nombre *'),
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'Obligatorio' : null,
           ),
           const SizedBox(height: 12),
-          TextField(
+          TextFormField(
             controller: _number,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Número de camiseta'),
+            decoration: const InputDecoration(labelText: 'Número de camiseta *'),
+            validator: (v) {
+              final n = int.tryParse((v ?? '').trim());
+              if (n == null || n <= 0) return 'Número inválido';
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<DominantHand?>(
+            initialValue: _hand,
+            decoration: const InputDecoration(labelText: 'Mano hábil (opcional)'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Sin especificar')),
+              ...DominantHand.values
+                  .map((h) => DropdownMenuItem(value: h, child: Text(h.label))),
+            ],
+            onChanged: (v) => setState(() => _hand = v),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<PlayerPosition>(
             initialValue: _position,
-            decoration: const InputDecoration(labelText: 'Posición'),
+            decoration: const InputDecoration(labelText: 'Posición *'),
             items: PlayerPosition.values
                 .map((p) => DropdownMenuItem(value: p, child: Text(p.label)))
                 .toList(),
             onChanged: (v) => setState(() => _position = v ?? _position),
           ),
           const SizedBox(height: 20),
-          const Text('Edad', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('Edad (opcional)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -150,10 +166,10 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
             enabled: _birthDate == null,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: 'Edad',
+              labelText: 'Edad (opcional)',
               helperText: _birthDate != null
                   ? 'Calculada automáticamente a partir de la fecha de nacimiento'
-                  : 'Obligatoria si no cargaste la fecha de nacimiento',
+                  : null,
             ),
           ),
           const SizedBox(height: 20),
@@ -199,20 +215,10 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<DominantHand?>(
-            initialValue: _hand,
-            decoration: const InputDecoration(labelText: 'Mano de ataque'),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('Sin especificar')),
-              ...DominantHand.values
-                  .map((h) => DropdownMenuItem(value: h, child: Text(h.label))),
-            ],
-            onChanged: (v) => setState(() => _hand = v),
-          ),
           const SizedBox(height: 28),
           ElevatedButton(onPressed: _save, child: const Text('Guardar jugador')),
         ],
+        ),
         ),
       ),
     );
