@@ -21,6 +21,7 @@ flutter test --plain-name "nombre del test"   # correr un solo testWidgets por s
 flutter build apk --release      # generar el APK de Android (build/app/outputs/flutter-apk/)
 flutter build windows --release  # generar el ejecutable de Windows (build/windows/x64/runner/Release/)
 dart run tool/generate_manual.dart   # regenerar manual_usuario_rallystats.pdf
+& "C:\Users\Usuario\AppData\Local\Programs\Inno Setup 6\ISCC.exe" installer\rallystats.iss   # instalador wizard de Windows (requiere el build de Release ya hecho)
 ```
 
 No hay generación de código (`build_runner`): los modelos usan `toJson`/`fromJson` escritos a mano
@@ -109,6 +110,22 @@ seguir este orden. No todos los pasos aplican siempre — evaluar cada uno:
    carpeta `build\windows\x64\runner\Release\` (copiarla a una carpeta con nombre prolijo, p. ej.
    `RallyStats-Windows`, y `Compress-Archive` sobre esa carpeta) directo a
    `C:\Users\Usuario\Desktop\RallyStats-Windows.zip`. No alcanza con zippear solo el `.exe`.
+7. **Generar el instalador de Windows (Inno Setup)**: requiere tener instalado Inno Setup 6.3+
+   (https://jrsoftware.org/isinfo.php; en esta máquina está instalado vía `winget install
+   JRSoftware.InnoSetup`, que lo dejó en `C:\Users\Usuario\AppData\Local\Programs\Inno Setup 6\ISCC.exe`,
+   no en Archivos de Programa — si se reinstala con el instalador oficial en vez de winget puede terminar
+   en `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`, revisar cuál corresponde). Si cambió `version:` en
+   `pubspec.yaml` desde el último release, actualizar a mano `MyAppVersion` en `installer\rallystats.iss`
+   para que coincida (no se lee automáticamente de `pubspec.yaml`). Compilar con:
+   ```powershell
+   & "C:\Users\Usuario\AppData\Local\Programs\Inno Setup 6\ISCC.exe" installer\rallystats.iss
+   ```
+   Esto empaqueta `build\windows\x64\runner\Release\` (por eso el paso 4 tiene que estar hecho antes) y
+   genera `installer\Output\RallyStats-Setup-<version>.exe`: un wizard de instalación autocontenido (no
+   necesita el `.zip` ni la carpeta `Release` para funcionar en la máquina de destino). Copiar ese
+   instalador al escritorio o subirlo como asset de un GitHub Release para compartirlo — es la vía
+   recomendada para el usuario final; el `.zip` del paso 6 sigue sirviendo como alternativa portátil sin
+   instalación.
 
 ## Particularidades del entorno de build en esta máquina (Windows)
 

@@ -10,6 +10,7 @@ import '../matches/match_summary_screen.dart';
 import '../new_match/lineup_screen.dart';
 import 'widgets/action_grid.dart';
 import 'widgets/court_view.dart';
+import 'widgets/sanction_dialog.dart';
 import 'widgets/scoreboard.dart';
 import 'widgets/substitution_dialog.dart';
 
@@ -65,6 +66,15 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Cambio de jugador',
             onPressed: () => showSubstitutionDialog(context: context, controller: controller),
+          ),
+          IconButton(
+            icon: Badge(
+              label: Text('${controller.currentSet.sanctions.length}'),
+              isLabelVisible: controller.currentSet.sanctions.isNotEmpty,
+              child: const Icon(Icons.style_outlined),
+            ),
+            tooltip: 'Sanción / Tarjeta',
+            onPressed: () => showSanctionDialog(context: context, controller: controller),
           ),
           IconButton(
             icon: const Icon(Icons.casino_outlined),

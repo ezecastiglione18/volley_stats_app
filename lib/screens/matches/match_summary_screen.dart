@@ -153,6 +153,7 @@ class _RivalStatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final err = stats.rivalErrors;
     final pts = stats.rivalPoints;
+    final san = stats.rivalSanctions;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -166,6 +167,10 @@ class _RivalStatsCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text('Puntos rival — Ataque: ${pts.attack} · Contra: ${pts.counter}'
                 '${pts.unclassified > 0 ? ' · Sin clasificar: ${pts.unclassified}' : ''} · Total: ${pts.total}'),
+            if (san.yellowCards > 0 || san.redCards > 0) ...[
+              const SizedBox(height: 4),
+              Text('Sanciones rival — Amarillas: ${san.yellowCards} · Rojas: ${san.redCards}'),
+            ],
           ],
         ),
       ),
@@ -213,6 +218,8 @@ class _StatsTable extends StatelessWidget {
             _H('Rec V/'),
             _H('Rec NN'),
             _H('Rec %'),
+            _H('Am'),
+            _H('Ro'),
           ],
         );
 
@@ -251,6 +258,8 @@ class _StatsTable extends StatelessWidget {
         c('${r.recepcion.vNeg}'),
         c('${r.recepcion.nn}'),
         c(eff == null ? '-' : '${(eff * 100).toStringAsFixed(0)}%'),
+        c('${r.yellowCards}'),
+        c('${r.redCards}'),
       ]);
     }
 
@@ -299,6 +308,8 @@ class _StatsTable extends StatelessWidget {
               _C(stats.team.recepcion.efficiency == null
                   ? '-'
                   : '${(stats.team.recepcion.efficiency! * 100).toStringAsFixed(0)}%'),
+              _C('${stats.team.yellowCards}'),
+              _C('${stats.team.redCards}'),
             ],
           ),
         ],

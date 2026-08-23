@@ -1,5 +1,6 @@
 import '../models/player.dart';
 import '../models/rally_event.dart';
+import '../models/sanction_event.dart';
 import '../models/stat_line.dart';
 import '../models/volley_match.dart';
 
@@ -10,12 +11,14 @@ class MatchStats {
   final PlayerStatLine team; // fila "Total Equipo"
   final RivalErrorStats rivalErrors;
   final RivalPointStats rivalPoints;
+  final RivalSanctionStats rivalSanctions;
 
   MatchStats({
     required this.byPlayer,
     required this.team,
     required this.rivalErrors,
     required this.rivalPoints,
+    required this.rivalSanctions,
   });
 
   List<PlayerStatLine> get orderedRows {
@@ -67,6 +70,7 @@ class StatsEngine {
 
     final rivalErrors = RivalErrorStats();
     final rivalPoints = RivalPointStats();
+    final rivalSanctions = RivalSanctionStats();
 
     for (final set in sets) {
       for (final ev in set.events) {
@@ -76,6 +80,21 @@ class StatsEngine {
           _bumpRivalError(rivalErrors, ev.rivalActionType);
         } else if (ev.phase == RallyPhase.opponentPoint) {
           _bumpRivalPoint(rivalPoints, ev.rivalActionType);
+        }
+      }
+      for (final s in set.sanctions) {
+        if (s.team == TeamSide.own) {
+          // Un jugador puntual suma a su fila; una sanción al banco/cuerpo
+          // técnico suma a "No Asignado" (igual que un Error General sin
+          // jugador elegido), para que no quede afuera del total del equipo.
+          final line = lineFor(s.targetKind == SanctionTargetKind.player && s.targetPlayerId != null
+              ? s.targetPlayerId!
+              : unassignedId);
+          if (s.outcome.showsYellow) line.yellowCards++;
+          if (s.outcome.showsRed) line.redCards++;
+        } else {
+          if (s.outcome.showsYellow) rivalSanctions.yellowCards++;
+          if (s.outcome.showsRed) rivalSanctions.redCards++;
         }
       }
     }
@@ -88,9 +107,17 @@ class StatsEngine {
       team.bloqueoPts += l.bloqueoPts;
       team.errGen += l.errGen;
       _accumulateRecepcion(team.recepcion, l.recepcion);
+      team.yellowCards += l.yellowCards;
+      team.redCards += l.redCards;
     }
 
-    return MatchStats(byPlayer: lines, team: team, rivalErrors: rivalErrors, rivalPoints: rivalPoints);
+    return MatchStats(
+      byPlayer: lines,
+      team: team,
+      rivalErrors: rivalErrors,
+      rivalPoints: rivalPoints,
+      rivalSanctions: rivalSanctions,
+    );
   }
 
   static void _bumpRivalError(RivalErrorStats stats, String? rivalActionType) {
@@ -153,6 +180,11 @@ class StatsEngine {
       case RallyPhase.opponentPoint:
       case RallyPhase.opponentError:
         // No se atribuye a jugador propio.
+        break;
+      case RallyPhase.sanction:
+        // El punto ya se contabilizó en el marcador; el detalle de la
+        // tarjeta (a quién, qué color) sale de MatchSet.sanctions, no de
+        // este RallyEvent sintético.
         break;
     }
   }

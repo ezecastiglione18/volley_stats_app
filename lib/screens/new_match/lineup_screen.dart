@@ -61,6 +61,10 @@ class _LineupScreenState extends State<LineupScreen> {
   late String? _defensiveLiberoId;
   late String? _receptionLiberoId;
 
+  // Igual que los roles de líbero: se elige de nuevo en cada set (por
+  // defecto activado). Si hay un set anterior, arranca con lo elegido ahí.
+  bool _autoLiberoBackRowSwap = true;
+
   bool get _isNextSet => widget.existingController != null;
 
   @override
@@ -71,6 +75,7 @@ class _LineupScreenState extends State<LineupScreen> {
         : null;
     _defensiveLiberoId = previousSet?.defensiveLiberoId;
     _receptionLiberoId = previousSet?.receptionLiberoId;
+    _autoLiberoBackRowSwap = previousSet?.autoLiberoBackRowSwap ?? true;
 
     // El saque inicial se alterna set a set (regla FIVB), excepto en el
     // set decisivo (tie-break), donde se vuelve a sortear: ahí no se
@@ -131,6 +136,7 @@ class _LineupScreenState extends State<LineupScreen> {
         trackHitZones: _trackHitZones,
         defensiveLiberoId: _defensiveLiberoId,
         receptionLiberoId: _receptionLiberoId,
+        autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
       );
       controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
       await context.read<AppDataController>().saveMatch(controller.match);
@@ -161,6 +167,7 @@ class _LineupScreenState extends State<LineupScreen> {
       trackHitZones: _trackHitZones,
       defensiveLiberoId: _defensiveLiberoId,
       receptionLiberoId: _receptionLiberoId,
+      autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
     );
     controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
     await context.read<AppDataController>().saveMatch(match);
@@ -256,6 +263,20 @@ class _LineupScreenState extends State<LineupScreen> {
                   DropdownMenuItem(value: p.id, child: Text('#${p.number} ${p.fullName}')),
               ],
               onChanged: (v) => setState(() => _receptionLiberoId = v),
+            ),
+            const SizedBox(height: 6),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _autoLiberoBackRowSwap,
+              title: const Text('Líbero defensor automático'),
+              subtitle: const Text(
+                'Si está tildado, el líbero defensor entra solo por el central que rota al fondo '
+                'cuando saca nuestro equipo (salvo que sea ese central quien va a sacar). '
+                'Destildado, ese cambio hay que hacerlo a mano desde el panel de cambios.',
+                style: TextStyle(fontSize: 12),
+              ),
+              onChanged: (v) => setState(() => _autoLiberoBackRowSwap = v ?? true),
             ),
           ],
           const SizedBox(height: 24),

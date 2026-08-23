@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../models/player.dart';
 import '../models/rally_event.dart';
+import '../models/sanction_event.dart';
 import '../models/stat_line.dart';
 import '../models/volley_match.dart';
 import 'stats_engine.dart';
@@ -84,6 +85,20 @@ class PdfReportService {
               ],
             ),
           ),
+          if (match.sets.any((s) => s.sanctions.isNotEmpty)) ...[
+            pw.SizedBox(height: 12),
+            pw.Inseparable(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Sanciones',
+                      style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 6),
+                  _sanctionsTable(match),
+                ],
+              ),
+            ),
+          ],
           pw.SizedBox(height: 16),
           if (zones.hasAnyData) ...[
             pw.Inseparable(
@@ -255,6 +270,8 @@ class PdfReportService {
         '${r.recepcion.vNeg}',
         '${r.recepcion.nn}',
         effPct == null ? '-' : '${(effPct * 100).toStringAsFixed(0)}%',
+        '${r.yellowCards}',
+        '${r.redCards}',
       ];
     }).toList();
 
@@ -298,6 +315,8 @@ class PdfReportService {
       t.recepcion.efficiency == null
           ? '-'
           : '${(t.recepcion.efficiency! * 100).toStringAsFixed(0)}%',
+      '${t.yellowCards}',
+      '${t.redCards}',
     ]);
 
     final columnWidths = <int, pw.TableColumnWidth>{
@@ -337,7 +356,8 @@ class PdfReportService {
           'Referencias - Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva · N Negativa · '
           'Bl Bloqueado · NN Error (Doble Negativa).  Recepción: PP Perfecta (Doble Positiva) · P Positiva · '
           '! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa).  Pts puntos · Err errores totales · Blq Pts puntos de bloqueo · '
-          'Err Gen errores generales · Tot toques totales · % efectividad de recepción.  $_positionLegend',
+          'Err Gen errores generales · Tot toques totales · % efectividad de recepción · Am tarjetas amarillas · '
+          'Ro tarjetas rojas.  $_positionLegend',
           style: pw.TextStyle(fontSize: compact ? 5.5 : 6.5, color: PdfColors.grey700),
         ),
       ],
@@ -386,6 +406,8 @@ class PdfReportService {
     _StatCol('V/', 9, group: 'Recepción'),
     _StatCol('NN', 9, group: 'Recepción'),
     _StatCol('%', 10, group: 'Recepción'),
+    _StatCol('Am', 8),
+    _StatCol('Ro', 8),
   ];
 
   /// Banda superior con los títulos de categoría (Saque, Ataque, etc.),
@@ -556,6 +578,59 @@ class PdfReportService {
         ),
       ],
     );
+  }
+
+  /// Lista cronológica de todas las sanciones/tarjetas del partido (los dos
+  /// equipos, todos los sets).
+  static pw.Widget _sanctionsTable(VolleyMatch match) {
+    final rows = <List<String>>[];
+    for (final set in match.sets) {
+      for (final s in set.sanctions) {
+        rows.add([
+          '${s.setNumber}',
+          s.team == TeamSide.own ? match.ownTeamName : match.rivalTeamName,
+          _sanctionTargetLabel(match, s),
+          s.category.label,
+          s.outcome.title(s.category),
+          s.outcome.cardsLabel,
+        ]);
+      }
+    }
+    if (rows.isEmpty) return pw.SizedBox();
+
+    return pw.TableHelper.fromTextArray(
+      headers: const ['Set', 'Equipo', 'Jugador / Banco', 'Categoría', 'Sanción', 'Tarjetas'],
+      data: rows,
+      columnWidths: const {
+        0: pw.FlexColumnWidth(1),
+        1: pw.FlexColumnWidth(2.5),
+        2: pw.FlexColumnWidth(3),
+        3: pw.FlexColumnWidth(2.2),
+        4: pw.FlexColumnWidth(2.2),
+        5: pw.FlexColumnWidth(2.6),
+      },
+      headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+      cellStyle: const pw.TextStyle(fontSize: 8),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey100),
+      oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+      cellAlignment: pw.Alignment.center,
+      cellAlignments: const {1: pw.Alignment.centerLeft, 2: pw.Alignment.centerLeft},
+    );
+  }
+
+  static String _sanctionTargetLabel(VolleyMatch match, SanctionEvent s) {
+    if (s.targetKind == SanctionTargetKind.staff) {
+      return 'Banco / Cuerpo técnico';
+    }
+    if (s.team == TeamSide.own) {
+      final p = match.ownRoster.firstWhere(
+        (pl) => pl.id == s.targetPlayerId,
+        orElse: () =>
+            Player(id: '', firstName: '', lastName: '?', number: 0, position: PlayerPosition.puntaReceptor),
+      );
+      return '#${p.number} ${p.fullName}';
+    }
+    return 'Jugador rival #${s.rivalNumber ?? '?'}';
   }
 
   static pw.Widget _zoneTable(String title, Map<int, TouchStats> byZone) {

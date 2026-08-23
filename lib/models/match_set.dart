@@ -1,4 +1,5 @@
 import 'rally_event.dart';
+import 'sanction_event.dart';
 import 'substitution_event.dart';
 
 class MatchSet {
@@ -49,8 +50,16 @@ class MatchSet {
   /// [defensiveLiberoId].
   String? receptionLiberoId;
 
+  /// Si está activado, el líbero defensor entra automáticamente por un
+  /// central que rota a la fila de fondo mientras el equipo propio saca (y
+  /// ese central no es quien va a sacar), sin necesitar el cambio manual.
+  /// Se elige una vez, al armar la formación de este set. Por defecto
+  /// activado.
+  bool autoLiberoBackRowSwap;
+
   final List<RallyEvent> events = [];
   final List<SubstitutionEvent> substitutions = [];
+  final List<SanctionEvent> sanctions = [];
 
   MatchSet({
     required this.setNumber,
@@ -59,6 +68,7 @@ class MatchSet {
     this.trackHitZones = true,
     this.defensiveLiberoId,
     this.receptionLiberoId,
+    this.autoLiberoBackRowSwap = true,
   }) : currentOrderOwn = List<String>.from(startingOrderOwn);
 
   Map<String, dynamic> toJson() => {
@@ -75,8 +85,10 @@ class MatchSet {
         'trackHitZones': trackHitZones,
         'defensiveLiberoId': defensiveLiberoId,
         'receptionLiberoId': receptionLiberoId,
+        'autoLiberoBackRowSwap': autoLiberoBackRowSwap,
         'events': events.map((e) => e.toJson()).toList(),
         'substitutions': substitutions.map((s) => s.toJson()).toList(),
+        'sanctions': sanctions.map((s) => s.toJson()).toList(),
       };
 
   factory MatchSet.fromJson(Map<dynamic, dynamic> json) {
@@ -90,6 +102,7 @@ class MatchSet {
       trackHitZones: json['trackHitZones'] as bool? ?? true,
       defensiveLiberoId: json['defensiveLiberoId'] as String?,
       receptionLiberoId: json['receptionLiberoId'] as String?,
+      autoLiberoBackRowSwap: json['autoLiberoBackRowSwap'] as bool? ?? true,
     );
     final savedCurrentOrder = (json['currentOrderOwn'] as List?)?.map((e) => e.toString()).toList();
     if (savedCurrentOrder != null && savedCurrentOrder.length == s.startingOrderOwn.length) {
@@ -107,6 +120,8 @@ class MatchSet {
         .map((e) => RallyEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));
     s.substitutions.addAll(((json['substitutions'] as List?) ?? [])
         .map((e) => SubstitutionEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));
+    s.sanctions.addAll(((json['sanctions'] as List?) ?? [])
+        .map((e) => SanctionEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));
     return s;
   }
 }

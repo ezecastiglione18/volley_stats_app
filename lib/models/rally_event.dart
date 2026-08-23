@@ -8,6 +8,7 @@ enum RallyPhase {
   genericError, // Error General (rotación, 4 toques, etc.)
   opponentPoint, // Punto Rival (no atribuible a jugador propio)
   opponentError, // Error Rival (no forzado)
+  sanction, // Punto otorgado por una sanción (Castigo / Castigo por demora); ver SanctionEvent.
 }
 
 /// A qué equipo pertenece la acción (siempre relativo a "mi equipo").

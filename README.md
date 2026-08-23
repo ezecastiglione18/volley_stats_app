@@ -15,11 +15,15 @@ estadísticas exportable como reporte en PDF.
   datos físicos y alcances de bloqueo/ataque opcionales, y una planilla de hasta 14 habilitados por
   partido.
 - Cambios de jugador según el reglamento oficial de la FIVB (cambio regular y cambio de líbero), con los
-  roles de líbero configurables set a set, cambios por set ilimitados si se prefiere, y opción de
-  deshacer el último cambio o la última jugada cargada por error.
+  roles de líbero configurables set a set, entrada automática (opcional) del líbero defensor por un
+  central que rota al fondo mientras el equipo propio saca, cambios por set ilimitados si se prefiere, y
+  opción de deshacer el último cambio o la última jugada cargada por error.
+- Carga de sanciones y tarjetas del árbitro (amonestación, tarjeta amarilla, roja, expulsión y
+  descalificación) según el reglamento oficial de la FIVB, con el punto o la salida de cancha
+  correspondiente aplicados automáticamente y la sustitución obligatoria cuando corresponde.
 - Formato de partido configurable (cantidad de sets, puntos por set, cambios permitidos por set).
 - Estadísticas del partido completo o por set (propias y del rival), con reporte en PDF listo para
-  compartir (incluye desglose por jugador y zonas de destino de saque, ataque y contraataque).
+  compartir (incluye desglose por jugador, sanciones y zonas de destino de saque, ataque y contraataque).
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.

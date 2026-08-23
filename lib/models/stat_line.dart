@@ -42,6 +42,11 @@ class PlayerStatLine {
   int errGen = 0;
   final ReceptionStats recepcion = ReceptionStats();
 
+  /// Cantidad de tarjetas amarillas y rojas mostradas (una sanción puede
+  /// contar para las dos a la vez, p. ej. Expulsión = roja + amarilla).
+  int yellowCards = 0;
+  int redCards = 0;
+
   PlayerStatLine({
     required this.playerId,
     required this.displayName,
@@ -83,6 +88,13 @@ class RivalPointStats {
   int unclassified = 0;
 
   int get total => attack + counter + unclassified;
+}
+
+/// Sanciones/tarjetas mostradas al equipo rival (no se lleva roster rival
+/// jugador por jugador, así que es un total de equipo, no por jugador).
+class RivalSanctionStats {
+  int yellowCards = 0;
+  int redCards = 0;
 }
 
 /// Estadística de saque, ataque y contraataque por zona de cancha de

@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Instalador de Windows generado con Inno Setup
+/installer/Output/

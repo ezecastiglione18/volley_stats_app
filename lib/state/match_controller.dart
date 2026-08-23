@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/match_set.dart';
 import '../models/player.dart';
 import '../models/rally_event.dart';
+import '../models/sanction_event.dart';
 import '../models/substitution_event.dart';
 import '../models/volley_match.dart';
 import '../services/storage_service.dart';
@@ -174,6 +175,7 @@ class MatchController extends ChangeNotifier {
     bool trackHitZones = true,
     String? defensiveLiberoId,
     String? receptionLiberoId,
+    bool autoLiberoBackRowSwap = true,
   }) {
     final set = MatchSet(
       setNumber: setNumber,
@@ -182,6 +184,7 @@ class MatchController extends ChangeNotifier {
       trackHitZones: trackHitZones,
       defensiveLiberoId: defensiveLiberoId,
       receptionLiberoId: receptionLiberoId,
+      autoLiberoBackRowSwap: autoLiberoBackRowSwap,
     );
     match.sets.add(set);
     match.status = MatchStatus.inProgress;
@@ -191,6 +194,10 @@ class MatchController extends ChangeNotifier {
     _rallyCounter = 1;
     needsNextSetSetup = false;
     _stage = _servingTeam == TeamSide.own ? RallyStage.serveOwn : RallyStage.receiveOwn;
+    // Si ya arrancamos sacando nosotros y algún central queda en el fondo
+    // (formación elegida así), no hace falta esperar a un side-out: se
+    // evalúa el automatismo también acá.
+    _maybeAutoSubLiberoForCentralInBackRow();
     notifyListeners();
   }
 
@@ -475,7 +482,7 @@ class MatchController extends ChangeNotifier {
     return true;
   }
 
-  void bringLiberoIn(String liberoId, String playerOutId) {
+  void bringLiberoIn(String liberoId, String playerOutId, {bool auto = false}) {
     if (!canBringLiberoIn(liberoId, playerOutId)) return;
     final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
     _applySubstitution(
@@ -483,6 +490,7 @@ class MatchController extends ChangeNotifier {
       playerInId: liberoId,
       countsAgainstLimit: false,
       isLiberoAction: true,
+      auto: auto,
     );
   }
 
@@ -508,7 +516,7 @@ class MatchController extends ChangeNotifier {
 
   /// Cambia el líbero en cancha en [slotIndex] por el otro líbero declarado
   /// (sigue reemplazando, a todos los efectos, al mismo jugador original).
-  void swapLiberoToOther(int slotIndex) {
+  void swapLiberoToOther(int slotIndex, {bool auto = false}) {
     if (!canSendLiberoOut(slotIndex)) return;
     final st = _slotState(slotIndex);
     final other = declaredLiberoIds.where((id) => id != st.liberoOnCourtId).toList();
@@ -518,6 +526,7 @@ class MatchController extends ChangeNotifier {
       playerInId: other.first,
       countsAgainstLimit: false,
       isLiberoAction: true,
+      auto: auto,
     );
   }
 
@@ -556,7 +565,11 @@ class MatchController extends ChangeNotifier {
   /// o líbero forzado a salir al rotar a la fila delantera—, no a un error
   /// de carga, así que deshacerlos dejaría la cancha en un estado ilegal).
   bool get canUndoLastSubstitution =>
-      currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto;
+      currentSet.substitutions.isNotEmpty &&
+      !currentSet.substitutions.last.auto &&
+      !(currentSet.sanctions.isNotEmpty &&
+          currentSet.sanctions.last.linkedSubstitutionEventId ==
+              currentSet.substitutions.last.id);
 
   /// Revierte en memoria un cambio ya registrado (devuelve al jugador que
   /// había salido y descuenta el cupo si correspondía), sin notificar ni
@@ -587,7 +600,7 @@ class MatchController extends ChangeNotifier {
     if (liberoId == null || liberoId == serverId) return;
     if (playerById(serverId)?.position != PlayerPosition.central) return;
     if (!canBringLiberoIn(liberoId, serverId)) return;
-    bringLiberoIn(liberoId, serverId);
+    bringLiberoIn(liberoId, serverId, auto: true);
   }
 
   /// Si hay un líbero en cancha y el equipo declaró dos líberos distintos,
@@ -606,7 +619,7 @@ class MatchController extends ChangeNotifier {
       final st = _slotState(slot);
       if (st.liberoOnCourtId == null) continue;
       if (st.liberoOnCourtId != desiredId && canSendLiberoOut(slot)) {
-        swapLiberoToOther(slot);
+        swapLiberoToOther(slot, auto: true);
       }
       return;
     }
@@ -627,6 +640,209 @@ class MatchController extends ChangeNotifier {
         auto: true,
       );
     }
+  }
+
+  /// Si está activado `currentSet.autoLiberoBackRowSwap`, entra
+  /// automáticamente el líbero defensor por un central que rota a la fila
+  /// de fondo mientras el equipo propio saca (y ese central no es quien va
+  /// a sacar) — la misma condición que hoy sugiere manualmente el panel de
+  /// cambio de líbero ("Central en el fondo"), pero aplicada sola.
+  void _maybeAutoSubLiberoForCentralInBackRow() {
+    if (!currentSet.autoLiberoBackRowSwap) return;
+    if (_servingTeam != TeamSide.own) return; // es rol del líbero DEFENSOR: solo cuando sacamos.
+    final liberoId = currentSet.defensiveLiberoId;
+    if (liberoId == null) return;
+    for (final p in onCourtPlayers.where((p) => p.position == PlayerPosition.central)) {
+      final pos = courtPositionOf(p.id);
+      if (pos == null || (pos != 1 && pos != 5 && pos != 6)) continue;
+      if (pos == 1) continue; // está a punto de sacar: debe quedarse.
+      if (!canBringLiberoIn(liberoId, p.id)) continue;
+      bringLiberoIn(liberoId, p.id, auto: true);
+      return; // solo puede entrar un líbero a la vez.
+    }
+  }
+
+  // ---------------- Sanciones ----------------
+  //
+  // Regla 21 de la FIVB (conducta incorrecta y sus sanciones), vigente
+  // también en FeVA y en las federaciones metropolitanas. La sanción que
+  // corresponde depende de la categoría de la conducta y de cuántas veces ya
+  // se sancionó a esa misma persona por esa misma categoría en el partido
+  // (no se resetea entre sets, Regla 21.4.1). El Castigo (otorga punto) se
+  // resuelve reutilizando `_addEvent`/`_resolvePoint` con un `RallyEvent` de
+  // fase `sanction`, para que deshacer y retomar el partido (`resume`)
+  // funcionen gratis con la misma lógica que cualquier punto jugado. La
+  // Expulsión/Descalificación de alguien en cancha se resuelve con una
+  // sustitución obligatoria (Regla 15.8) vía [substituteForSanction].
+
+  /// Todas las sanciones cargadas en el partido (de todos los sets): sirven
+  /// para calcular la escala (vale para todo el partido, no solo el set en
+  /// curso) y para mostrar el historial en el panel de carga.
+  List<SanctionEvent> get matchSanctions => match.sets.expand((s) => s.sanctions).toList();
+
+  /// Clave estable para agrupar sanciones de la misma persona/banco a la
+  /// hora de contar ocurrencias.
+  String _sanctionTargetKey(TeamSide team, SanctionTargetKind kind,
+      {String? playerId, int? rivalNumber}) {
+    if (team == TeamSide.own) {
+      return kind == SanctionTargetKind.staff ? 'own:staff' : 'own:$playerId';
+    }
+    return kind == SanctionTargetKind.staff ? 'rival:staff' : 'rival:$rivalNumber';
+  }
+
+  int _sanctionOccurrenceCount({
+    required TeamSide team,
+    required SanctionTargetKind targetKind,
+    String? targetPlayerId,
+    int? rivalNumber,
+    required SanctionCategory category,
+  }) {
+    final key =
+        _sanctionTargetKey(team, targetKind, playerId: targetPlayerId, rivalNumber: rivalNumber);
+    return matchSanctions.where((s) {
+      if (s.category != category) return false;
+      return _sanctionTargetKey(s.team, s.targetKind,
+              playerId: s.targetPlayerId, rivalNumber: s.rivalNumber) ==
+          key;
+    }).length;
+  }
+
+  /// Qué sanción correspondería ahora mismo si se cargara esta conducta, y
+  /// qué ocurrencia sería (para que el panel de carga pueda mostrar el
+  /// resultado antes de confirmar), sin registrar nada todavía.
+  ({int occurrence, SanctionOutcome outcome}) previewSanction({
+    required TeamSide team,
+    required SanctionTargetKind targetKind,
+    String? targetPlayerId,
+    int? rivalNumber,
+    required SanctionCategory category,
+  }) {
+    final occurrence = _sanctionOccurrenceCount(
+          team: team,
+          targetKind: targetKind,
+          targetPlayerId: targetPlayerId,
+          rivalNumber: rivalNumber,
+          category: category,
+        ) +
+        1;
+    return (occurrence: occurrence, outcome: computeSanctionOutcome(category, occurrence));
+  }
+
+  /// Registra una sanción/tarjeta del árbitro y aplica su consecuencia
+  /// (punto y saque al rival si corresponde). Si además obliga a abandonar
+  /// la cancha a alguien que está jugando, hay que llamar después a
+  /// [substituteForSanction] con el reemplazo elegido (ver
+  /// [eligibleReplacementsForSanction]).
+  SanctionEvent registerSanction({
+    required TeamSide team,
+    required SanctionTargetKind targetKind,
+    String? targetPlayerId,
+    int? rivalNumber,
+    required SanctionCategory category,
+  }) {
+    final rallyNumberAtSanction = _rallyCounter;
+    final preview = previewSanction(
+      team: team,
+      targetKind: targetKind,
+      targetPlayerId: targetPlayerId,
+      rivalNumber: rivalNumber,
+      category: category,
+    );
+    final occurrence = preview.occurrence;
+    final outcome = preview.outcome;
+
+    String? linkedRallyEventId;
+    if (outcome.awardsPoint) {
+      final winner = team == TeamSide.own ? TeamSide.rival : TeamSide.own;
+      _addEvent(
+        phase: RallyPhase.sanction,
+        team: team,
+        playerIds: targetPlayerId == null ? [] : [targetPlayerId],
+        endsRally: true,
+        winner: winner,
+      );
+      linkedRallyEventId = currentSet.events.last.id;
+    }
+
+    final sanction = SanctionEvent(
+      id: generateId('san_'),
+      setNumber: currentSet.setNumber,
+      rallyNumber: rallyNumberAtSanction,
+      team: team,
+      targetKind: targetKind,
+      targetPlayerId: targetPlayerId,
+      rivalNumber: rivalNumber,
+      category: category,
+      occurrence: occurrence,
+      outcome: outcome,
+      linkedRallyEventId: linkedRallyEventId,
+      ownScoreAfter: currentSet.ownScore,
+      rivalScoreAfter: currentSet.rivalScore,
+      timestamp: DateTime.now(),
+    );
+    currentSet.sanctions.add(sanction);
+    notifyListeners();
+    _persist();
+    return sanction;
+  }
+
+  /// Suplentes elegibles para reemplazar a [playerOutId] (en cancha) por
+  /// expulsión/descalificación (Regla 15.8): primero el suplente regular si
+  /// todavía tiene cupo (sustitución legal normal); si no, cualquier
+  /// suplente del banco salvo los líberos declarados (sustitución
+  /// excepcional: no cuenta contra el límite, pero queda registrada).
+  List<Player> eligibleReplacementsForSanction(String playerOutId) {
+    if (canRegisterSubstitution && canSubOutRegular(playerOutId)) {
+      final regular = eligibleRegularBenchFor(playerOutId);
+      if (regular.isNotEmpty) return regular;
+    }
+    final liberoIds = declaredLiberoIds.toSet();
+    return benchPlayers.where((p) => !liberoIds.contains(p.id)).toList();
+  }
+
+  /// true si reemplazar a [playerOutId] con [playerInId] es la sustitución
+  /// legal normal (cuenta contra el cupo) en vez de la sustitución
+  /// excepcional de la Regla 15.7 (libre, no cuenta).
+  bool _isRegularSanctionReplacement(String playerOutId, String playerInId) =>
+      canRegisterSubstitution &&
+      canSubOutRegular(playerOutId) &&
+      eligibleRegularBenchFor(playerOutId).any((p) => p.id == playerInId);
+
+  /// Reemplazo obligatorio de un jugador expulsado/descalificado (Regla
+  /// 15.8): se llama después de [registerSanction] cuando su resultado
+  /// obliga a salir de cancha y la persona sancionada estaba jugando.
+  void substituteForSanction(String sanctionEventId, String playerOutId, String playerInId) {
+    final idx = currentSet.sanctions.indexWhere((s) => s.id == sanctionEventId);
+    if (idx == -1) return;
+    final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
+    if (slot == -1) return;
+    final regular = _isRegularSanctionReplacement(playerOutId, playerInId);
+    _applySubstitution(
+      slotIndex: slot,
+      playerInId: playerInId,
+      countsAgainstLimit: regular,
+      isLiberoAction: false,
+    );
+    final old = currentSet.sanctions[idx];
+    currentSet.sanctions[idx] = SanctionEvent(
+      id: old.id,
+      setNumber: old.setNumber,
+      rallyNumber: old.rallyNumber,
+      team: old.team,
+      targetKind: old.targetKind,
+      targetPlayerId: old.targetPlayerId,
+      rivalNumber: old.rivalNumber,
+      category: old.category,
+      occurrence: old.occurrence,
+      outcome: old.outcome,
+      linkedRallyEventId: old.linkedRallyEventId,
+      linkedSubstitutionEventId: currentSet.substitutions.last.id,
+      ownScoreAfter: old.ownScoreAfter,
+      rivalScoreAfter: old.rivalScoreAfter,
+      timestamp: old.timestamp,
+    );
+    notifyListeners();
+    _persist();
   }
 
   /// Deshace el último evento cargado (corrige un toque mal tocado).
@@ -681,6 +897,7 @@ class MatchController extends ChangeNotifier {
         case RallyPhase.genericError:
         case RallyPhase.opponentPoint:
         case RallyPhase.opponentError:
+        case RallyPhase.sanction:
           // Estas fases siempre terminan el punto; no deberían caer acá.
           _stage = RallyStage.defending;
           break;
@@ -690,26 +907,69 @@ class MatchController extends ChangeNotifier {
     _persist();
   }
 
-  /// true si hay algo para deshacer con [undoLastAction]: una jugada, o un
-  /// cambio manual (los automáticos no cuentan como acción propia, siempre
-  /// se deshacen junto con la jugada que los disparó).
+  /// true si hay algo para deshacer con [undoLastAction]: una jugada, una
+  /// sanción, o un cambio manual (los automáticos no cuentan como acción
+  /// propia, siempre se deshacen junto con la jugada que los disparó).
   bool get canUndoLastAction =>
       currentSet.events.isNotEmpty ||
-      (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto);
+      (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto) ||
+      currentSet.sanctions.isNotEmpty;
 
   /// Deshace la última acción cargada en el set, sea una jugada (saque,
-  /// ataque, punto/error rival, etc.) o un cambio de jugador manual, lo que
-  /// haya pasado más recientemente. Los cambios automáticos que hayan
-  /// quedado colgando al final (líbero por rotación, central -> líbero
-  /// receptor) se revierten primero: son un efecto colateral del último
-  /// punto resuelto, no una acción independiente, así que deshacer esa
-  /// jugada tiene que deshacerlos también.
+  /// ataque, punto/error rival, etc.), una sanción/tarjeta, o un cambio de
+  /// jugador manual, lo que haya pasado más recientemente. Los cambios
+  /// automáticos que hayan quedado colgando al final del log de cambios se
+  /// revierten primero, pero solo si de verdad son lo más reciente que pasó
+  /// en el set (comparando contra el último evento y la última sanción): un
+  /// automático viejo, ya superado en el tiempo por una sanción o jugada
+  /// posterior, no se toca acá — deshacer esa jugada tiene que deshacer sus
+  /// propios automáticos, no los de un punto anterior que ya quedó resuelto.
   void undoLastAction() {
-    while (currentSet.substitutions.isNotEmpty && currentSet.substitutions.last.auto) {
+    while (true) {
+      final lastSub = currentSet.substitutions.isNotEmpty ? currentSet.substitutions.last : null;
+      if (lastSub == null || !lastSub.auto) break;
+      final lastEvent = currentSet.events.isNotEmpty ? currentSet.events.last : null;
+      final lastSanction = currentSet.sanctions.isNotEmpty ? currentSet.sanctions.last : null;
+      final subIsMostRecent =
+          (lastEvent == null || !lastEvent.timestamp.isAfter(lastSub.timestamp)) &&
+          (lastSanction == null || !lastSanction.timestamp.isAfter(lastSub.timestamp));
+      if (!subIsMostRecent) break;
       _revertSubstitution(currentSet.substitutions.removeLast());
     }
+    final lastSanction = currentSet.sanctions.isNotEmpty ? currentSet.sanctions.last : null;
     final lastSub = currentSet.substitutions.isNotEmpty ? currentSet.substitutions.last : null;
     final lastEvent = currentSet.events.isNotEmpty ? currentSet.events.last : null;
+
+    // Si el último cambio es el reemplazo obligatorio de la última sanción
+    // (Expulsión/Descalificación), se deshacen juntos como una sola acción:
+    // el cambio se cargó en un segundo paso, así que puede ser más nuevo por
+    // timestamp que la sanción, pero no es una acción independiente de ella.
+    if (lastSanction != null &&
+        lastSub != null &&
+        lastSanction.linkedSubstitutionEventId == lastSub.id) {
+      currentSet.sanctions.removeLast();
+      currentSet.substitutions.removeLast();
+      _revertSubstitution(lastSub);
+      notifyListeners();
+      _persist();
+      return;
+    }
+
+    final sanctionIsLatest = lastSanction != null &&
+        (lastSub == null || !lastSub.timestamp.isAfter(lastSanction.timestamp)) &&
+        (lastEvent == null || !lastEvent.timestamp.isAfter(lastSanction.timestamp));
+
+    if (sanctionIsLatest) {
+      currentSet.sanctions.removeLast();
+      if (lastSanction.linkedRallyEventId != null) {
+        undoLast(); // el RallyEvent vinculado es exactamente set.events.last.
+        return;
+      }
+      notifyListeners();
+      _persist();
+      return;
+    }
+
     if (lastSub != null && (lastEvent == null || lastSub.timestamp.isAfter(lastEvent.timestamp))) {
       currentSet.substitutions.removeLast();
       _revertSubstitution(lastSub);
@@ -912,6 +1172,11 @@ class MatchController extends ChangeNotifier {
       }
       _servingTeam = winner;
       _maybeAutoSwapLiberoForServe();
+      // Se evalúa acá (con _servingTeam ya actualizado) y no solo dentro de
+      // la rama "winner == own" de arriba: el propio método se filtra por
+      // _servingTeam == own, así que corre seguro sin importar para qué
+      // lado fue el side-out.
+      _maybeAutoSubLiberoForCentralInBackRow();
     }
 
     if (winner == TeamSide.rival && wasServing == TeamSide.own && serverIdForThisRally != null) {
