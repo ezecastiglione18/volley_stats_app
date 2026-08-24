@@ -1423,7 +1423,7 @@ List<pw.Widget> _section17Contacto() => [
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: pw.BoxDecoration(color: _surfaceAlt, borderRadius: pw.BorderRadius.circular(8)),
-        child: pw.Text('ezecastiglione18@gmail.com',
+        child: pw.Text('ecastiglione@frba.utn.edu.ar  ·  federperez@frba.utn.edu.ar',
             style: pw.TextStyle(color: _navy, fontSize: 12, fontWeight: pw.FontWeight.bold)),
       ),
       pw.SizedBox(height: 24),
