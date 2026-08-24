@@ -36,7 +36,7 @@ class RosterScreen extends StatefulWidget {
 
 class _RosterScreenState extends State<RosterScreen> {
   final Set<String> _selected = {};
-  static const int maxRoster = 14;
+  static const int maxRoster = 16;
 
   // Filtro de posición solo para lo que se muestra en la lista: no afecta
   // a [_selected], así que los jugadores elegidos se mantienen aunque se
@@ -50,7 +50,7 @@ class _RosterScreenState extends State<RosterScreen> {
       } else {
         if (_selected.length >= maxRoster) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ya seleccionaste 14 jugadores')),
+            const SnackBar(content: Text('Ya seleccionaste $maxRoster jugadores')),
           );
           return;
         }

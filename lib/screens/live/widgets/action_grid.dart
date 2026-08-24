@@ -94,7 +94,7 @@ class ActionGrid extends StatelessWidget {
   void _genericError(BuildContext context) {
     showSinglePlayerDialog(
       context: context,
-      title: 'Error general (rotación, 4 toques, etc.)',
+      title: 'Error genérico (rotación, 4 toques, etc.)',
       players: controller.onCourtPlayers,
       onConfirm: (id) => controller.logGenericError(playerId: id),
     );
@@ -170,7 +170,7 @@ class ActionGrid extends StatelessWidget {
         onTap: () => _block(context),
       ),
       ActionButtonSpec(
-        label: 'Error\nGeneral',
+        label: 'Error\nGenérico',
         icon: Icons.report_gmailerrorred,
         color: err,
         enabled: controller.actionGenericErrorEnabled,

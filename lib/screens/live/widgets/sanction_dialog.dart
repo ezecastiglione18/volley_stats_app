@@ -117,7 +117,11 @@ Future<void> showSanctionDialog({
   rivalNumberCtrl.dispose();
 }
 
-class _MainFlow extends StatelessWidget {
+/// Flujo principal del panel, armado como wizard (Atrás/Siguiente) en vez de
+/// una sola pantalla larga: con el roster completo (hasta 16 fichas) en el
+/// paso de "a quién sancionó", una sola Column sin scroll dejaba el tipo de
+/// conducta y el botón de registrar fuera del alto visible del bottom sheet.
+class _MainFlow extends StatefulWidget {
   final MatchController controller;
   final TeamSide? selTeam;
   final SanctionTargetKind? selTargetKind;
@@ -142,18 +146,6 @@ class _MainFlow extends StatelessWidget {
     required this.onRegister,
   });
 
-  String _targetLabel() {
-    if (selTargetKind == SanctionTargetKind.staff) {
-      return selTeam == TeamSide.own ? 'Banco / Cuerpo técnico' : 'Banco / Cuerpo técnico rival';
-    }
-    if (selTeam == TeamSide.own) {
-      final p = controller.playerById(selTargetPlayerId ?? '');
-      return p == null ? '' : '#${p.number} ${p.lastName}';
-    }
-    final n = rivalNumberCtrl.text.trim();
-    return n.isEmpty ? 'jugador rival' : 'jugador rival #$n';
-  }
-
   static String targetLabel(MatchController controller, SanctionEvent s) {
     if (s.targetKind == SanctionTargetKind.staff) {
       return s.team == TeamSide.own ? 'Banco / Cuerpo técnico' : 'Banco / Cuerpo técnico rival';
@@ -166,32 +158,134 @@ class _MainFlow extends StatelessWidget {
   }
 
   @override
+  State<_MainFlow> createState() => _MainFlowState();
+}
+
+class _MainFlowState extends State<_MainFlow> {
+  int _step = 0;
+
+  static const _stepTitles = [
+    '¿A qué equipo sancionó el árbitro?',
+    '¿A quién sancionó?',
+    '¿Qué tipo de conducta sancionó el árbitro?',
+    'Confirmar sanción',
+  ];
+
+  String _targetLabel() {
+    if (widget.selTargetKind == SanctionTargetKind.staff) {
+      return widget.selTeam == TeamSide.own ? 'Banco / Cuerpo técnico' : 'Banco / Cuerpo técnico rival';
+    }
+    if (widget.selTeam == TeamSide.own) {
+      final p = widget.controller.playerById(widget.selTargetPlayerId ?? '');
+      return p == null ? '' : '#${p.number} ${p.lastName}';
+    }
+    final n = widget.rivalNumberCtrl.text.trim();
+    return n.isEmpty ? 'jugador rival' : 'jugador rival #$n';
+  }
+
+  bool get _canAdvance {
+    switch (_step) {
+      case 0:
+        return widget.selTeam != null;
+      case 1:
+        return widget.selTargetKind != null &&
+            (widget.selTeam == TeamSide.own ||
+                widget.selTargetKind == SanctionTargetKind.staff ||
+                widget.rivalNumberCtrl.text.trim().isNotEmpty);
+      case 2:
+        return widget.selCategory != null;
+      default:
+        return false;
+    }
+  }
+
+  void _next() => setState(() => _step = (_step + 1).clamp(0, 3));
+  void _back() => setState(() => _step = (_step - 1).clamp(0, 3));
+
+  @override
   Widget build(BuildContext context) {
-    final match = controller.match;
-    // Historial de ESTE set (no de todo el partido): para llevar la cuenta
-    // de sanciones mientras se juega, ordenado del más reciente al primero.
-    final history = controller.currentSet.sanctions.reversed.toList();
+    Widget stepBody;
+    switch (_step) {
+      case 0:
+        stepBody = _buildTeamStep(context);
+        break;
+      case 1:
+        stepBody = _buildTargetStep();
+        break;
+      case 2:
+        stepBody = _buildCategoryStep();
+        break;
+      default:
+        stepBody = _ResultPanel(
+          controller: widget.controller,
+          selTeam: widget.selTeam!,
+          selTargetKind: widget.selTargetKind!,
+          selTargetPlayerId: widget.selTargetPlayerId,
+          rivalNumber: widget.selTeam == TeamSide.rival && widget.selTargetKind == SanctionTargetKind.player
+              ? int.tryParse(widget.rivalNumberCtrl.text)
+              : null,
+          selCategory: widget.selCategory!,
+          targetLabel: _targetLabel(),
+          onRegister: widget.onRegister,
+        );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Sanción / Tarjeta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        const Text(
-          'Reglamento oficial FIVB (Regla 21), vigente también en FeVA y las federaciones metropolitanas.',
-          style: TextStyle(fontSize: 11, color: Colors.grey),
+        Row(
+          children: [
+            const Text('Sanción / Tarjeta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            Text('Paso ${_step + 1} de 4', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
         ),
+        if (_step == 0) ...[
+          const SizedBox(height: 4),
+          const Text(
+            'Reglamento oficial FIVB (Regla 21), vigente también en FeVA y las federaciones metropolitanas.',
+            style: TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ],
         const SizedBox(height: 12),
-        Text('Sanciones de este set (Set ${controller.currentSet.setNumber})',
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(_stepTitles[_step], style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        stepBody,
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            if (_step > 0) TextButton(onPressed: _back, child: const Text('Atrás')),
+            const Spacer(),
+            if (_step < 3)
+              ElevatedButton(
+                onPressed: _canAdvance ? _next : null,
+                child: const Text('Siguiente'),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamStep(BuildContext context) {
+    final match = widget.controller.match;
+    // Historial de ESTE set (no de todo el partido): para llevar la cuenta
+    // de sanciones mientras se juega, ordenado del más reciente al primero.
+    final history = widget.controller.currentSet.sanctions.reversed.toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Sanciones de este set (Set ${widget.controller.currentSet.setNumber})',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 6),
         if (history.isEmpty)
           const Text('Todavía no se cargó ninguna en este set.',
               style: TextStyle(fontSize: 12, color: Colors.grey))
         else
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 170),
+            constraints: const BoxConstraints(maxHeight: 130),
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: history.length,
@@ -214,7 +308,7 @@ class _MainFlow extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${targetLabel(controller, s)} · $teamLabel',
+                            Text('${_MainFlow.targetLabel(widget.controller, s)} · $teamLabel',
                                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             Text(
                               '${s.outcome.title(s.category)} — Punto ${s.ownScoreAfter}-${s.rivalScoreAfter}',
@@ -230,113 +324,88 @@ class _MainFlow extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 14),
-        const Text('¿A qué equipo sancionó el árbitro?', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
         SegmentedButton<TeamSide>(
           segments: [
             ButtonSegment(value: TeamSide.own, label: Text(match.ownTeamName)),
             ButtonSegment(value: TeamSide.rival, label: Text(match.rivalTeamName)),
           ],
-          selected: selTeam == null ? {} : {selTeam!},
+          selected: widget.selTeam == null ? {} : {widget.selTeam!},
           emptySelectionAllowed: true,
           onSelectionChanged: (s) {
-            if (s.isNotEmpty) onPickTeam(s.first);
+            if (s.isNotEmpty) widget.onPickTeam(s.first);
           },
         ),
-        if (selTeam != null) ...[
-          const SizedBox(height: 16),
-          const Text('¿A quién sancionó?', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          if (selTeam == TeamSide.own)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final p in match.ownRoster..sort((a, b) => a.number.compareTo(b.number)))
-                  ChoiceChip(
-                    label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
-                    selected: selTargetKind == SanctionTargetKind.player && selTargetPlayerId == p.id,
-                    onSelected: (_) => onPickTarget(SanctionTargetKind.player, p.id),
-                  ),
-                ChoiceChip(
-                  label: const Text('Banco / Cuerpo técnico'),
-                  selected: selTargetKind == SanctionTargetKind.staff,
-                  onSelected: (_) => onPickTarget(SanctionTargetKind.staff, null),
-                ),
-              ],
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Jugador rival'),
-                      selected: selTargetKind == SanctionTargetKind.player,
-                      onSelected: (_) => onPickTarget(SanctionTargetKind.player, null),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Banco / Cuerpo técnico rival'),
-                      selected: selTargetKind == SanctionTargetKind.staff,
-                      onSelected: (_) => onPickTarget(SanctionTargetKind.staff, null),
-                    ),
-                  ],
-                ),
-                if (selTargetKind == SanctionTargetKind.player) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: 140,
-                    child: TextField(
-                      controller: rivalNumberCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(labelText: 'N° de camiseta'),
-                    ),
-                  ),
-                ],
-              ],
+      ],
+    );
+  }
+
+  Widget _buildTargetStep() {
+    final match = widget.controller.match;
+    if (widget.selTeam == TeamSide.own) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final p in match.ownRoster..sort((a, b) => a.number.compareTo(b.number)))
+            ChoiceChip(
+              label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
+              selected: widget.selTargetKind == SanctionTargetKind.player && widget.selTargetPlayerId == p.id,
+              onSelected: (_) => widget.onPickTarget(SanctionTargetKind.player, p.id),
             ),
-        ],
-        if (selTeam != null && selTargetKind != null) ...[
-          const SizedBox(height: 16),
-          const Text('¿Qué tipo de conducta sancionó el árbitro?', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final cat in SanctionCategory.values)
-                ChoiceChip(
-                  label: Text(cat.label),
-                  selected: selCategory == cat,
-                  onSelected: (_) => onPickCategory(cat),
-                ),
-            ],
+          ChoiceChip(
+            label: const Text('Banco / Cuerpo técnico'),
+            selected: widget.selTargetKind == SanctionTargetKind.staff,
+            onSelected: (_) => widget.onPickTarget(SanctionTargetKind.staff, null),
           ),
         ],
-        if (selTeam != null &&
-            selTargetKind != null &&
-            selCategory != null &&
-            (selTeam == TeamSide.own ||
-                selTargetKind == SanctionTargetKind.staff ||
-                rivalNumberCtrl.text.trim().isNotEmpty)) ...[
-          const SizedBox(height: 16),
-          _ResultPanel(
-            controller: controller,
-            selTeam: selTeam!,
-            selTargetKind: selTargetKind!,
-            selTargetPlayerId: selTargetPlayerId,
-            rivalNumber: selTeam == TeamSide.rival && selTargetKind == SanctionTargetKind.player
-                ? int.tryParse(rivalNumberCtrl.text)
-                : null,
-            selCategory: selCategory!,
-            targetLabel: _targetLabel(),
-            onRegister: onRegister,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Jugador rival'),
+              selected: widget.selTargetKind == SanctionTargetKind.player,
+              onSelected: (_) => widget.onPickTarget(SanctionTargetKind.player, null),
+            ),
+            ChoiceChip(
+              label: const Text('Banco / Cuerpo técnico rival'),
+              selected: widget.selTargetKind == SanctionTargetKind.staff,
+              onSelected: (_) => widget.onPickTarget(SanctionTargetKind.staff, null),
+            ),
+          ],
+        ),
+        if (widget.selTargetKind == SanctionTargetKind.player) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 140,
+            child: TextField(
+              controller: widget.rivalNumberCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(labelText: 'N° de camiseta'),
+            ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildCategoryStep() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final cat in SanctionCategory.values)
+          ChoiceChip(
+            label: Text(cat.label),
+            selected: widget.selCategory == cat,
+            onSelected: (_) => widget.onPickCategory(cat),
+          ),
       ],
     );
   }
@@ -443,6 +512,7 @@ class _ReplacementStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerOut = controller.playerById(sanction.targetPlayerId!);
     final options = controller.eligibleReplacementsForSanction(sanction.targetPlayerId!);
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,7 +539,16 @@ class _ReplacementStep extends StatelessWidget {
             children: [
               for (final p in options)
                 ActionChip(
+                  avatar: playerOut != null && p.position == playerOut.position
+                      ? Icon(Icons.star, size: 16, color: scheme.secondary)
+                      : null,
                   label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
+                  backgroundColor: playerOut != null && p.position == playerOut.position
+                      ? scheme.secondary.withValues(alpha: 0.18)
+                      : null,
+                  side: playerOut != null && p.position == playerOut.position
+                      ? BorderSide(color: scheme.secondary, width: 1.5)
+                      : null,
                   onPressed: () {
                     controller.substituteForSanction(sanction.id, sanction.targetPlayerId!, p.id);
                     onDone(

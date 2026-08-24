@@ -29,6 +29,11 @@ class MatchSet {
   TeamSide? winner;
   bool finished = false;
 
+  /// Se activa al confirmar "Fin de set" desde la pantalla en vivo: a partir
+  /// de ahí el set ya no se puede deshacer (ni siquiera si un punto quedó
+  /// mal cargado), porque el árbitro ya no puede revertir el resultado.
+  bool locked = false;
+
   /// Cambios de jugador propios ya realizados en este set que cuentan contra
   /// el límite configurado (los cambios donde interviene un líbero son
   /// libres y no incrementan este contador).
@@ -81,6 +86,7 @@ class MatchSet {
         'rivalScore': rivalScore,
         'winner': winner?.name,
         'finished': finished,
+        'locked': locked,
         'substitutionsUsedOwn': substitutionsUsedOwn,
         'trackHitZones': trackHitZones,
         'defensiveLiberoId': defensiveLiberoId,
@@ -115,6 +121,7 @@ class MatchSet {
         ? null
         : TeamSide.values.firstWhere((e) => e.name == json['winner']);
     s.finished = json['finished'] as bool? ?? false;
+    s.locked = json['locked'] as bool? ?? false;
     s.substitutionsUsedOwn = (json['substitutionsUsedOwn'] as num?)?.toInt() ?? 0;
     s.events.addAll(((json['events'] as List?) ?? [])
         .map((e) => RallyEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));

@@ -15,7 +15,7 @@ class VolleyMatch {
 
   String ownTeamName; // nombre del club/equipo propio ingresado por el usuario
   String? ownTeamSourceId; // referencia al Team precargado (puede ser null)
-  List<Player> ownRoster; // snapshot de los 14 jugadores habilitados
+  List<Player> ownRoster; // snapshot de los jugadores habilitados (hasta 16)
 
   String rivalTeamName;
   String? rivalTeamSourceId;

@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 18;
+const _coverTotalPages = 19;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -56,21 +56,21 @@ const _pBotonesAccion = 8;
 const _pZonaDestino = 9;
 const _pCambiosJugador = 9;
 const _pCambioRegular = 9;
-const _pCambioLibero = 9;
+const _pCambioLibero = 10;
 const _pDeshacerCambio = 10;
 const _pSancionesTarjetas = 10;
-const _pComoCargarSancion = 10;
+const _pComoCargarSancion = 11;
 const _pEscalaSanciones = 11;
 const _pHerramientas = 12;
-const _pFinSet = 12;
-const _pArchivo = 12;
+const _pFinSet = 13;
+const _pArchivo = 13;
 const _pExportarPartido = 13;
 const _pImportarPartido = 13;
-const _pResumen = 13;
-const _pExportarPdf = 13;
-const _pGlosario = 14;
-const _pFaq = 15;
-const _pContacto = 17;
+const _pResumen = 14;
+const _pExportarPdf = 14;
+const _pGlosario = 15;
+const _pFaq = 16;
+const _pContacto = 18;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -481,7 +481,7 @@ List<pw.Widget> _indexContent() {
     entry('Crear un partido nuevo', _pCrearPartido),
     entry('Datos del rival y del partido', _pDatosRival, sub: true),
     entry('Configuración del partido', _pConfigPartido, sub: true),
-    entry('Planilla del partido (14 jugadores)', _pPlanilla),
+    entry('Planilla del partido (16 jugadores)', _pPlanilla),
     entry('Selección de jugadores', _pSeleccionJugadores, sub: true),
     entry('Formación inicial', _pFormacionInicial),
     entry('Roles de líbero (por set)', _pRolesLibero, sub: true),
@@ -526,7 +526,7 @@ List<pw.Widget> _section1Introduccion() => [
       _bullets([
         [_t('Guardar tus equipos y planteles de jugadores (hasta 35 por equipo).')],
         [_t('Configurar un partido nuevo (rival, torneo, formato de sets, cambios permitidos).')],
-        [_t('Armar la planilla de 14 jugadores habilitados y la formación inicial de cada set.')],
+        [_t('Armar la planilla de 16 jugadores habilitados y la formación inicial de cada set.')],
         [_t('Cargar el partido en vivo, punto por punto, con calificación de cada toque.')],
         [
           _t('Registrar cambios de jugador respetando las reglas oficiales de la FIVB (cambio regular y '
@@ -576,9 +576,12 @@ List<pw.Widget> _section2PantallaPrincipal() => [
         [_b('Equipos: '), _t('administra los equipos propios y sus planteles de jugadores.')],
       ]),
       _p(
-        'En la parte superior derecha de todas las pantallas hay un interruptor de modo claro / modo '
+        'En la parte superior derecha de casi todas las pantallas hay un interruptor de modo claro / modo '
         'oscuro (ícono de sol / luna) para alternar entre los dos. La preferencia elegida queda guardada '
-        'en el dispositivo y se aplica automáticamente la próxima vez que se abre la app.',
+        'en el dispositivo y se aplica automáticamente la próxima vez que se abre la app. La excepción es '
+        'la pantalla de partido en vivo (sección 7), donde este interruptor está dentro del menú "Más '
+        'opciones" del encabezado (sección 10), para no competir con los accesos propios de la carga en '
+        'vivo.',
       ),
     ];
 
@@ -596,7 +599,11 @@ List<pw.Widget> _section3GestionEquipos() => [
       _numbered([
         [_b('En la pantalla "Equipos", tocá el botón '), _b('+ Nuevo equipo'), _t('.')],
         [_t('Escribí el nombre del equipo o club.')],
-        [_t('El equipo se guarda automáticamente a medida que se completan los datos (no hace falta un botón "Guardar" aparte para el nombre).')],
+        [
+          _t('Opcionalmente, completá los datos del cuerpo técnico: Entrenador, Asistente de entrenador, '
+              'Auxiliar, Médico y Preparador físico.')
+        ],
+        [_t('El equipo se guarda automáticamente a medida que se completan los datos (no hace falta un botón "Guardar" aparte para el nombre ni para el cuerpo técnico).')],
       ]),
       _p(
         'Desde la lista de equipos también podés tocar cualquier equipo existente para editarlo, o usar el '
@@ -606,7 +613,7 @@ List<pw.Widget> _section3GestionEquipos() => [
       _p(
         'Dentro de la pantalla de un equipo ("Editar equipo"), tocá Agregar para sumar un jugador nuevo, o '
         'tocá un jugador de la lista para editarlo. Cada equipo admite hasta 35 jugadores cargados; de esa '
-        'lista después se elige, para cada partido, una planilla de hasta 14 habilitados.',
+        'lista después se elige, para cada partido, una planilla de hasta 16 habilitados.',
       ),
       _p(
         'Los campos obligatorios son Apellido, Nombre, Número de camiseta y Posición (están marcados con '
@@ -618,7 +625,11 @@ List<pw.Widget> _section3GestionEquipos() => [
         [_t('Apellido y Nombre (obligatorios).')],
         [_t('Número de camiseta (obligatorio).')],
         [_t('Mano hábil (opcional): derecha o izquierda.')],
-        [_t('Posición (obligatoria): Armador, Opuesto, Central, Punta/Receptor o Líbero.')],
+        [
+          _t('Posición (obligatoria): Armador, Opuesto, Central, Punta/Receptor, Líbero o Universal '
+              '(un jugador que puede cubrir cualquier puesto salvo el de líbero).')
+        ],
+        [_t('Foto (opcional): se elige desde el selector de archivos del dispositivo.')],
         [
           _b('Edad (opcional): '),
           _t('se puede escribir a mano, o dejar que se calcule sola cargando la fecha de '
@@ -635,9 +646,10 @@ List<pw.Widget> _section3GestionEquipos() => [
       _p(
         'En la pantalla "Equipos", el ícono con forma de estrella del encabezado carga automáticamente un '
         'equipo de ejemplo (Club Atlético Central) con 35 jugadores ya cargados, repartidos en partes '
-        'iguales entre las 5 posiciones (7 por posición) y con la edad cargada de las dos formas posibles '
-        '(algunos con edad a mano, otros con fecha de nacimiento). Es útil para probar la app rápidamente '
-        'sin tener que escribir un plantel entero a mano.',
+        'iguales entre las posiciones y con la edad cargada de las dos formas posibles '
+        '(algunos con edad a mano, otros con fecha de nacimiento), además del cuerpo técnico ya completo. '
+        'No trae fotos cargadas (son opcionales y no hay ninguna foto real para asignarles a jugadores de '
+        'ejemplo). Es útil para probar la app rápidamente sin tener que escribir un plantel entero a mano.',
       ),
     ];
 
@@ -649,7 +661,7 @@ List<pw.Widget> _section4CrearPartido() => [
       _sectionTitle(4, 'Crear un partido nuevo'),
       _p(
         'Tocá Nuevo Partido en la pantalla principal. El armado de un partido tiene cuatro pasos: datos del '
-        'partido, planilla de 14, formación inicial y, recién ahí, arranca la carga en vivo.',
+        'partido, planilla de 16, formación inicial y, recién ahí, arranca la carga en vivo.',
       ),
       _subHeading('4.1 Datos del rival y del partido'),
       _bullets([
@@ -680,7 +692,7 @@ List<pw.Widget> _section4CrearPartido() => [
         ],
       ),
       pw.SizedBox(height: 10),
-      _p('Cuando todo esté completo, tocá Continuar: elegir planilla de 14.'),
+      _p('Cuando todo esté completo, tocá Continuar: elegir planilla de 16.'),
     ];
 
 // ---------------------------------------------------------------------------
@@ -688,11 +700,11 @@ List<pw.Widget> _section4CrearPartido() => [
 // ---------------------------------------------------------------------------
 
 List<pw.Widget> _section5Planilla() => [
-      _sectionTitle(5, 'Planilla del partido (14 jugadores)'),
+      _sectionTitle(5, 'Planilla del partido (16 jugadores)'),
       _p(
         'En esta pantalla se eligen, del plantel completo del equipo, los jugadores habilitados para este '
-        'partido en particular (mínimo 6, máximo 14). Los chips de arriba (Todos, ARM, OP, CEN, P/R, LIB) '
-        'sirven solo para filtrar la lista visible; no afectan a los jugadores ya seleccionados.',
+        'partido en particular (mínimo 6, máximo 16). Los chips de arriba (Todos, ARM, OP, CEN, P/R, LIB, '
+        'UNI) sirven solo para filtrar la lista visible; no afectan a los jugadores ya seleccionados.',
       ),
       _subHeading('5.1 Selección de jugadores'),
       _p('Tocá cada jugador de la lista para marcarlo o desmarcarlo como habilitado para el partido.'),
@@ -749,11 +761,12 @@ List<pw.Widget> _section6FormacionInicial() => [
         'automática de cambio de líbero cuando corresponde (ver sección 8.2).',
       ),
       _p(
-        'Debajo de los selectores de líbero aparece el checkbox "Líbero defensor automático", tildado por '
-        'defecto: si está activado, el líbero defensor entra solo por el central que rota a la fila de '
-        'fondo cuando saca el equipo propio (salvo que sea ese central quien va a sacar), sin necesitar el '
-        'cambio manual. Destildado, ese cambio se sigue sugiriendo pero hay que aplicarlo a mano desde el '
-        'panel de cambios (sección 8.2). También se elige de nuevo en cada set.',
+        'Debajo de los selectores de líbero aparece el checkbox "Líbero automático por central en el '
+        'fondo", tildado por defecto: si está activado, entra solo el líbero que corresponda por el '
+        'central que rota a la fila de fondo (el defensor cuando saca el equipo propio, salvo que sea ese '
+        'central quien va a sacar, o el receptor cuando saca el rival), sin necesitar el cambio manual. '
+        'Destildado, esos cambios se siguen sugiriendo pero hay que aplicarlos a mano desde el panel de '
+        'cambios (sección 8.2). También se elige de nuevo en cada set.',
       ),
       _p('Con todas las posiciones asignadas, tocá Comenzar partido (o Comenzar set N si es un set siguiente '
           'dentro de un partido ya en curso) para pasar a la pantalla de carga en vivo.'),
@@ -798,7 +811,7 @@ List<pw.Widget> _section7PantallaVivo() => [
           ['Recepción', 'Cuando el rival sacó.', 'Calificación de la recepción, eligiendo qué jugador recibió.'],
           ['Ataque', 'Después de una recepción no terminal.', 'Calificación del primer ataque (K1), eligiendo el jugador.'],
           ['Bloqueo (Punto)', 'Con la pelota en juego del lado rival.', 'Punto de bloqueo; permite elegir uno o más bloqueadores.'],
-          ['Error General', 'En cualquier momento.', 'Error propio no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
+          ['Error Genérico', 'En cualquier momento.', 'Error propio no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
           ['Punto Rival', 'Al recibir o defender.', 'Punto directo del rival no atribuible a una acción propia cargada aparte; pide elegir si fue de ataque o de contraataque.'],
           ['Error Rival', 'Al recibir o defender.', 'Error no forzado del rival que le da el punto al equipo propio; pide elegir si fue de saque, ataque, contraataque o genérico.'],
         ],
@@ -806,7 +819,7 @@ List<pw.Widget> _section7PantallaVivo() => [
       pw.SizedBox(height: 10),
       _p(
         'Al tocar Punto Rival o Error Rival se abre un panel chico para elegir con qué tocó el rival, antes '
-        'de registrar el punto. Es una clasificación distinta e independiente de Error General, que sigue '
+        'de registrar el punto. Es una clasificación distinta e independiente de Error Genérico, que sigue '
         'siendo para errores propios (de rotación, cuatro toques, etc.), no del rival.',
       ),
       _p(
@@ -823,12 +836,22 @@ List<pw.Widget> _section7PantallaVivo() => [
         ],
       ),
       pw.SizedBox(height: 10),
-      _p('Para el bloqueo se puede elegir uno o más jugadores (bloqueo doble o triple); para "Error General" se puede elegir un jugador o dejarlo sin asignar.'),
+      _p(
+        'Una recepción calificada como V/ Vendida no habilita Ataque (la pelota quedó descontrolada del '
+        'lado rival, no en condiciones de armar un ataque propio): habilita Contra, Bloqueo (Punto), Error '
+        'Genérico, Punto Rival y Error Rival, igual que cualquier otra pelota en juego del lado rival.',
+      ),
+      _p('Para el bloqueo se puede elegir uno o más jugadores (bloqueo doble o triple); para "Error Genérico" se puede elegir un jugador o dejarlo sin asignar.'),
+      _p(
+        'Las fichas para elegir jugador en estos paneles se muestran agrupadas por línea de juego: primero '
+        'armador y opuesto, después el/los central/es, después punta(s) y universal(es), y el líbero al '
+        'final (junto a las puntas), en vez del orden de posición en cancha.',
+      ),
       _subHeading('7.4 Zona de destino (opcional)'),
       _p(
         'Si en la formación del set se activó "Registrar zona de destino", al calificar un saque o un '
-        'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival (numeradas igual que '
-        'las posiciones: 4-3-2 junto a la red, 5-6-1 en el fondo) para marcar, de forma opcional, hacia '
+        'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival, numeradas de frente '
+        'para quien anota (2-3-4 junto a la red, 1-6-5 en el fondo) para marcar, de forma opcional, hacia '
         'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 14).',
       ),
       _p(
@@ -856,6 +879,12 @@ List<pw.Widget> _section8CambiosJugador() => [
         [_t('Un líbero nunca puede intervenir en un cambio regular.')],
         [_t('Cada cambio regular consume un cupo del total configurado para el partido (por defecto, 6 por set); el contador de cambios usados se muestra arriba del panel.')],
         [_t('Para hacerlo: elegí primero quién sale (solo se pueden elegir jugadores en cancha habilitados según la regla anterior) y después quién entra del banco.')],
+        [
+          _t('Entre las opciones del banco, la app resalta con una estrella y un borde de color a quienes '
+              'juegan la misma posición que el titular que sale, como "cambio sugerido": es solo una '
+              'ayuda visual, no una restricción, se puede elegir cualquier otro jugador habilitado del '
+              'banco igual.')
+        ],
       ]),
       _subHeading('8.2 Cambio de líbero'),
       _p('Solo está disponible si el equipo tiene al menos un líbero declarado en la formación de este set (sección 6.1). Reglas:', bottom: 6),
@@ -870,11 +899,12 @@ List<pw.Widget> _section8CambiosJugador() => [
         [_b('Central que saca y pierde el punto: '), _t('si estaba configurado un líbero receptor, entra automáticamente por ese central en cuanto el punto pasa a manos del rival.')],
         [_b('Líbero que rota a la fila delantera: '), _t('sale automáticamente y vuelve el jugador al que había reemplazado, ya que un líbero nunca puede jugar adelante.')],
         [
-          _b('Central que rota al fondo mientras sacamos: '),
-          _t('si está tildado el checkbox "Líbero defensor automático" de la formación de este set '
-              '(sección 6.1), entra solo el líbero defensor por el central que queda en el fondo (salvo '
-              'que ese central sea quien va a sacar). Destildado, la app lo sigue sugiriendo pero hay que '
-              'aplicarlo a mano, igual que antes.')
+          _b('Central que queda en el fondo (sacando nosotros o el rival): '),
+          _t('si está tildado el checkbox "Líbero automático por central en el fondo" de la formación de '
+              'este set (sección 6.1), entra solo el líbero que corresponda por ese central: el defensor '
+              'si el saque es nuestro (salvo que ese central sea quien va a sacar), o el receptor si saca '
+              'el rival, incluso al arrancar el set si ya arranca sacando el rival. Destildado, la app lo '
+              'sigue sugiriendo pero hay que aplicarlo a mano, igual que antes.')
         ],
       ]),
       _p('Cuando corresponde y no se aplicó solo, el panel de cambio de líbero también sugiere directamente el cambio recomendado para un central que quedó en el fondo, con un botón para aplicarlo en un toque.'),
@@ -916,6 +946,11 @@ List<pw.Widget> _section9SancionesTarjetas() => [
         'sin tener que salir de la pantalla en vivo. El ícono de tarjetas del encabezado también muestra '
         'esa cantidad como numerito mientras haya alguna cargada en el set.',
       ),
+      _p(
+        'El panel se completa paso a paso (equipo > a quién > categoría > confirmar), con botones Atrás y '
+        'Siguiente para moverse entre pasos, en vez de una sola pantalla larga: así entra cómodo aunque el '
+        'plantel habilitado tenga los 16 jugadores.',
+      ),
       _numbered([
         [_t('Elegí a qué equipo sancionó el árbitro: el propio o el rival.')],
         [
@@ -944,6 +979,12 @@ List<pw.Widget> _section9SancionesTarjetas() => [
         'disponible, la app avisa que el equipo queda incompleto en esa posición: es una situación '
         'excepcional que hay que resolver a criterio del cuerpo técnico y el árbitro, no algo que la app '
         'pueda decidir sola.',
+      ),
+      _infoBox(
+        'La app respeta automáticamente el alcance de cada sanción al armar las listas de banco '
+        'disponible (para este reemplazo y para cualquier cambio posterior): un jugador Expulsado no '
+        'aparece como opción durante el resto de ese set, y uno Descalificado no vuelve a aparecer en '
+        'ningún set restante del partido.',
       ),
       _infoBox(
         'Una sanción se puede deshacer igual que cualquier otra acción, con el botón Deshacer del '
@@ -1018,13 +1059,26 @@ List<pw.Widget> _section10Herramientas() => [
         flex: [3, 7],
         pillFirstColumn: true,
         rows: [
-          ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error.'],
+          ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 11).'],
           ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 13).'],
           ['Cambio de jugador', 'Abre el panel de cambios (ver sección 8), que también permite deshacer el último cambio (sección 8.3).'],
-          ['Simular resto del set', 'Carga puntos al azar (jugador, calificación y resultado) hasta terminar el set actual. Cada acción simulada se puede deshacer igual que una cargada a mano. Pensado para probar la app o mostrar cómo funciona sin cargar todo el set manualmente.'],
-          ['Abandonar partido', 'Borra por completo el partido en curso (no se puede deshacer). La app pide confirmación antes de eliminarlo.'],
+          ['Confirmar fin de set', 'Solo aparece cuando el set en curso llegó a su puntaje de cierre y todavía no fue confirmado. Ver sección 11.'],
+          ['Más opciones (⋮)', 'Agrupa Simular resto del set, Abandonar partido y el interruptor de modo claro/oscuro, para no ocupar tanto lugar en el encabezado en pantallas angostas.'],
         ],
       ),
+      _bullets([
+        [
+          _b('Simular resto del set: '),
+          _t('carga puntos al azar (jugador, calificación y resultado) hasta terminar el set actual. Cada '
+              'acción simulada se puede deshacer igual que una cargada a mano. Pensado para probar la app o '
+              'mostrar cómo funciona sin cargar todo el set manualmente.')
+        ],
+        [
+          _b('Abandonar partido: '),
+          _t('borra por completo el partido en curso (no se puede deshacer). La app pide confirmación antes '
+              'de eliminarlo.')
+        ],
+      ]),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1035,17 +1089,31 @@ List<pw.Widget> _section11FinSet() => [
       _sectionTitle(11, 'Fin de set y fin de partido'),
       _p(
         'Cuando un equipo llega a los puntos necesarios con la diferencia mínima configurada, el set '
-        'termina automáticamente y aparece un aviso con el resultado del set y el resultado en sets del '
-        'partido.',
+        'termina y aparece un aviso con el resultado del set y el resultado en sets del partido, con dos '
+        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 13) o Cerrar '
+        '(vuelve a la pantalla en vivo sin decidir nada todavía).',
+        bottom: 6,
+      ),
+      _infoBox(
+        'A propósito, ese aviso NO obliga a seguir de largo: el set queda "pendiente de confirmar" y se '
+        'puede seguir usando el botón Deshacer con normalidad mientras tanto, por si el árbitro termina '
+        'revirtiendo el último punto. Recién al tocar el botón Confirmar fin de set del encabezado (que '
+        'aparece únicamente mientras el set está en este estado pendiente, ver sección 10) el set queda '
+        'bloqueado en firme y deja de poder deshacerse.',
+      ),
+      _p(
+        'Al confirmar, la app avanza según corresponda:',
         bottom: 6,
       ),
       _bullets([
-        [_t('Si todavía no está definido el partido, tocando Configurar set siguiente se vuelve a la pantalla de formación (sección 6) para armar el próximo set.')],
+        [_t('Si todavía no está definido el partido, se vuelve a la pantalla de formación (sección 6) para armar el próximo set.')],
         [
-          _t('Si el partido queda definido (un equipo alcanza los sets necesarios para ganar), la app guarda '
-              'el partido automáticamente en el archivo y pasa directo a la pantalla de resumen (sección 13), '
-              'donde aparece un botón Volver al inicio para salir directo a la pantalla principal sin tener '
-              'que retroceder pantalla por pantalla.')
+          _t('Si el partido queda definido con ese set (un equipo alcanza los sets necesarios para ganar), la '
+              'app guarda el partido automáticamente en el archivo y pasa directo a la pantalla de resumen '
+              '(sección 13), donde aparece un botón Volver al inicio para salir directo a la pantalla '
+              'principal sin tener que retroceder pantalla por pantalla. El mismo botón Confirmar fin de set '
+              'del encabezado se usa también para este último set: el partido no se da por terminado en '
+              'forma automática, para dejarle al árbitro la misma posibilidad de revertir el punto final.')
         ],
       ]),
     ];
@@ -1112,11 +1180,19 @@ List<pw.Widget> _section13Resumen() => [
       ]),
       _p(
         'El selector Estadística permite elegir entre el partido completo o un set en particular (afecta '
-        'también a la sección "Estadística del rival"). La tabla por jugador incluye: puntos totales, '
-        'errores totales, el desglose de saque, ataque y contraataque por calificación (PP/P/N/Bl/NN), '
-        'puntos de bloqueo, errores generales, y el desglose de recepción (total, PP, P, !, N, V/, NN) junto con '
-        'el porcentaje de efectividad de recepción (definido como (PP + P) sobre el total de recepciones).',
+        'también a la sección "Estadística del rival"); al abrirse justo después de terminar un set desde '
+        'el aviso de fin de set (sección 11), arranca directamente con ese set seleccionado. La tabla por '
+        'jugador incluye: puntos totales, errores totales, el desglose de saque, ataque y contraataque por '
+        'calificación (PP/P/N/Bl/NN) junto con el porcentaje de efectividad de cada uno, puntos de bloqueo, '
+        'errores genéricos, y el desglose de recepción (total, PP, P, !, N, V/, NN) junto con el porcentaje '
+        'de efectividad de recepción. Los tres porcentajes de efectividad se calculan así:',
+        bottom: 6,
       ),
+      _bullets([
+        [_b('Saque: '), _t('(PP + P) sobre el total de saques.')],
+        [_b('Ataque y Contraataque: '), _t('PP sobre el total de toques (PP + P + N + Bl + NN).')],
+        [_b('Recepción: '), _t('(PP + P) sobre el total de recepciones.')],
+      ]),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1190,12 +1266,17 @@ List<pw.Widget> _section15Glosario() => [
           ['Pts', 'Puntos totales convertidos por el jugador (o por el equipo).'],
           ['Err', 'Errores totales cometidos.'],
           ['Saq / Atq / Ctr', 'Saque / Ataque / Contraataque.'],
+          ['Saq %', 'Efectividad de saque: (PP + P) / total de saques.'],
+          ['Atq % / Ctr %', 'Efectividad de ataque / contraataque: PP / total de toques (PP + P + N + Bl + NN).'],
           ['Blq', 'Puntos de bloqueo.'],
-          ['E. Gen', 'Errores generales (rotación, cuatro toques, etc.).'],
+          ['E. Gen', 'Errores genéricos (rotación, cuatro toques, etc.).'],
           ['Rec Tot', 'Total de recepciones registradas.'],
           ['Rec %', 'Efectividad de recepción: (PP + P) / total de recepciones.'],
-          ['ARM · OP · CEN · P/R · LIB', 'Posiciones: Armador · Opuesto · Central · Punta/Receptor · Líbero.'],
-          ['Z1 a Z6', 'Zonas de destino de la cancha rival (numeración estándar 1 a 6).'],
+          [
+            'ARM · OP · CEN · P/R · LIB · UNI',
+            'Posiciones: Armador · Opuesto · Central · Punta/Receptor · Líbero · Universal.'
+          ],
+          ['Z1 a Z6', 'Zonas de destino de la cancha rival, numeradas de frente para quien anota.'],
         ],
       ),
     ];
@@ -1299,11 +1380,14 @@ List<pw.Widget> _section16Faq() => [
       ),
       _faqCard(
         '¿Puedo corregir las estadísticas de un partido que ya terminó?',
-        'No directamente: una vez que el partido queda definido, la pantalla de resumen (sección 13) solo '
-            'permite consultar y exportar los datos, no modificar los toques cargados. Para corregir algo, '
-            'hacelo antes de que el partido termine, con Deshacer (sección 10) las veces que haga falta. Si '
-            'el partido ya terminó y tiene un error importante, se puede eliminar desde el menú de tres '
-            'puntos en Archivo de Partidos (sección 12) y cargarlo de nuevo desde cero.',
+        'No directamente. Sí hay margen para corregir un punto justo al final de un set (por ejemplo, si el '
+            'árbitro revierte el último punto): mientras un set no se haya confirmado con el botón Confirmar '
+            'fin de set del encabezado (sección 10 y sección 11), Deshacer sigue funcionando con normalidad, '
+            'aunque el marcador ya haya llegado al puntaje que cierra el set. Una vez confirmado ese botón, '
+            'el set queda bloqueado y ya no se puede deshacer nada de ahí; lo mismo pasa con el partido '
+            'entero al confirmar el set decisivo. Si un partido ya confirmado tiene un error importante, se '
+            'puede eliminar desde el menú de tres puntos en Archivo de Partidos (sección 12) y cargarlo de '
+            'nuevo desde cero.',
       ),
       _faqCard(
         '¿El líbero puede sacar?',
@@ -1313,8 +1397,9 @@ List<pw.Widget> _section16Faq() => [
       _faqCard(
         '¿Cómo cambio entre modo claro y modo oscuro?',
         'Con el interruptor de modo claro / modo oscuro (ícono de sol / luna) que aparece en la esquina '
-            'superior derecha de cualquier pantalla de la app (ver sección 2). La elección queda guardada '
-            'en el dispositivo.',
+            'superior derecha de casi cualquier pantalla de la app (ver sección 2); en la pantalla de '
+            'partido en vivo está dentro del menú "Más opciones" del encabezado (sección 10). La elección '
+            'queda guardada en el dispositivo.',
       ),
       _faqCard(
         '¿RallyStats está disponible en iOS (iPhone/iPad)?',

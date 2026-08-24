@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../models/player.dart';
+import '../../services/player_photo_service.dart';
 import '../../utils/age_utils.dart';
 import '../../widgets/theme_toggle_switch.dart';
 
@@ -25,6 +28,8 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
   late PlayerPosition _position;
   DominantHand? _hand;
   DateTime? _birthDate;
+  String? _photoPath;
+  bool _pickingPhoto = false;
 
   @override
   void initState() {
@@ -42,7 +47,20 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
         text: _birthDate != null ? '${calculateAge(_birthDate!)}' : (p.age?.toString() ?? ''));
     _position = p.position;
     _hand = p.dominantHand;
+    _photoPath = p.photoPath;
   }
+
+  Future<void> _pickPhoto() async {
+    setState(() => _pickingPhoto = true);
+    try {
+      final path = await PlayerPhotoService.pickAndStorePhoto();
+      if (path != null) setState(() => _photoPath = path);
+    } finally {
+      if (mounted) setState(() => _pickingPhoto = false);
+    }
+  }
+
+  void _removePhoto() => setState(() => _photoPath = null);
 
   Future<void> _pickBirthDate() async {
     final now = DateTime.now();
@@ -83,6 +101,7 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
       attackReachCm: double.tryParse(_attackReach.text.trim()),
       birthDate: _birthDate,
       age: _birthDate != null ? calculateAge(_birthDate!) : manualAge,
+      photoPath: _photoPath,
     );
     Navigator.pop(context, result);
   }
@@ -142,6 +161,38 @@ class _PlayerFormScreenState extends State<PlayerFormScreen> {
                 .map((p) => DropdownMenuItem(value: p, child: Text(p.label)))
                 .toList(),
             onChanged: (v) => setState(() => _position = v ?? _position),
+          ),
+          const SizedBox(height: 20),
+          const Text('Foto (opcional)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundImage: _photoPath == null ? null : FileImage(File(_photoPath!)),
+                child: _photoPath == null ? const Icon(Icons.person, size: 32) : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _pickingPhoto ? null : _pickPhoto,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(_photoPath == null ? 'Elegir foto' : 'Cambiar foto'),
+                    ),
+                    if (_photoPath != null)
+                      TextButton.icon(
+                        onPressed: _removePhoto,
+                        icon: const Icon(Icons.clear),
+                        label: const Text('Quitar'),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           const Text('Edad (opcional)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),

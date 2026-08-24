@@ -85,11 +85,15 @@ class MatchController extends ChangeNotifier {
     }
 
     if (set.finished) {
-      if (match.ownSetsWon >= match.config.setsToWin ||
-          match.rivalSetsWon >= match.config.setsToWin) {
-        match.status = MatchStatus.finished;
-      } else {
-        controller.needsNextSetSetup = true;
+      // Si todavía no se confirmó con confirmSetFinished (ver `locked`), el
+      // set queda "pendiente": no se fuerza needsNextSetSetup ni se marca el
+      // partido como finalizado, para poder seguir deshaciendo si hace falta.
+      if (set.locked) {
+        if (match.isMatchOver) {
+          match.status = MatchStatus.finished;
+        } else {
+          controller.needsNextSetSetup = true;
+        }
       }
       return controller;
     }
@@ -161,10 +165,35 @@ class MatchController extends ChangeNotifier {
       onCourtOwn.values.map(playerById).whereType<Player>().toList();
 
   /// Jugadores propios del roster que no están en cancha en este momento
-  /// (candidatos para entrar en un cambio).
+  /// (candidatos para entrar en un cambio), sin contar a quienes una sanción
+  /// les impide volver a jugar ahora mismo (ver [isBarredFromPlay]).
   List<Player> get benchPlayers {
     final onCourt = currentSet.currentOrderOwn.toSet();
-    return match.ownRoster.where((p) => !onCourt.contains(p.id)).toList();
+    return match.ownRoster
+        .where((p) => !onCourt.contains(p.id) && !isBarredFromPlay(p.id))
+        .toList();
+  }
+
+  /// true si [playerId] no puede volver a jugar en este momento del partido
+  /// por una sanción (Regla 21 de la FIVB): una Expulsión lo deja afuera
+  /// solo por el resto del set en que se dio (vuelve a estar disponible en
+  /// los sets siguientes), y una Descalificación lo deja afuera por el resto
+  /// del PARTIDO (cualquier set desde ese momento en adelante).
+  bool isBarredFromPlay(String playerId) {
+    for (final set in match.sets) {
+      for (final s in set.sanctions) {
+        if (s.team != TeamSide.own ||
+            s.targetKind != SanctionTargetKind.player ||
+            s.targetPlayerId != playerId) {
+          continue;
+        }
+        if (s.outcome == SanctionOutcome.descalificacion) return true;
+        if (s.outcome == SanctionOutcome.expulsion && set.setNumber == currentSet.setNumber) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /// Inicia un nuevo set con el orden de rotación y el equipo que saca.
@@ -194,21 +223,24 @@ class MatchController extends ChangeNotifier {
     _rallyCounter = 1;
     needsNextSetSetup = false;
     _stage = _servingTeam == TeamSide.own ? RallyStage.serveOwn : RallyStage.receiveOwn;
-    // Si ya arrancamos sacando nosotros y algún central queda en el fondo
-    // (formación elegida así), no hace falta esperar a un side-out: se
-    // evalúa el automatismo también acá.
+    // Si la formación elegida ya deja a algún central en el fondo (saque
+    // propio o del rival), no hace falta esperar a un side-out: se evalúa
+    // el automatismo del líbero también acá.
     _maybeAutoSubLiberoForCentralInBackRow();
     notifyListeners();
   }
 
-  bool get actionServeEnabled => _stage == RallyStage.serveOwn;
-  bool get actionReceptionEnabled => _stage == RallyStage.receiveOwn;
-  bool get actionAttackEnabled => _stage == RallyStage.attackK1Own;
-  bool get actionCounterEnabled => _stage == RallyStage.defending;
-  bool get actionBlockEnabled => _stage == RallyStage.defending;
+  // Ninguna acción de carga queda habilitada una vez que el set llegó a su
+  // puntaje de cierre (aunque todavía no se haya confirmado con el botón
+  // "Confirmar fin de set"): no hay más jugadas que registrar.
+  bool get actionServeEnabled => _stage == RallyStage.serveOwn && !currentSet.finished;
+  bool get actionReceptionEnabled => _stage == RallyStage.receiveOwn && !currentSet.finished;
+  bool get actionAttackEnabled => _stage == RallyStage.attackK1Own && !currentSet.finished;
+  bool get actionCounterEnabled => _stage == RallyStage.defending && !currentSet.finished;
+  bool get actionBlockEnabled => _stage == RallyStage.defending && !currentSet.finished;
   bool get actionOpponentButtonsEnabled =>
-      _stage == RallyStage.receiveOwn || _stage == RallyStage.defending;
-  bool get actionGenericErrorEnabled => true;
+      (_stage == RallyStage.receiveOwn || _stage == RallyStage.defending) && !currentSet.finished;
+  bool get actionGenericErrorEnabled => !currentSet.finished;
 
   // ---------------- Registro de acciones ----------------
 
@@ -244,7 +276,10 @@ class MatchController extends ChangeNotifier {
       winner: terminal ? TeamSide.rival : null,
     );
     if (!terminal) {
-      _stage = RallyStage.attackK1Own;
+      // Una recepción "Vendida" (V-) manda la pelota descontrolada al lado
+      // rival: el punto sigue, pero del lado de la defensa (Contra/Bloqueo/
+      // Error Genérico/Punto rival/Error rival), no de nuestro ataque.
+      _stage = grade == Grade.vNeg ? RallyStage.defending : RallyStage.attackK1Own;
       notifyListeners();
     }
   }
@@ -565,6 +600,7 @@ class MatchController extends ChangeNotifier {
   /// o líbero forzado a salir al rotar a la fila delantera—, no a un error
   /// de carga, así que deshacerlos dejaría la cancha en un estado ilegal).
   bool get canUndoLastSubstitution =>
+      !currentSet.locked &&
       currentSet.substitutions.isNotEmpty &&
       !currentSet.substitutions.last.auto &&
       !(currentSet.sanctions.isNotEmpty &&
@@ -643,19 +679,22 @@ class MatchController extends ChangeNotifier {
   }
 
   /// Si está activado `currentSet.autoLiberoBackRowSwap`, entra
-  /// automáticamente el líbero defensor por un central que rota a la fila
-  /// de fondo mientras el equipo propio saca (y ese central no es quien va
-  /// a sacar) — la misma condición que hoy sugiere manualmente el panel de
+  /// automáticamente el líbero que corresponda por un central que queda en
+  /// la fila de fondo: el defensor si el saque es nuestro, o el receptor si
+  /// saca el rival (incluido al arrancar el set, si ya arranca sacando el
+  /// rival) — la misma condición que hoy sugiere manualmente el panel de
   /// cambio de líbero ("Central en el fondo"), pero aplicada sola.
+  /// `canBringLiberoIn` ya se encarga de no meter al líbero en el puesto que
+  /// está a punto de sacar (solo aplica cuando el saque es nuestro), así que
+  /// acá no hace falta repetir esa exclusión.
   void _maybeAutoSubLiberoForCentralInBackRow() {
     if (!currentSet.autoLiberoBackRowSwap) return;
-    if (_servingTeam != TeamSide.own) return; // es rol del líbero DEFENSOR: solo cuando sacamos.
-    final liberoId = currentSet.defensiveLiberoId;
+    final liberoId =
+        _servingTeam == TeamSide.own ? currentSet.defensiveLiberoId : currentSet.receptionLiberoId;
     if (liberoId == null) return;
     for (final p in onCourtPlayers.where((p) => p.position == PlayerPosition.central)) {
       final pos = courtPositionOf(p.id);
       if (pos == null || (pos != 1 && pos != 5 && pos != 6)) continue;
-      if (pos == 1) continue; // está a punto de sacar: debe quedarse.
       if (!canBringLiberoIn(liberoId, p.id)) continue;
       bringLiberoIn(liberoId, p.id, auto: true);
       return; // solo puede entrar un líbero a la vez.
@@ -848,7 +887,7 @@ class MatchController extends ChangeNotifier {
   /// Deshace el último evento cargado (corrige un toque mal tocado).
   void undoLast() {
     final set = currentSet;
-    if (set.events.isEmpty) return;
+    if (set.locked || set.events.isEmpty) return;
     final removed = set.events.removeLast();
 
     if (removed.endsRally && removed.pointWinner != null) {
@@ -911,9 +950,10 @@ class MatchController extends ChangeNotifier {
   /// sanción, o un cambio manual (los automáticos no cuentan como acción
   /// propia, siempre se deshacen junto con la jugada que los disparó).
   bool get canUndoLastAction =>
-      currentSet.events.isNotEmpty ||
-      (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto) ||
-      currentSet.sanctions.isNotEmpty;
+      !currentSet.locked &&
+      (currentSet.events.isNotEmpty ||
+          (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto) ||
+          currentSet.sanctions.isNotEmpty);
 
   /// Deshace la última acción cargada en el set, sea una jugada (saque,
   /// ataque, punto/error rival, etc.), una sanción/tarjeta, o un cambio de
@@ -1023,7 +1063,7 @@ class MatchController extends ChangeNotifier {
   /// métodos `log*` que usan los botones de carga manual. Pensado para
   /// probar la app rápido sin cargar cada toque a mano.
   void simulateOnePoint() {
-    if (needsNextSetSetup || match.status == MatchStatus.finished) return;
+    if (currentSet.finished) return;
     final rallyBefore = _rallyCounter;
     var guard = 0;
     while (_rallyCounter == rallyBefore && guard < 60) {
@@ -1070,9 +1110,9 @@ class MatchController extends ChangeNotifier {
   /// sale solo desde `_resolvePoint` cuando corresponde.
   void simulateRestOfSet() {
     var guard = 0;
-    while (!needsNextSetSetup && match.status != MatchStatus.finished && guard < 500) {
+    while (!currentSet.finished && guard < 500) {
       simulateOnePoint();
-      if (!needsNextSetSetup && match.status != MatchStatus.finished) {
+      if (!currentSet.finished) {
         _maybeSimulateRandomSubstitution();
       }
       guard++;
@@ -1173,9 +1213,9 @@ class MatchController extends ChangeNotifier {
       _servingTeam = winner;
       _maybeAutoSwapLiberoForServe();
       // Se evalúa acá (con _servingTeam ya actualizado) y no solo dentro de
-      // la rama "winner == own" de arriba: el propio método se filtra por
-      // _servingTeam == own, así que corre seguro sin importar para qué
-      // lado fue el side-out.
+      // la rama "winner == own" de arriba: corre para los dos lados del
+      // side-out, y el propio método elige el líbero defensor o el
+      // receptor según a quién le tocó sacar ahora.
       _maybeAutoSubLiberoForCentralInBackRow();
     }
 
@@ -1191,18 +1231,36 @@ class MatchController extends ChangeNotifier {
     if (leader >= pointsToWin && diff >= margin) {
       set.finished = true;
       set.winner = set.ownScore > set.rivalScore ? TeamSide.own : TeamSide.rival;
-      if (match.ownSetsWon >= match.config.setsToWin ||
-          match.rivalSetsWon >= match.config.setsToWin) {
-        match.status = MatchStatus.finished;
-      } else {
-        needsNextSetSetup = true;
-      }
+      // OJO: acá NO se marca match.status = finished ni needsNextSetSetup —
+      // eso queda pendiente de que se confirme con confirmSetFinished(), así
+      // el árbitro todavía puede revertir el último punto y se puede seguir
+      // deshaciendo hasta ese momento (ver [canConfirmSetFinished]).
       notifyListeners();
       return;
     }
 
     _stage = _servingTeam == TeamSide.own ? RallyStage.serveOwn : RallyStage.receiveOwn;
     notifyListeners();
+  }
+
+  /// true una vez que el set en curso llegó a su puntaje de cierre pero
+  /// todavía no se confirmó con [confirmSetFinished] (el árbitro todavía
+  /// podría revertir el último punto).
+  bool get canConfirmSetFinished => currentSet.finished && !currentSet.locked;
+
+  /// Confirma que el set (o, si es el decisivo, el partido entero) terminó
+  /// de verdad: a partir de acá el set queda bloqueado y no se puede
+  /// deshacer ningún punto más.
+  void confirmSetFinished() {
+    if (!canConfirmSetFinished) return;
+    currentSet.locked = true;
+    if (match.isMatchOver) {
+      match.status = MatchStatus.finished;
+    } else {
+      needsNextSetSetup = true;
+    }
+    notifyListeners();
+    _persist();
   }
 
   Future<void> _persist() async {

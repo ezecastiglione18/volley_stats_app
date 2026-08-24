@@ -11,9 +11,14 @@ estadísticas exportable como reporte en PDF.
 
 - Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional
   (saque, ataque y contraataque).
-- Planteles de equipo de hasta 35 jugadores, con edad (a mano o calculada desde la fecha de nacimiento),
-  datos físicos y alcances de bloqueo/ataque opcionales, y una planilla de hasta 14 habilitados por
-  partido.
+- Confirmación explícita de fin de set: al llegar al puntaje de cierre, el set queda pendiente (se puede
+  seguir deshaciendo si el árbitro revierte el último punto) hasta confirmarlo con un botón dedicado del
+  encabezado, incluido el set decisivo que cierra el partido.
+- Planteles de equipo de hasta 35 jugadores, con posición (incluye Universal, además de Armador, Opuesto,
+  Central, Punta/Receptor y Líbero), edad (a mano o calculada desde la fecha de nacimiento), datos
+  físicos, alcances de bloqueo/ataque y foto, todos opcionales, y una planilla de hasta 16 habilitados por
+  partido. Los equipos también admiten datos opcionales del cuerpo técnico (entrenador, asistente,
+  auxiliar, médico y preparador físico).
 - Cambios de jugador según el reglamento oficial de la FIVB (cambio regular y cambio de líbero), con los
   roles de líbero configurables set a set, entrada automática (opcional) del líbero defensor por un
   central que rota al fondo mientras el equipo propio saca, cambios por set ilimitados si se prefiere, y
@@ -22,8 +27,9 @@ estadísticas exportable como reporte en PDF.
   descalificación) según el reglamento oficial de la FIVB, con el punto o la salida de cancha
   correspondiente aplicados automáticamente y la sustitución obligatoria cuando corresponde.
 - Formato de partido configurable (cantidad de sets, puntos por set, cambios permitidos por set).
-- Estadísticas del partido completo o por set (propias y del rival), con reporte en PDF listo para
-  compartir (incluye desglose por jugador, sanciones y zonas de destino de saque, ataque y contraataque).
+- Estadísticas del partido completo o por set (propias y del rival), con porcentajes de efectividad de
+  saque, ataque, contraataque y recepción, y reporte en PDF listo para compartir (incluye desglose por
+  jugador, sanciones y zonas de destino de saque, ataque y contraataque).
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
@@ -77,4 +83,4 @@ herramienta externa.
 
 ## Contacto
 
-Consultas, reportes de problemas o sugerencias: ezecastiglione18@gmail.com
+Consultas, reportes de problemas o sugerencias: ecastiglione@frba.utn.edu.ar - federperez@frba.utn.edu.ar

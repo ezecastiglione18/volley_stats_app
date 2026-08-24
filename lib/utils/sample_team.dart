@@ -353,7 +353,7 @@ Team buildSampleTeam() {
       firstName: 'Camilo',
       lastName: 'Aguirre',
       number: 19,
-      position: PlayerPosition.libero,
+      position: PlayerPosition.universal,
       heightCm: 176,
       weightKg: 69,
       dominantHand: DominantHand.izquierda,
@@ -364,7 +364,7 @@ Team buildSampleTeam() {
       firstName: 'Benjamín',
       lastName: 'Castro',
       number: 20,
-      position: PlayerPosition.libero,
+      position: PlayerPosition.universal,
       heightCm: 173,
       weightKg: 67,
       dominantHand: DominantHand.derecha,
@@ -405,5 +405,14 @@ Team buildSampleTeam() {
     ),
   ];
 
-  return Team(id: generateId('team_'), name: 'Club Atlético Central', players: players);
+  return Team(
+    id: generateId('team_'),
+    name: 'Club Atlético Central',
+    players: players,
+    headCoach: 'Roberto Giménez',
+    assistantCoach: 'Lucía Fernández',
+    auxiliary: 'Nicolás Herrera',
+    doctor: 'Dra. Paula Sosa',
+    physicalTrainer: 'Ignacio Ramallo',
+  );
 }

@@ -154,13 +154,22 @@ class _RegularPanel extends StatelessWidget {
               return const Text('No hay suplente disponible para este jugador.',
                   style: TextStyle(fontSize: 12, color: Colors.grey));
             }
+            final scheme = Theme.of(context).colorScheme;
             return Wrap(
               spacing: 8,
               runSpacing: 8,
               children: bench.map((p) {
+                // "Cambio sugerido": resalta a quienes juegan la misma
+                // posición que el titular que sale, como ayuda visual (no
+                // es una restricción, el resto del banco sigue habilitado).
+                final suggested = p.position == playerOut.position;
                 return ActionChip(
+                  avatar: suggested ? Icon(Icons.star, size: 16, color: scheme.secondary) : null,
                   label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
-                  backgroundColor: blocked ? Colors.grey.shade200 : null,
+                  backgroundColor: blocked
+                      ? Colors.grey.shade200
+                      : (suggested ? scheme.secondary.withValues(alpha: 0.18) : null),
+                  side: !blocked && suggested ? BorderSide(color: scheme.secondary, width: 1.5) : null,
                   onPressed: blocked
                       ? null
                       : () {
@@ -187,7 +196,7 @@ class _LiberoPanel extends StatelessWidget {
     final liberoIds = controller.declaredLiberoIds;
     if (liberoIds.isEmpty) {
       return const Text(
-        'No hay líberos configurados para este partido (se eligen al armar la planilla de 14).',
+        'No hay líberos configurados para este partido (se eligen al armar la planilla de 16).',
         style: TextStyle(fontSize: 12, color: Colors.grey),
       );
     }

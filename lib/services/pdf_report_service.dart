@@ -238,6 +238,8 @@ class PdfReportService {
     );
   }
 
+  static String _pct(double? v) => v == null ? '-' : '${(v * 100).toStringAsFixed(0)}%';
+
   static pw.Widget _statsTable(MatchStats stats, {bool compact = false}) {
     final rows = stats.orderedRows.map((r) {
       final effPct = r.recepcion.efficiency;
@@ -250,16 +252,19 @@ class PdfReportService {
         '${r.saque.p}',
         '${r.saque.n}',
         '${r.saque.nn}',
+        _pct(r.saque.pctServe),
         '${r.ataque.pp}',
         '${r.ataque.p}',
         '${r.ataque.n}',
         '${r.ataque.bloq}',
         '${r.ataque.nn}',
+        _pct(r.ataque.pctPoint),
         '${r.contra.pp}',
         '${r.contra.p}',
         '${r.contra.n}',
         '${r.contra.bloq}',
         '${r.contra.nn}',
+        _pct(r.contra.pctPoint),
         '${r.bloqueoPts}',
         '${r.errGen}',
         '${r.recepcion.total}',
@@ -293,16 +298,19 @@ class PdfReportService {
       '${t.saque.p}',
       '${t.saque.n}',
       '${t.saque.nn}',
+      _pct(t.saque.pctServe),
       '${t.ataque.pp}',
       '${t.ataque.p}',
       '${t.ataque.n}',
       '${t.ataque.bloq}',
       '${t.ataque.nn}',
+      _pct(t.ataque.pctPoint),
       '${t.contra.pp}',
       '${t.contra.p}',
       '${t.contra.n}',
       '${t.contra.bloq}',
       '${t.contra.nn}',
+      _pct(t.contra.pctPoint),
       '${t.bloqueoPts}',
       '${t.errGen}',
       '${t.recepcion.total}',
@@ -354,9 +362,11 @@ class PdfReportService {
         pw.SizedBox(height: 3),
         pw.Text(
           'Referencias - Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva · N Negativa · '
-          'Bl Bloqueado · NN Error (Doble Negativa).  Recepción: PP Perfecta (Doble Positiva) · P Positiva · '
-          '! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa).  Pts puntos · Err errores totales · Blq Pts puntos de bloqueo · '
-          'Err Gen errores generales · Tot toques totales · % efectividad de recepción · Am tarjetas amarillas · '
+          'Bl Bloqueado · NN Error (Doble Negativa). % Saque = (PP+P)/Total · % Ataque y % Contra = '
+          'PP/Total.  Recepción: PP Perfecta (Doble Positiva) · P Positiva · '
+          '! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa). % Recepción = (PP+P)/Total. '
+          'Pts puntos · Err errores totales · Blq Pts puntos de bloqueo · '
+          'Err Gen errores generales · Tot toques totales · Am tarjetas amarillas · '
           'Ro tarjetas rojas.  $_positionLegend',
           style: pw.TextStyle(fontSize: compact ? 5.5 : 6.5, color: PdfColors.grey700),
         ),
@@ -386,16 +396,19 @@ class PdfReportService {
     _StatCol('P', 9, group: 'Saque'),
     _StatCol('N', 9, group: 'Saque'),
     _StatCol('NN', 9, group: 'Saque'),
+    _StatCol('%', 10, group: 'Saque'),
     _StatCol('PP', 9, group: 'Ataque'),
     _StatCol('P', 9, group: 'Ataque'),
     _StatCol('N', 9, group: 'Ataque'),
     _StatCol('Bl', 9, group: 'Ataque'),
     _StatCol('NN', 9, group: 'Ataque'),
+    _StatCol('%', 10, group: 'Ataque'),
     _StatCol('PP', 9, group: 'Contraataque'),
     _StatCol('P', 9, group: 'Contraataque'),
     _StatCol('N', 9, group: 'Contraataque'),
     _StatCol('Bl', 9, group: 'Contraataque'),
     _StatCol('NN', 9, group: 'Contraataque'),
+    _StatCol('%', 10, group: 'Contraataque'),
     _StatCol('Blq Pts', 13),
     _StatCol('Err Gen', 13),
     _StatCol('Tot', 9, group: 'Recepción'),

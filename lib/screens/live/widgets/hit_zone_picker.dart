@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../utils/theme.dart';
 
 /// Cuadrado dividido en 6 partes iguales para elegir la zona de cancha
-/// (1-6) a la que fue dirigido un saque o un ataque. Usa la misma
-/// numeración que el resto de la app: fila cercana a la red = 4-3-2, fila de
-/// fondo = 5-6-1.
+/// (1-6) a la que fue dirigido un saque o un ataque. Numeración pensada para
+/// verse "de frente" desde el punto de vista de quien anota: fila cercana a
+/// la red = 2-3-4, fila de fondo = 1-6-5.
 class HitZonePicker extends StatelessWidget {
   final int? selectedZone;
   final ValueChanged<int?> onChanged;
@@ -49,10 +49,18 @@ class HitZonePicker extends StatelessWidget {
       children: [
         const Text('Zona de destino (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 2),
-        Text('Red', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant), textAlign: TextAlign.center),
-        Row(children: [cell(4), cell(3), cell(2)]),
-        Row(children: [cell(5), cell(6), cell(1)]),
-        Text('Fondo', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+        SizedBox(
+          width: double.infinity,
+          child: Text('Fondo',
+              textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+        ),
+        Row(children: [cell(1), cell(6), cell(5)]),
+        Row(children: [cell(2), cell(3), cell(4)]),
+        SizedBox(
+          width: double.infinity,
+          child: Text('Red',
+              textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+        ),
         if (selectedZone != null)
           Align(
             alignment: Alignment.centerLeft,

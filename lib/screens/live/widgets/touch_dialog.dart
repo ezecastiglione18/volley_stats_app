@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/player.dart';
 import '../../../utils/grade_labels.dart';
+import 'grouped_ficha_row.dart';
 import 'hit_zone_picker.dart';
 
 /// Muestra un modal para elegir jugador (si corresponde), calificar el
@@ -45,17 +46,10 @@ Future<void> showTouchDialog({
                   if (fixedPlayerId == null) ...[
                     const Text('Jugador', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: players.map((p) {
-                        final isSel = selected == p.id;
-                        return ChoiceChip(
-                          label: Text('#${p.number} ${p.lastName}'),
-                          selected: isSel,
-                          onSelected: (_) => setState(() => selected = p.id),
-                        );
-                      }).toList(),
+                    groupedFichaRow(
+                      players,
+                      isSelected: (p) => selected == p.id,
+                      onSelect: (p) => setState(() => selected = p.id),
                     ),
                     const SizedBox(height: 18),
                   ],
@@ -87,7 +81,7 @@ Future<void> showTouchDialog({
                                 Navigator.pop(ctx);
                                 onConfirm(selected!, g.code, selectedZone);
                               },
-                        child: Text(g.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                        child: Text(g.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
                       );
                     }).toList(),
                   ),

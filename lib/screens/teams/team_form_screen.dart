@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +21,11 @@ class TeamFormScreen extends StatefulWidget {
 
 class _TeamFormScreenState extends State<TeamFormScreen> {
   late TextEditingController _nameCtrl;
+  late TextEditingController _headCoachCtrl;
+  late TextEditingController _assistantCoachCtrl;
+  late TextEditingController _auxiliaryCtrl;
+  late TextEditingController _doctorCtrl;
+  late TextEditingController _physicalTrainerCtrl;
   late Team _team;
 
   @override
@@ -26,11 +33,23 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
     super.initState();
     _team = widget.team;
     _nameCtrl = TextEditingController(text: _team.name);
+    _headCoachCtrl = TextEditingController(text: _team.headCoach ?? '');
+    _assistantCoachCtrl = TextEditingController(text: _team.assistantCoach ?? '');
+    _auxiliaryCtrl = TextEditingController(text: _team.auxiliary ?? '');
+    _doctorCtrl = TextEditingController(text: _team.doctor ?? '');
+    _physicalTrainerCtrl = TextEditingController(text: _team.physicalTrainer ?? '');
   }
 
   Future<void> _save({bool showSnack = true}) async {
     _team.name = _nameCtrl.text.trim();
     if (_team.name.isEmpty) return;
+    _team.headCoach = _headCoachCtrl.text.trim().isEmpty ? null : _headCoachCtrl.text.trim();
+    _team.assistantCoach =
+        _assistantCoachCtrl.text.trim().isEmpty ? null : _assistantCoachCtrl.text.trim();
+    _team.auxiliary = _auxiliaryCtrl.text.trim().isEmpty ? null : _auxiliaryCtrl.text.trim();
+    _team.doctor = _doctorCtrl.text.trim().isEmpty ? null : _doctorCtrl.text.trim();
+    _team.physicalTrainer =
+        _physicalTrainerCtrl.text.trim().isEmpty ? null : _physicalTrainerCtrl.text.trim();
     await context.read<AppDataController>().saveTeam(_team);
     if (showSnack && mounted) {
       ScaffoldMessenger.of(context)
@@ -117,7 +136,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: TextField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(labelText: 'Nombre del equipo / club'),
@@ -125,7 +144,47 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Cuerpo técnico (opcional)',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _headCoachCtrl,
+                    decoration: const InputDecoration(labelText: 'Entrenador'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _assistantCoachCtrl,
+                    decoration: const InputDecoration(labelText: 'Asistente de entrenador'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _auxiliaryCtrl,
+                    decoration: const InputDecoration(labelText: 'Auxiliar'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _doctorCtrl,
+                    decoration: const InputDecoration(labelText: 'Médico'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _physicalTrainerCtrl,
+                    decoration: const InputDecoration(labelText: 'Preparador físico'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
               child: Row(
                 children: [
                   Text('Jugadores (${players.length}/${Team.maxPlayers})',
@@ -150,7 +209,11 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         final p = players[i];
                         return Card(
                           child: ListTile(
-                            leading: CircleAvatar(child: Text('${p.number}')),
+                            leading: CircleAvatar(
+                              backgroundImage:
+                                  p.photoPath == null ? null : FileImage(File(p.photoPath!)),
+                              child: p.photoPath == null ? Text('${p.number}') : null,
+                            ),
                             title: Text(p.fullName.isEmpty ? '(sin nombre)' : p.fullName),
                             subtitle: Text(p.position.label),
                             trailing: IconButton(

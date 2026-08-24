@@ -10,6 +10,12 @@ class TouchStats {
   int bloq = 0; // solo aplica a Ataque / Contra
 
   int get total => pp + p + n + nn + bloq;
+
+  /// % de punto directo, para Ataque/Contra = PP / Total.
+  double? get pctPoint => total == 0 ? null : pp / total;
+
+  /// % de efectividad de saque = (PP + P) / Total (bloq siempre 0 acá).
+  double? get pctServe => total == 0 ? null : (pp + p) / total;
 }
 
 /// Conteo de calificaciones de Recepción (escala PP/P/!/N/V-/NN).

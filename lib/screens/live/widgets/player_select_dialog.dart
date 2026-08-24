@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/player.dart';
+import 'grouped_ficha_row.dart';
 
 /// Selección múltiple de jugadores (por ejemplo, para un bloqueo doble).
 Future<void> showMultiPlayerDialog({
@@ -30,23 +31,16 @@ Future<void> showMultiPlayerDialog({
                 const Text('Podés elegir uno o más jugadores (bloqueo doble/triple).',
                     style: TextStyle(color: Colors.grey, fontSize: 12)),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: players.map((p) {
-                    final isSel = selected.contains(p.id);
-                    return FilterChip(
-                      label: Text('#${p.number} ${p.lastName}'),
-                      selected: isSel,
-                      onSelected: (v) => setState(() {
-                        if (v) {
-                          selected.add(p.id);
-                        } else {
-                          selected.remove(p.id);
-                        }
-                      }),
-                    );
-                  }).toList(),
+                groupedFichaRow(
+                  players,
+                  isSelected: (p) => selected.contains(p.id),
+                  onSelect: (p) => setState(() {
+                    if (selected.contains(p.id)) {
+                      selected.remove(p.id);
+                    } else {
+                      selected.add(p.id);
+                    }
+                  }),
                 ),
                 const SizedBox(height: 18),
                 ElevatedButton(
@@ -90,25 +84,21 @@ Future<void> showSinglePlayerDialog({
             children: [
               Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ActionChip(
-                    label: const Text('No asignado'),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onConfirm(null);
-                    },
-                  ),
-                  ...players.map((p) => ActionChip(
-                        label: Text('#${p.number} ${p.lastName}'),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          onConfirm(p.id);
-                        },
-                      )),
-                ],
+              ActionChip(
+                label: const Text('No asignado'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  onConfirm(null);
+                },
+              ),
+              const SizedBox(height: 8),
+              groupedFichaRow(
+                players,
+                isSelected: (_) => false,
+                onSelect: (p) {
+                  Navigator.pop(ctx);
+                  onConfirm(p.id);
+                },
               ),
             ],
           ),

@@ -12,7 +12,13 @@ import '../../widgets/theme_toggle_switch.dart';
 class MatchSummaryScreen extends StatefulWidget {
   final VolleyMatch match;
   final bool justFinished;
-  const MatchSummaryScreen({super.key, required this.match, this.justFinished = false});
+  final int? initialSet;
+  const MatchSummaryScreen({
+    super.key,
+    required this.match,
+    this.justFinished = false,
+    this.initialSet,
+  });
 
   @override
   State<MatchSummaryScreen> createState() => _MatchSummaryScreenState();
@@ -21,6 +27,12 @@ class MatchSummaryScreen extends StatefulWidget {
 class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
   int? _selectedSet; // null = partido completo
   bool _loadingPdf = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSet = widget.initialSet;
+  }
 
   Future<void> _sharePdf() async {
     setState(() => _loadingPdf = true);
@@ -135,6 +147,15 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           ),
           const SizedBox(height: 8),
           _StatsTable(stats: stats),
+          const SizedBox(height: 6),
+          Text(
+            'Referencias — Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva · N Negativa · '
+            'Bl Bloqueado (solo Ataque/Contra) · NN Error (Doble Negativa). % Saque = (PP+P)/Total · '
+            '% Ataque y % Contra = PP/Total. Recepción: PP Perfecta · P Positiva · ! Exclamativa · '
+            'N Negativa · V/ Vendida · NN Error · % Rec = (PP+P)/Total. Pts puntos · Err errores '
+            'totales · Blq puntos de bloqueo · E.Gen errores genéricos · Am amarillas · Ro rojas.',
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
           const SizedBox(height: 14),
           _RivalStatsCard(stats: stats),
           const SizedBox(height: 20),
@@ -198,16 +219,19 @@ class _StatsTable extends StatelessWidget {
             _H('Saq P'),
             _H('Saq N'),
             _H('Saq NN'),
+            _H('Saq %'),
             _H('Atq PP'),
             _H('Atq P'),
             _H('Atq N'),
             _H('Atq Bl'),
             _H('Atq NN'),
+            _H('Atq %'),
             _H('Ctr PP'),
             _H('Ctr P'),
             _H('Ctr N'),
             _H('Ctr Bl'),
             _H('Ctr NN'),
+            _H('Ctr %'),
             _H('Blq'),
             _H('E.Gen'),
             _H('Rec Tot'),
@@ -222,6 +246,8 @@ class _StatsTable extends StatelessWidget {
             _H('Ro'),
           ],
         );
+
+    String pct(double? v) => v == null ? '-' : '${(v * 100).toStringAsFixed(0)}%';
 
     TableRow row(PlayerStatLine r) {
       final eff = r.recepcion.efficiency;
@@ -238,16 +264,19 @@ class _StatsTable extends StatelessWidget {
         c('${r.saque.p}'),
         c('${r.saque.n}'),
         c('${r.saque.nn}'),
+        c(pct(r.saque.pctServe)),
         c('${r.ataque.pp}'),
         c('${r.ataque.p}'),
         c('${r.ataque.n}'),
         c('${r.ataque.bloq}'),
         c('${r.ataque.nn}'),
+        c(pct(r.ataque.pctPoint)),
         c('${r.contra.pp}'),
         c('${r.contra.p}'),
         c('${r.contra.n}'),
         c('${r.contra.bloq}'),
         c('${r.contra.nn}'),
+        c(pct(r.contra.pctPoint)),
         c('${r.bloqueoPts}'),
         c('${r.errGen}'),
         c('${r.recepcion.total}'),
@@ -286,16 +315,19 @@ class _StatsTable extends StatelessWidget {
               _C('${stats.team.saque.p}'),
               _C('${stats.team.saque.n}'),
               _C('${stats.team.saque.nn}'),
+              _C(pct(stats.team.saque.pctServe)),
               _C('${stats.team.ataque.pp}'),
               _C('${stats.team.ataque.p}'),
               _C('${stats.team.ataque.n}'),
               _C('${stats.team.ataque.bloq}'),
               _C('${stats.team.ataque.nn}'),
+              _C(pct(stats.team.ataque.pctPoint)),
               _C('${stats.team.contra.pp}'),
               _C('${stats.team.contra.p}'),
               _C('${stats.team.contra.n}'),
               _C('${stats.team.contra.bloq}'),
               _C('${stats.team.contra.nn}'),
+              _C(pct(stats.team.contra.pctPoint)),
               _C('${stats.team.bloqueoPts}'),
               _C('${stats.team.errGen}'),
               _C('${stats.team.recepcion.total}'),

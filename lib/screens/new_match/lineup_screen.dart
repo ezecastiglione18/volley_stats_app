@@ -269,11 +269,12 @@ class _LineupScreenState extends State<LineupScreen> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               value: _autoLiberoBackRowSwap,
-              title: const Text('Líbero defensor automático'),
+              title: const Text('Líbero automático por central en el fondo'),
               subtitle: const Text(
-                'Si está tildado, el líbero defensor entra solo por el central que rota al fondo '
-                'cuando saca nuestro equipo (salvo que sea ese central quien va a sacar). '
-                'Destildado, ese cambio hay que hacerlo a mano desde el panel de cambios.',
+                'Si está tildado, entra solo el líbero que corresponda por el central que rota al '
+                'fondo: el defensor cuando saca nuestro equipo (salvo que sea ese central quien va a '
+                'sacar), o el receptor cuando saca el rival. Destildado, esos cambios hay que '
+                'hacerlos a mano desde el panel de cambios.',
                 style: TextStyle(fontSize: 12),
               ),
               onChanged: (v) => setState(() => _autoLiberoBackRowSwap = v ?? true),

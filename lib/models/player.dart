@@ -6,6 +6,7 @@ enum PlayerPosition {
   central, // Middle blocker
   puntaReceptor, // Outside / Wing spiker
   libero, // Libero
+  universal, // Juega cualquier puesto salvo líbero.
 }
 
 extension PlayerPositionLabel on PlayerPosition {
@@ -21,6 +22,8 @@ extension PlayerPositionLabel on PlayerPosition {
         return 'Punta/Receptor';
       case PlayerPosition.libero:
         return 'Líbero';
+      case PlayerPosition.universal:
+        return 'Universal';
     }
   }
 
@@ -36,6 +39,8 @@ extension PlayerPositionLabel on PlayerPosition {
         return 'P/R';
       case PlayerPosition.libero:
         return 'LIB';
+      case PlayerPosition.universal:
+        return 'UNI';
     }
   }
 }
@@ -65,6 +70,10 @@ class Player {
   /// Edad cargada a mano, solo se usa si no hay [birthDate].
   int? age;
 
+  /// Ruta local (ya copiada al almacenamiento de la app) de la foto del
+  /// jugador, opcional.
+  String? photoPath;
+
   Player({
     required this.id,
     required this.firstName,
@@ -78,6 +87,7 @@ class Player {
     this.attackReachCm,
     this.birthDate,
     this.age,
+    this.photoPath,
   });
 
   String get fullName => '$lastName, $firstName';
@@ -102,6 +112,7 @@ class Player {
         'attackReachCm': attackReachCm,
         'birthDate': birthDate?.toIso8601String(),
         'age': age,
+        'photoPath': photoPath,
       };
 
   factory Player.fromJson(Map<dynamic, dynamic> json) => Player(
@@ -127,6 +138,7 @@ class Player {
             ? null
             : DateTime.tryParse(json['birthDate'] as String),
         age: (json['age'] as num?)?.toInt(),
+        photoPath: json['photoPath'] as String?,
       );
 
   Player copyWith({
@@ -141,12 +153,14 @@ class Player {
     double? attackReachCm,
     DateTime? birthDate,
     int? age,
+    String? photoPath,
     bool clearHeight = false,
     bool clearWeight = false,
     bool clearHand = false,
     bool clearBlockReach = false,
     bool clearAttackReach = false,
     bool clearBirthDate = false,
+    bool clearPhoto = false,
   }) {
     return Player(
       id: id,
@@ -161,6 +175,7 @@ class Player {
       attackReachCm: clearAttackReach ? null : (attackReachCm ?? this.attackReachCm),
       birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
       age: age ?? this.age,
+      photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
     );
   }
 }

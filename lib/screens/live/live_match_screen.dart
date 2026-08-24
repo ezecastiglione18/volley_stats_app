@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../../models/volley_match.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
+import '../../state/theme_controller.dart';
 import '../../utils/theme.dart';
-import '../../widgets/theme_toggle_switch.dart';
 import '../matches/match_summary_screen.dart';
 import '../new_match/lineup_screen.dart';
 import 'widgets/action_grid.dart';
@@ -36,6 +36,7 @@ class _LiveMatchBody extends StatefulWidget {
 
 class _LiveMatchBodyState extends State<_LiveMatchBody> {
   bool _handledEnd = false;
+  int? _infoShownForSet;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,6 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
       appBar: AppBar(
         title: Text('${match.ownTeamName} vs ${match.rivalTeamName}'),
         actions: [
-          const ThemeToggleSwitch(),
           IconButton(
             icon: const Icon(Icons.undo),
             tooltip: 'Deshacer última acción',
@@ -76,15 +76,41 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             tooltip: 'Sanción / Tarjeta',
             onPressed: () => showSanctionDialog(context: context, controller: controller),
           ),
-          IconButton(
-            icon: const Icon(Icons.casino_outlined),
-            tooltip: 'Simular resto del set',
-            onPressed: () => _confirmSimulate(context, controller),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Abandonar partido',
-            onPressed: () => _confirmAbandon(context, match.id),
+          if (controller.canConfirmSetFinished)
+            IconButton(
+              icon: const Icon(Icons.flag_circle_outlined),
+              tooltip: 'Confirmar fin de set',
+              onPressed: () => _confirmSetFinished(context, controller),
+            ),
+          PopupMenuButton<String>(
+            tooltip: 'Más opciones',
+            onSelected: (v) {
+              if (v == 'simulate') {
+                _confirmSimulate(context, controller);
+              } else if (v == 'abandon') {
+                _confirmAbandon(context, match.id);
+              } else if (v == 'theme') {
+                final themeController = context.read<ThemeController>();
+                themeController.setDark(!themeController.isDark);
+              }
+            },
+            itemBuilder: (menuContext) {
+              final isDark = menuContext.read<ThemeController>().isDark;
+              return [
+                const PopupMenuItem(value: 'simulate', child: Text('Simular resto del set')),
+                const PopupMenuItem(value: 'abandon', child: Text('Abandonar partido')),
+                PopupMenuItem(
+                  value: 'theme',
+                  child: Row(
+                    children: [
+                      Icon(isDark ? Icons.light_mode : Icons.dark_mode, size: 20),
+                      const SizedBox(width: 12),
+                      Text(isDark ? 'Modo claro' : 'Modo oscuro'),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         ],
       ),
@@ -172,11 +198,39 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
+  Future<void> _confirmSetFinished(BuildContext context, MatchController controller) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar fin de set'),
+        content: const Text(
+            'Una vez confirmado no se va a poder deshacer ningún punto de este set, ni aunque el árbitro lo revierta. ¿Confirmás que terminó?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      controller.confirmSetFinished();
+    }
+  }
+
   Future<void> _checkEndOfSet(BuildContext context, MatchController controller) async {
     if (_handledEnd) return;
     final match = controller.match;
+    final set = controller.currentSet;
 
     if (match.status == MatchStatus.finished) {
+      // Solo se llega acá después de confirmar el set decisivo (ver
+      // MatchController.confirmSetFinished), así que no hace falta chequear
+      // `set.locked` de nuevo.
       _handledEnd = true;
       await context.read<AppDataController>().saveMatch(match);
       if (!mounted) return;
@@ -188,24 +242,10 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
     }
 
     if (controller.needsNextSetSetup) {
+      // Igual: solo se activa después de confirmar el set (needsNextSetSetup
+      // se setea en confirmSetFinished), la confirmación ya pasó por el
+      // botón del encabezado.
       _handledEnd = true;
-      final finishedSet = match.sets.last;
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: Text('Fin del set ${finishedSet.setNumber}'),
-          content: Text(
-              '${match.ownTeamName} ${finishedSet.ownScore} - ${finishedSet.rivalScore} ${match.rivalTeamName}\n\nSets: ${match.ownSetsWon} - ${match.rivalSetsWon}'),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Configurar set siguiente'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -226,6 +266,39 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
         ),
       );
       _handledEnd = false;
+      return;
+    }
+
+    if (set.finished && !set.locked && _infoShownForSet != set.setNumber) {
+      _infoShownForSet = set.setNumber;
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Fin del set ${set.setNumber}'),
+          content: Text(
+              '${match.ownTeamName} ${set.ownScore} - ${set.rivalScore} ${match.rivalTeamName}\n\n'
+              'Confirmá con el botón "Confirmar fin de set" del encabezado cuando estés seguro: hasta '
+              'ese momento podés seguir usando "Deshacer" si el árbitro revierte el último punto.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MatchSummaryScreen(match: match, initialSet: set.setNumber),
+                  ),
+                );
+              },
+              child: const Text('Ver estadísticas del set'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
     }
   }
 }

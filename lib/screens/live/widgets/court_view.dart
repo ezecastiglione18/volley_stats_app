@@ -46,7 +46,7 @@ class CourtView extends StatelessWidget {
                   Text(
                     player.position.shortLabel,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: isLibero ? scheme.secondary : scheme.onSurfaceVariant,
                     ),

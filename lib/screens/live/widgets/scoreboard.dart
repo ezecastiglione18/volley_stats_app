@@ -27,7 +27,7 @@ class Scoreboard extends StatelessWidget {
             children: [
               _teamScore(context, match.ownTeamName, set.ownScore,
                   controller.servingTeam == TeamSide.own),
-              const Text('SET', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              const Text('set', style: TextStyle(color: Colors.white70, fontSize: 12)),
               _teamScore(context, match.rivalTeamName, set.rivalScore,
                   controller.servingTeam == TeamSide.rival),
             ],

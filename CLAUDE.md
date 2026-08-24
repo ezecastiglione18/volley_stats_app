@@ -62,7 +62,7 @@ actualicen de forma incremental en otro lugar.
 claro/oscuro) son `ChangeNotifier` inyectados con `provider` en `main.dart`; `MatchController` se crea
 por partido (no es un provider global) y se pasa explícitamente entre las pantallas de `new_match/` y
 `live/`. `lib/screens/` está organizado por flujo: `teams/` (alta de equipos/jugadores), `new_match/`
-(asistente de armado: rival → planilla de 14 → formación inicial), `live/` (pantalla de carga en vivo y
+(asistente de armado: rival → planilla de 16 → formación inicial), `live/` (pantalla de carga en vivo y
 sus diálogos/widgets) y `matches/` (archivo + resumen/estadísticas).
 
 **Reportes y exportación**: `pdf_report_service.dart` arma el PDF de reporte de un partido (solo

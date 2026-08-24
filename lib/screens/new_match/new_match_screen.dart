@@ -233,7 +233,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _continue,
-            child: const Text('Continuar: elegir planilla de 14'),
+            child: const Text('Continuar: elegir planilla de 16'),
           ),
         ],
         ),
