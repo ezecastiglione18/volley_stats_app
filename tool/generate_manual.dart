@@ -32,51 +32,46 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-// TODO: estimado tras agregar las secciones 18 y 19 — confirmar/corregir
-// después de regenerar (ver nota en _pCuentaLogin/_pPizarra más abajo).
-const _coverTotalPages = 21;
+const _coverTotalPages = 20;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
 const _pIntroduccion = 4;
-const _pPantallaPrincipal = 4;
-const _pGestionEquipos = 5;
-const _pCrearEquipo = 5;
-const _pAgregarJugadores = 5;
-const _pEquipoEjemplo = 6;
-const _pCrearPartido = 6;
-const _pDatosRival = 6;
-const _pConfigPartido = 6;
-const _pPlanilla = 6;
-const _pSeleccionJugadores = 7;
-const _pFormacionInicial = 7;
-const _pRolesLibero = 7;
-const _pPantallaVivo = 8;
-const _pMarcador = 8;
-const _pCancha = 8;
-const _pBotonesAccion = 8;
-const _pZonaDestino = 9;
-const _pCambiosJugador = 9;
-const _pCambioRegular = 9;
+const _pCuentaLogin = 4;
+const _pPantallaPrincipal = 5;
+const _pPizarra = 5;
+const _pGestionEquipos = 6;
+const _pCrearEquipo = 6;
+const _pAgregarJugadores = 6;
+const _pEquipoEjemplo = 7;
+const _pCrearPartido = 7;
+const _pDatosRival = 7;
+const _pConfigPartido = 7;
+const _pPlanilla = 8;
+const _pSeleccionJugadores = 8;
+const _pFormacionInicial = 8;
+const _pRolesLibero = 8;
+const _pPantallaVivo = 9;
+const _pMarcador = 9;
+const _pCancha = 9;
+const _pBotonesAccion = 9;
+const _pZonaDestino = 10;
+const _pCambiosJugador = 10;
+const _pCambioRegular = 10;
 const _pCambioLibero = 10;
-const _pDeshacerCambio = 10;
-const _pSancionesTarjetas = 10;
+const _pDeshacerCambio = 11;
+const _pSancionesTarjetas = 11;
 const _pComoCargarSancion = 11;
-const _pEscalaSanciones = 11;
-const _pHerramientas = 12;
+const _pEscalaSanciones = 12;
+const _pHerramientas = 13;
 const _pFinSet = 13;
-const _pArchivo = 13;
-const _pExportarPartido = 13;
-const _pImportarPartido = 13;
+const _pArchivo = 14;
+const _pExportarPartido = 14;
+const _pImportarPartido = 14;
 const _pResumen = 14;
-const _pExportarPdf = 14;
+const _pExportarPdf = 15;
 const _pGlosario = 15;
-const _pFaq = 16;
-// TODO: estos dos números son una estimación (no se pudo regenerar el PDF
-// para verificarlos en esta pasada) — revisar y corregir después de correr
-// `dart run tool/generate_manual.dart` y mirar en qué página cayó cada uno.
-const _pCuentaLogin = 18;
-const _pPizarra = 19;
+const _pFaq = 17;
 const _pContacto = 20;
 
 Future<void> main() async {
@@ -209,23 +204,23 @@ pw.MultiPage _bodyPages(pw.MemoryImage logo) {
       ..._indexContent(),
       pw.NewPage(),
       ..._section1Introduccion(),
-      ..._section2PantallaPrincipal(),
-      ..._section3GestionEquipos(),
-      ..._section4CrearPartido(),
-      ..._section5Planilla(),
-      ..._section6FormacionInicial(),
-      ..._section7PantallaVivo(),
-      ..._section8CambiosJugador(),
-      ..._section9SancionesTarjetas(),
-      ..._section10Herramientas(),
-      ..._section11FinSet(),
-      ..._section12Archivo(),
-      ..._section13Resumen(),
-      ..._section14ExportarPdf(),
-      ..._section15Glosario(),
-      ..._section16Faq(),
-      ..._section17CuentaLogin(),
-      ..._section18Pizarra(),
+      ..._section2CuentaLogin(),
+      ..._section3PantallaPrincipal(),
+      ..._section4Pizarra(),
+      ..._section5GestionEquipos(),
+      ..._section6CrearPartido(),
+      ..._section7Planilla(),
+      ..._section8FormacionInicial(),
+      ..._section9PantallaVivo(),
+      ..._section10CambiosJugador(),
+      ..._section11SancionesTarjetas(),
+      ..._section12Herramientas(),
+      ..._section13FinSet(),
+      ..._section14Archivo(),
+      ..._section15Resumen(),
+      ..._section16ExportarPdf(),
+      ..._section17Glosario(),
+      ..._section18Faq(),
       ..._section19Contacto(),
     ],
   );
@@ -482,7 +477,9 @@ List<pw.Widget> _indexContent() {
     pw.Text('Índice', style: pw.TextStyle(color: _textDark, fontSize: 22, fontWeight: pw.FontWeight.bold)),
     pw.SizedBox(height: 20),
     entry('Introducción', _pIntroduccion),
+    entry('Cuenta e inicio de sesión', _pCuentaLogin),
     entry('Pantalla principal', _pPantallaPrincipal),
+    entry('Pizarra táctica', _pPizarra),
     entry('Gestión de equipos', _pGestionEquipos),
     entry('Crear un equipo', _pCrearEquipo, sub: true),
     entry('Agregar y editar jugadores', _pAgregarJugadores, sub: true),
@@ -515,8 +512,6 @@ List<pw.Widget> _indexContent() {
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
     entry('Preguntas frecuentes', _pFaq),
-    entry('Cuenta e inicio de sesión', _pCuentaLogin),
-    entry('Pizarra táctica', _pPizarra),
     entry('Contacto', _pContacto),
   ];
 }
@@ -557,32 +552,63 @@ List<pw.Widget> _section1Introduccion() => [
         ],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
         [_t('Guardar el archivo histórico de partidos jugados.')],
-        [_t('Dibujar y guardar jugadas en una pizarra táctica, con su propio archivo (sección 19).')],
+        [_t('Dibujar y guardar jugadas en una pizarra táctica, con su propio archivo (sección 4).')],
       ]),
       _p(
         'Además del celular o la tablet (Android), RallyStats también tiene una versión de escritorio '
-        'para Windows, con las mismas funciones (ver sección 16 para los requisitos). En el celular, la app '
+        'para Windows, con las mismas funciones (ver sección 18 para los requisitos). En el celular, la app '
         'se usa siempre en posición vertical (no rota a horizontal).',
       ),
       _infoBox(
         'Nota: los equipos, jugadores, partidos y jugadas de pizarra se guardan únicamente en el '
         'dispositivo donde se usa la app; no se suben a internet ni se sincronizan solos entre '
-        'dispositivos, así que conviene exportar (sección 12.1) o generar el PDF (sección 14) de los '
+        'dispositivos, así que conviene exportar (sección 14.1) o generar el PDF (sección 16) de los '
         'partidos importantes para conservarlos, pasarlos a otro dispositivo o compartirlos con el cuerpo '
-        'técnico. La cuenta con la que se inicia sesión (sección 18) es la única excepción: necesita '
+        'técnico. La cuenta con la que se inicia sesión (sección 2) es la única excepción: necesita '
         'internet para validarse y sí se controla desde un servidor, para que la misma cuenta no se pueda '
         'usar en dos dispositivos a la vez.',
       ),
     ];
 
 // ---------------------------------------------------------------------------
-// 2. Pantalla principal
+// 2. Cuenta e inicio de sesión
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section2PantallaPrincipal() => [
-      _sectionTitle(2, 'Pantalla principal'),
+List<pw.Widget> _section2CuentaLogin() => [
+      _sectionTitle(2, 'Cuenta e inicio de sesión'),
       _p(
-        'Antes de llegar a la pantalla principal hay que iniciar sesión (ver sección 18). Una vez adentro, '
+        'Antes de llegar a la pantalla principal (sección 3), RallyStats pide iniciar sesión con una '
+        'cuenta (email y contraseña). Si todavía no tenés una, "¿No tenés cuenta? Crear una" arma una '
+        'nueva con esos mismos datos.',
+        bottom: 6,
+      ),
+      _infoBox(
+        'Cada cuenta solo puede estar activa en un dispositivo a la vez. Si se intenta iniciar sesión con '
+        'la misma cuenta en un segundo dispositivo mientras el primero sigue con la sesión abierta, el '
+        'segundo login se rechaza con un aviso ("Esta cuenta ya está en uso en otro dispositivo..."). Esto '
+        'evita que una sola cuenta se comparta libremente entre varios dispositivos a la vez.',
+      ),
+      _p(
+        'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: el '
+        'ícono de salida, en el encabezado de la pantalla principal (sección 3), cierra la sesión de este '
+        'dispositivo.',
+        bottom: 6,
+      ),
+      _p(
+        'A diferencia del resto de los datos de la app (equipos, jugadores, partidos, jugadas de pizarra), '
+        'que se guardan solo en el dispositivo (sección 1), el inicio de sesión sí necesita conexión a '
+        'internet: sin ella, no se puede validar la cuenta ni saber si otro dispositivo la tiene tomada.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 3. Pantalla principal
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section3PantallaPrincipal() => [
+      _sectionTitle(3, 'Pantalla principal'),
+      _p(
+        'Antes de llegar a la pantalla principal hay que iniciar sesión (ver sección 2). Una vez adentro, '
         'aparecen cuatro accesos, que son también el orden natural en el que se usa la app para armar y '
         'jugar un partido:',
         bottom: 6,
@@ -590,30 +616,70 @@ List<pw.Widget> _section2PantallaPrincipal() => [
       _numbered([
         [_b('Nuevo Partido: '), _t('inicia el asistente para configurar y arrancar un partido nuevo.')],
         [_b('Archivo de Partidos: '), _t('lista todos los partidos guardados, terminados o en curso.')],
-        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (ver sección 19).')],
+        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (ver sección 4).')],
         [_b('Equipos: '), _t('administra los equipos propios y sus planteles de jugadores.')],
       ]),
       _p(
         'En la parte superior derecha de casi todas las pantallas hay un interruptor de modo claro / modo '
         'oscuro (ícono de sol / luna) para alternar entre los dos. La preferencia elegida queda guardada '
         'en el dispositivo y se aplica automáticamente la próxima vez que se abre la app. La excepción es '
-        'la pantalla de partido en vivo (sección 7), donde este interruptor está dentro del menú "Más '
-        'opciones" del encabezado (sección 10), para no competir con los accesos propios de la carga en '
+        'la pantalla de partido en vivo (sección 9), donde este interruptor está dentro del menú "Más '
+        'opciones" del encabezado (sección 12), para no competir con los accesos propios de la carga en '
         'vivo.',
       ),
     ];
 
 // ---------------------------------------------------------------------------
-// 3. Gestión de equipos
+// 4. Pizarra táctica
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section3GestionEquipos() => [
-      _sectionTitle(3, 'Gestión de equipos'),
+List<pw.Widget> _section4Pizarra() => [
+      _sectionTitle(4, 'Pizarra táctica'),
+      _p(
+        'La Pizarra es una cancha en blanco para dibujar formaciones y jugadas a mano (saques, rotaciones, '
+        'sistemas de ataque o de defensa), pensada para explicar una jugada al equipo antes de ponerla en '
+        'práctica.',
+        bottom: 6,
+      ),
+      _p('Se puede abrir desde tres lugares:', bottom: 6),
+      _bullets([
+        [_b('Pantalla principal: '), _t('acceso "Pizarra" (sección 3), para armar o repasar una jugada fuera de un partido.')],
+        [_b('Formación inicial: '), _t('ícono de Pizarra en el encabezado (sección 8), antes de arrancar un set.')],
+        [_b('Partido en vivo: '), _t('ícono de Pizarra en el encabezado (sección 12), sin salir de la carga en vivo.')],
+      ]),
+      _p('Dentro de la pizarra:', bottom: 6),
+      _bullets([
+        [_t('Se dibuja con el dedo (o el mouse en la versión de escritorio) directamente sobre la cancha.')],
+        [_t('Se puede elegir el color del trazo entre cinco colores, y activar o desactivar que termine en una flecha (útil para marcar desplazamientos o direcciones de ataque).')],
+        [_t('Deshacer quita el último trazo dibujado; Borrar todo limpia la cancha por completo.')],
+        [
+          _t('Guardar pide un nombre y agrega la jugada al archivo de jugadas, igual que un partido se '
+              'guarda en el archivo de partidos (sección 14): queda disponible para abrirla de nuevo más '
+              'adelante, editarla o eliminarla.')
+        ],
+        [
+          _t('Abrir jugada guardada abre el archivo de jugadas para elegir una ya guardada y seguir '
+              'editándola (o simplemente repasarla) en vez de empezar un dibujo nuevo.')
+        ],
+      ]),
+      _p(
+        'El archivo de jugadas (accesible también tocando el ícono de carpeta dentro de la pizarra) '
+        'muestra todas las jugadas guardadas con su nombre, fecha y cantidad de trazos; desde ahí se puede '
+        'abrir, editar o eliminar cualquiera.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 5. Gestión de equipos
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section5GestionEquipos() => [
+      _sectionTitle(5, 'Gestión de equipos'),
       _p(
         'Antes de cargar un partido hace falta tener creado, al menos, el equipo propio con sus jugadores. '
         'Desde la pantalla principal, tocá Equipos para ver la lista de equipos guardados.',
       ),
-      _subHeading('3.1 Crear un equipo'),
+      _subHeading('5.1 Crear un equipo'),
       _numbered([
         [_b('En la pantalla "Equipos", tocá el botón '), _b('+ Nuevo equipo'), _t('.')],
         [_t('Escribí el nombre del equipo o club.')],
@@ -627,7 +693,7 @@ List<pw.Widget> _section3GestionEquipos() => [
         'Desde la lista de equipos también podés tocar cualquier equipo existente para editarlo, o usar el '
         'ícono de tacho para borrar un jugador.',
       ),
-      _subHeading('3.2 Agregar y editar jugadores'),
+      _subHeading('5.2 Agregar y editar jugadores'),
       _p(
         'Dentro de la pantalla de un equipo ("Editar equipo"), tocá Agregar para sumar un jugador nuevo, o '
         'tocá un jugador de la lista para editarlo. Cada equipo admite hasta 35 jugadores cargados; de esa '
@@ -660,7 +726,7 @@ List<pw.Widget> _section3GestionEquipos() => [
         'Para borrar un equipo completo, entrá a su pantalla de edición y usá el ícono de tacho de basura '
         'del encabezado; la app pide confirmación antes de eliminarlo.',
       ),
-      _subHeading('3.3 Equipo de ejemplo'),
+      _subHeading('5.3 Equipo de ejemplo'),
       _p(
         'En la pantalla "Equipos", el ícono con forma de estrella del encabezado carga automáticamente un '
         'equipo de ejemplo (Club Atlético Central) con 35 jugadores ya cargados, repartidos en partes '
@@ -672,16 +738,16 @@ List<pw.Widget> _section3GestionEquipos() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 4. Crear un partido nuevo
+// 6. Crear un partido nuevo
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section4CrearPartido() => [
-      _sectionTitle(4, 'Crear un partido nuevo'),
+List<pw.Widget> _section6CrearPartido() => [
+      _sectionTitle(6, 'Crear un partido nuevo'),
       _p(
         'Tocá Nuevo Partido en la pantalla principal. El armado de un partido tiene cuatro pasos: datos del '
         'partido, planilla de 16, formación inicial y, recién ahí, arranca la carga en vivo.',
       ),
-      _subHeading('4.1 Datos del rival y del partido'),
+      _subHeading('6.1 Datos del rival y del partido'),
       _bullets([
         [_b('Mi equipo: '), _t('elegí uno de los equipos ya cargados en "Equipos".')],
         [
@@ -692,7 +758,7 @@ List<pw.Widget> _section4CrearPartido() => [
         [_b('Fecha del partido '), _t('(por defecto, la fecha de hoy).')],
         [_b('Torneo / Liga, Instancia, Categoría y Cancha / sede '), _t('(todos opcionales, quedan en el reporte).')],
       ]),
-      _subHeading('4.2 Configuración del partido'),
+      _subHeading('6.2 Configuración del partido'),
       _p(
         'Desplegando "Configuración del partido" se pueden ajustar las reglas con las que se juega, con '
         'valores por defecto ya cargados según el reglamento estándar:',
@@ -714,27 +780,27 @@ List<pw.Widget> _section4CrearPartido() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 5. Planilla del partido
+// 7. Planilla del partido
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section5Planilla() => [
-      _sectionTitle(5, 'Planilla del partido (16 jugadores)'),
+List<pw.Widget> _section7Planilla() => [
+      _sectionTitle(7, 'Planilla del partido (16 jugadores)'),
       _p(
         'En esta pantalla se eligen, del plantel completo del equipo, los jugadores habilitados para este '
         'partido en particular (mínimo 6, máximo 16). Los chips de arriba (Todos, ARM, OP, CEN, P/R, LIB, '
         'UNI) sirven solo para filtrar la lista visible; no afectan a los jugadores ya seleccionados.',
       ),
-      _subHeading('5.1 Selección de jugadores'),
+      _subHeading('7.1 Selección de jugadores'),
       _p('Tocá cada jugador de la lista para marcarlo o desmarcarlo como habilitado para el partido.'),
       _p('Tocá Continuar: formación inicial para seguir.'),
     ];
 
 // ---------------------------------------------------------------------------
-// 6. Formación inicial
+// 8. Formación inicial
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section6FormacionInicial() => [
-      _sectionTitle(6, 'Formación inicial'),
+List<pw.Widget> _section8FormacionInicial() => [
+      _sectionTitle(8, 'Formación inicial'),
       _p('Antes de arrancar el set (o cada set siguiente) hay que definir:', bottom: 6),
       _bullets([
         [
@@ -748,7 +814,7 @@ List<pw.Widget> _section6FormacionInicial() => [
           _t('de las 6 posiciones en cancha, asignando un jugador a cada una: fila delantera (4-3-2) y '
               'fila trasera (5-6-1, donde el puesto 1 es el que saca). El líbero nunca ocupa una de estas 6 '
               'posiciones: se asigna aparte, más abajo, y entra en cancha durante el set mediante el cambio '
-              'de líbero (ver sección 8.2). A partir del segundo set del partido, las 6 posiciones aparecen '
+              'de líbero (ver sección 10.2). A partir del segundo set del partido, las 6 posiciones aparecen '
               'precargadas con la misma formación titular del set anterior, para no tener que volver a '
               'elegir jugador por jugador cuando el equipo repite sexteto; se puede cambiar libremente antes '
               'de tocar Comenzar set.')
@@ -765,7 +831,7 @@ List<pw.Widget> _section6FormacionInicial() => [
               'qué zona de la cancha rival fue dirigido. Esta opción se define una vez por set.')
         ],
       ]),
-      _subHeading('6.1 Roles de líbero (por set)'),
+      _subHeading('8.1 Roles de líbero (por set)'),
       _p(
         'Si el equipo tiene uno o más líberos entre los jugadores habilitados para el partido, debajo del '
         'sexteto inicial aparecen dos selectores opcionales: líbero defensor (el que entra cuando saca el '
@@ -776,7 +842,7 @@ List<pw.Widget> _section6FormacionInicial() => [
         'Esta elección se hace de nuevo antes de cada set, porque el equipo puede usar líberos distintos '
         'set a set: a partir del segundo set los selectores aparecen precargados con lo elegido en el set '
         'anterior, pero se pueden cambiar libremente. Definirlos habilita, durante ese set, la sugerencia '
-        'automática de cambio de líbero cuando corresponde (ver sección 8.2).',
+        'automática de cambio de líbero cuando corresponde (ver sección 10.2).',
       ),
       _p(
         'Debajo de los selectores de líbero aparece el checkbox "Líbero automático por central en el '
@@ -784,40 +850,40 @@ List<pw.Widget> _section6FormacionInicial() => [
         'central que rota a la fila de fondo (el defensor cuando saca el equipo propio, salvo que sea ese '
         'central quien va a sacar, o el receptor cuando saca el rival), sin necesitar el cambio manual. '
         'Destildado, esos cambios se siguen sugiriendo pero hay que aplicarlos a mano desde el panel de '
-        'cambios (sección 8.2). También se elige de nuevo en cada set.',
+        'cambios (sección 10.2). También se elige de nuevo en cada set.',
       ),
       _p('Con todas las posiciones asignadas, tocá Comenzar partido (o Comenzar set N si es un set siguiente '
           'dentro de un partido ya en curso) para pasar a la pantalla de carga en vivo.'),
       _p(
         'En el encabezado de esta pantalla hay además un ícono de Pizarra, para repasar una formación o '
-        'jugada dibujada de antemano (sección 19) antes de arrancar el set, sin perder lo ya elegido acá.',
+        'jugada dibujada de antemano (sección 4) antes de arrancar el set, sin perder lo ya elegido acá.',
       ),
     ];
 
 // ---------------------------------------------------------------------------
-// 7. Pantalla de partido en vivo
+// 9. Pantalla de partido en vivo
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section7PantallaVivo() => [
-      _sectionTitle(7, 'Pantalla de partido en vivo'),
+List<pw.Widget> _section9PantallaVivo() => [
+      _sectionTitle(9, 'Pantalla de partido en vivo'),
       _p(
         'Es la pantalla principal de uso durante el partido. Se divide en tres partes: el marcador, la '
         'cancha con la formación actual y la grilla de botones de acción.',
       ),
-      _subHeading('7.1 Marcador'),
+      _subHeading('9.1 Marcador'),
       _p(
         'Muestra el nombre y el puntaje de cada equipo en el set actual, un ícono de pelota junto al equipo '
         'que está sacando, y debajo el resultado en sets y el número de set en curso. Si se cargó la '
-        'posición del armador rival al armar el set (sección 6), también se muestra ahí abajo como dato '
+        'posición del armador rival al armar el set (sección 8), también se muestra ahí abajo como dato '
         'informativo durante todo el partido.',
       ),
-      _subHeading('7.2 Cancha'),
+      _subHeading('9.2 Cancha'),
       _p(
         'Representa las 6 posiciones de la cancha propia (fila delantera 4-3-2 arriba, fila trasera 5-6-1 '
         'abajo) con el jugador que ocupa cada una en este momento. El puesto que saca (posición 1) se '
         'resalta en color. La cancha se actualiza sola con cada rotación y con cada cambio de jugador.',
       ),
-      _subHeading('7.3 Botones de acción y calificación'),
+      _subHeading('9.3 Botones de acción y calificación'),
       _p(
         'Debajo de la cancha hay ocho botones de acción. La app solo habilita en cada momento los botones '
         'que corresponden a la etapa actual del punto (por ejemplo, no deja registrar un ataque si todavía '
@@ -875,12 +941,12 @@ List<pw.Widget> _section7PantallaVivo() => [
         'armador y opuesto, después el/los central/es, después punta(s) y universal(es), y el líbero al '
         'final (junto a las puntas), en vez del orden de posición en cancha.',
       ),
-      _subHeading('7.4 Zona de destino (opcional)'),
+      _subHeading('9.4 Zona de destino (opcional)'),
       _p(
         'Si en la formación del set se activó "Registrar zona de destino", al calificar un saque o un '
         'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival, numeradas de frente '
         'para quien anota (2-3-4 junto a la red, 1-6-5 en el fondo) para marcar, de forma opcional, hacia '
-        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 14).',
+        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 16).',
       ),
       _p(
         'Al usar la app en una ventana ancha (por ejemplo, en una computadora), los ocho botones de acción '
@@ -890,18 +956,18 @@ List<pw.Widget> _section7PantallaVivo() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 8. Cambios de jugador
+// 10. Cambios de jugador
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section8CambiosJugador() => [
-      _sectionTitle(8, 'Cambios de jugador'),
+List<pw.Widget> _section10CambiosJugador() => [
+      _sectionTitle(10, 'Cambios de jugador'),
       _p(
         'Se registran desde el ícono de flechas cruzadas del encabezado de la pantalla en vivo. El panel de '
         'cambios tiene dos modos: Cambio regular y Cambio de líbero, cada uno con sus propias reglas (las '
         'mismas que usa el reglamento oficial de la FIVB, vigente también en los torneos de FeVA y de las '
         'federaciones metropolitanas):',
       ),
-      _subHeading('8.1 Cambio regular'),
+      _subHeading('10.1 Cambio regular'),
       _bullets([
         [_t('Cada titular tiene, como máximo, un único suplente fijo: puede salir por él una vez y volver a entrar una vez más, siempre entre esos dos mismos jugadores.')],
         [_t('Un líbero nunca puede intervenir en un cambio regular.')],
@@ -914,8 +980,8 @@ List<pw.Widget> _section8CambiosJugador() => [
               'banco igual.')
         ],
       ]),
-      _subHeading('8.2 Cambio de líbero'),
-      _p('Solo está disponible si el equipo tiene al menos un líbero declarado en la formación de este set (sección 6.1). Reglas:', bottom: 6),
+      _subHeading('10.2 Cambio de líbero'),
+      _p('Solo está disponible si el equipo tiene al menos un líbero declarado en la formación de este set (sección 8.1). Reglas:', bottom: 6),
       _bullets([
         [_t('El líbero solo puede entrar en un puesto de fila trasera (posiciones 1, 5 o 6), y no puede ocupar el puesto que está a punto de sacar.')],
         [_t('Solo puede haber un líbero en cancha a la vez, aunque el equipo haya declarado dos.')],
@@ -929,14 +995,14 @@ List<pw.Widget> _section8CambiosJugador() => [
         [
           _b('Central que queda en el fondo (sacando nosotros o el rival): '),
           _t('si está tildado el checkbox "Líbero automático por central en el fondo" de la formación de '
-              'este set (sección 6.1), entra solo el líbero que corresponda por ese central: el defensor '
+              'este set (sección 8.1), entra solo el líbero que corresponda por ese central: el defensor '
               'si el saque es nuestro (salvo que ese central sea quien va a sacar), o el receptor si saca '
               'el rival, incluso al arrancar el set si ya arranca sacando el rival. Destildado, la app lo '
               'sigue sugiriendo pero hay que aplicarlo a mano, igual que antes.')
         ],
       ]),
       _p('Cuando corresponde y no se aplicó solo, el panel de cambio de líbero también sugiere directamente el cambio recomendado para un central que quedó en el fondo, con un botón para aplicarlo en un toque.'),
-      _subHeading('8.3 Deshacer un cambio'),
+      _subHeading('10.3 Deshacer un cambio'),
       _p(
         'Si te equivocaste al registrar un cambio (regular o de líbero), el mismo panel de cambios tiene un '
         'botón Deshacer último cambio. Solo deshace el cambio más reciente del set (no uno anterior), '
@@ -949,7 +1015,7 @@ List<pw.Widget> _section8CambiosJugador() => [
         'responden a una regla del reglamento y no a un error de carga.',
       ),
       _p(
-        'El botón Deshacer del encabezado (sección 10) es más general: deshace lo último que haya pasado en '
+        'El botón Deshacer del encabezado (sección 12) es más general: deshace lo último que haya pasado en '
         'el set, sea una jugada o un cambio de jugador manual. Si un cambio automático quedó colgando '
         'justo después de la última jugada (por ejemplo, el líbero receptor que entró solo al perder el '
         'saque), ese botón lo revierte junto con la jugada, para dejar la cancha como estaba antes.',
@@ -957,17 +1023,17 @@ List<pw.Widget> _section8CambiosJugador() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 9. Sanciones y tarjetas
+// 11. Sanciones y tarjetas
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section9SancionesTarjetas() => [
-      _sectionTitle(9, 'Sanciones y tarjetas'),
+List<pw.Widget> _section11SancionesTarjetas() => [
+      _sectionTitle(11, 'Sanciones y tarjetas'),
       _p(
         'Se registran desde el ícono de tarjetas del encabezado de la pantalla en vivo, según el '
         'reglamento oficial de conducta incorrecta de la FIVB (Regla 21), vigente también en los '
         'torneos de FeVA y de las federaciones metropolitanas.',
       ),
-      _subHeading('9.1 Cómo cargar una sanción'),
+      _subHeading('11.1 Cómo cargar una sanción'),
       _p(
         'Al abrir el panel aparece primero un historial con las sanciones ya cargadas en el set actual '
         '(a quién, con qué equipo, la sanción y en qué punto del marcador fue), para llevar la cuenta '
@@ -1016,10 +1082,10 @@ List<pw.Widget> _section9SancionesTarjetas() => [
       ),
       _infoBox(
         'Una sanción se puede deshacer igual que cualquier otra acción, con el botón Deshacer del '
-        'encabezado (sección 10): revierte el punto o la salida de cancha que haya generado, junto con el '
+        'encabezado (sección 12): revierte el punto o la salida de cancha que haya generado, junto con el '
         'reemplazo obligatorio si lo hubo.',
       ),
-      _subHeading('9.2 Escala de sanciones (Regla 21 de la FIVB)'),
+      _subHeading('11.2 Escala de sanciones (Regla 21 de la FIVB)'),
       _p(
         'La sanción depende de la categoría de la conducta y de cuántas veces ya se sancionó a esa misma '
         'persona por esa misma categoría en el partido (no se reinicia entre sets):',
@@ -1071,27 +1137,27 @@ List<pw.Widget> _section9SancionesTarjetas() => [
       pw.SizedBox(height: 10),
       _p(
         'Las tarjetas mostradas y la cantidad de amarillas/rojas recibidas por cada jugador quedan '
-        'reflejadas en la tabla de estadísticas (sección 13) y en el reporte en PDF (sección 14).',
+        'reflejadas en la tabla de estadísticas (sección 15) y en el reporte en PDF (sección 16).',
       ),
     ];
 
 // ---------------------------------------------------------------------------
-// 10. Herramientas durante el partido
+// 12. Herramientas durante el partido
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section10Herramientas() => [
-      _sectionTitle(10, 'Herramientas durante el partido'),
+List<pw.Widget> _section12Herramientas() => [
+      _sectionTitle(12, 'Herramientas durante el partido'),
       _p('En el encabezado de la pantalla en vivo hay accesos rápidos adicionales:'),
       _table(
         headers: ['Ícono', 'Función'],
         flex: [3, 7],
         pillFirstColumn: true,
         rows: [
-          ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 11).'],
-          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 13).'],
-          ['Cambio de jugador', 'Abre el panel de cambios (ver sección 8), que también permite deshacer el último cambio (sección 8.3).'],
-          ['Pizarra', 'Abre la pizarra táctica (sección 19) para dibujar una jugada sin salir de la carga en vivo.'],
-          ['Confirmar fin de set', 'Solo aparece cuando el set en curso llegó a su puntaje de cierre y todavía no fue confirmado. Ver sección 11.'],
+          ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 13).'],
+          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 15).'],
+          ['Cambio de jugador', 'Abre el panel de cambios (ver sección 10), que también permite deshacer el último cambio (sección 10.3).'],
+          ['Pizarra', 'Abre la pizarra táctica (sección 4) para dibujar una jugada sin salir de la carga en vivo.'],
+          ['Confirmar fin de set', 'Solo aparece cuando el set en curso llegó a su puntaje de cierre y todavía no fue confirmado. Ver sección 13.'],
           ['Más opciones (⋮)', 'Agrupa Simular resto del set, Abandonar partido y el interruptor de modo claro/oscuro, para no ocupar tanto lugar en el encabezado en pantallas angostas.'],
         ],
       ),
@@ -1111,15 +1177,15 @@ List<pw.Widget> _section10Herramientas() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 11. Fin de set y fin de partido
+// 13. Fin de set y fin de partido
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section11FinSet() => [
-      _sectionTitle(11, 'Fin de set y fin de partido'),
+List<pw.Widget> _section13FinSet() => [
+      _sectionTitle(13, 'Fin de set y fin de partido'),
       _p(
         'Cuando un equipo llega a los puntos necesarios con la diferencia mínima configurada, el set '
         'termina y aparece un aviso con el resultado del set y el resultado en sets del partido, con dos '
-        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 13) o Cerrar '
+        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 15) o Cerrar '
         '(vuelve a la pantalla en vivo sin decidir nada todavía).',
         bottom: 6,
       ),
@@ -1127,7 +1193,7 @@ List<pw.Widget> _section11FinSet() => [
         'A propósito, ese aviso NO obliga a seguir de largo: el set queda "pendiente de confirmar" y se '
         'puede seguir usando el botón Deshacer con normalidad mientras tanto, por si el árbitro termina '
         'revirtiendo el último punto. Recién al tocar el botón Confirmar fin de set del encabezado (que '
-        'aparece únicamente mientras el set está en este estado pendiente, ver sección 10) el set queda '
+        'aparece únicamente mientras el set está en este estado pendiente, ver sección 12) el set queda '
         'bloqueado en firme y deja de poder deshacerse.',
       ),
       _p(
@@ -1135,11 +1201,11 @@ List<pw.Widget> _section11FinSet() => [
         bottom: 6,
       ),
       _bullets([
-        [_t('Si todavía no está definido el partido, se vuelve a la pantalla de formación (sección 6) para armar el próximo set.')],
+        [_t('Si todavía no está definido el partido, se vuelve a la pantalla de formación (sección 8) para armar el próximo set.')],
         [
           _t('Si el partido queda definido con ese set (un equipo alcanza los sets necesarios para ganar), la '
               'app guarda el partido automáticamente en el archivo y pasa directo a la pantalla de resumen '
-              '(sección 13), donde aparece un botón Volver al inicio para salir directo a la pantalla '
+              '(sección 15), donde aparece un botón Volver al inicio para salir directo a la pantalla '
               'principal sin tener que retroceder pantalla por pantalla. El mismo botón Confirmar fin de set '
               'del encabezado se usa también para este último set: el partido no se da por terminado en '
               'forma automática, para dejarle al árbitro la misma posibilidad de revertir el punto final.')
@@ -1148,11 +1214,11 @@ List<pw.Widget> _section11FinSet() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 12. Archivo de partidos
+// 14. Archivo de partidos
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section12Archivo() => [
-      _sectionTitle(12, 'Archivo de partidos'),
+List<pw.Widget> _section14Archivo() => [
+      _sectionTitle(14, 'Archivo de partidos'),
       _p(
         'Desde la pantalla principal, Archivo de Partidos lista todos los partidos guardados, con fecha, '
         'torneo, resultado en sets y un ícono que indica si están terminados (tilde, en verde) o todavía en '
@@ -1160,16 +1226,16 @@ List<pw.Widget> _section12Archivo() => [
         bottom: 6,
       ),
       _bullets([
-        [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 13).')],
+        [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 15).')],
         [_t('Tocar un partido en curso retoma la carga en vivo exactamente donde había quedado, reconstruyendo el marcador, la rotación y los cambios ya realizados.')],
         [_t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 12.1) o eliminar del archivo.')],
       ]),
-      _subHeading('12.1 Exportar un partido'),
+      _subHeading('14.1 Exportar un partido'),
       _p(
         'La opción Exportar del menú de tres puntos de un partido genera un archivo con todos sus datos '
         '(equipos, marcador, jugada por jugada y cambios de jugador). A diferencia del reporte en PDF '
-        '(sección 14), que es solo para leer o imprimir, este archivo se puede volver a importar en '
-        'RallyStats en otro dispositivo (sección 12.2) para seguir teniéndolo disponible ahí, incluso si '
+        '(sección 16), que es solo para leer o imprimir, este archivo se puede volver a importar en '
+        'RallyStats en otro dispositivo (sección 14.2) para seguir teniéndolo disponible ahí, incluso si '
         'todavía estaba en curso.',
       ),
       _p(
@@ -1177,21 +1243,21 @@ List<pw.Widget> _section12Archivo() => [
         'versión de Windows, en cambio, se abre un cuadro para elegir en qué carpeta de la computadora '
         'guardar el archivo.',
       ),
-      _subHeading('12.2 Importar un partido'),
+      _subHeading('14.2 Importar un partido'),
       _p(
         'El ícono de subir archivo, en el encabezado de "Archivo de Partidos", abre un selector para elegir '
-        'un archivo de partido exportado antes (sección 12.1) y agregarlo al archivo de este dispositivo. '
+        'un archivo de partido exportado antes (sección 14.1) y agregarlo al archivo de este dispositivo. '
         'Si ya hay ahí un partido con el mismo identificador (por ejemplo, si el mismo archivo se importa '
         'dos veces), se guarda como una copia nueva y aparte, sin pisar el que ya estaba.',
       ),
     ];
 
 // ---------------------------------------------------------------------------
-// 13. Resumen del partido y estadísticas
+// 15. Resumen del partido y estadísticas
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section13Resumen() => [
-      _sectionTitle(13, 'Resumen del partido y estadísticas'),
+List<pw.Widget> _section15Resumen() => [
+      _sectionTitle(15, 'Resumen del partido y estadísticas'),
       _p(
         'Esta pantalla se abre automáticamente al terminar un partido, o desde el ícono de estadísticas '
         'durante la carga en vivo, o tocando un partido terminado en el archivo. Muestra:',
@@ -1210,7 +1276,7 @@ List<pw.Widget> _section13Resumen() => [
       _p(
         'El selector Estadística permite elegir entre el partido completo o un set en particular (afecta '
         'también a la sección "Estadística del rival"); al abrirse justo después de terminar un set desde '
-        'el aviso de fin de set (sección 11), arranca directamente con ese set seleccionado. La tabla por '
+        'el aviso de fin de set (sección 13), arranca directamente con ese set seleccionado. La tabla por '
         'jugador incluye: puntos totales, errores totales, el desglose de saque, ataque y contraataque por '
         'calificación (PP/P/N/Bl/NN) junto con el porcentaje de efectividad de cada uno, puntos de bloqueo, '
         'errores genéricos, y el desglose de recepción (total, PP, P, !, N, V/, NN) junto con el porcentaje '
@@ -1225,13 +1291,13 @@ List<pw.Widget> _section13Resumen() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 14. Exportar el reporte en PDF
+// 16. Exportar el reporte en PDF
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section14ExportarPdf() => [
-      _sectionTitle(14, 'Exportar el reporte en PDF'),
+List<pw.Widget> _section16ExportarPdf() => [
+      _sectionTitle(16, 'Exportar el reporte en PDF'),
       _p(
-        'Desde la pantalla de resumen del partido (sección 13), el ícono de PDF del encabezado genera y '
+        'Desde la pantalla de resumen del partido (sección 15), el ícono de PDF del encabezado genera y '
         'abre el diálogo para compartir o guardar un reporte completo en PDF, listo para enviar por '
         'WhatsApp o correo, o para imprimir.',
         bottom: 6,
@@ -1240,7 +1306,7 @@ List<pw.Widget> _section14ExportarPdf() => [
       _numbered([
         [_t('Encabezado con equipos, fecha, torneo, instancia, categoría y cancha.')],
         [_t('Resultado de cada set y el equipo ganador del partido.')],
-        [_t('La tabla de estadística completa por jugador (la misma información que en la sección 13), con una referencia al pie que explica cada abreviatura.')],
+        [_t('La tabla de estadística completa por jugador (la misma información que en la sección 15), con una referencia al pie que explica cada abreviatura.')],
         [_t('Una tabla con los errores del rival por tipo (saque, ataque, contra, genérico) y los puntos que ganó con su propio toque (ataque o contra).')],
         [_t('Si se registraron zonas de destino durante el partido: un desglose de saque, ataque y contraataque por separado, por zona de cancha (1 a 6), tanto a nivel equipo como por jugador.')],
         [_t('Si el partido tuvo más de un set: el detalle de estadística de cada set por separado.')],
@@ -1253,11 +1319,11 @@ List<pw.Widget> _section14ExportarPdf() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 15. Glosario
+// 17. Glosario
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section15Glosario() => [
-      _sectionTitle(15, 'Glosario de calificaciones y abreviaturas'),
+List<pw.Widget> _section17Glosario() => [
+      _sectionTitle(17, 'Glosario de calificaciones y abreviaturas'),
       _subHeading('Calificaciones de saque, ataque y contraataque'),
       _table(
         headers: ['', 'Significado'],
@@ -1311,11 +1377,11 @@ List<pw.Widget> _section15Glosario() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 16. Preguntas frecuentes
+// 18. Preguntas frecuentes
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section16Faq() => [
-      _sectionTitle(16, 'Preguntas frecuentes'),
+List<pw.Widget> _section18Faq() => [
+      _sectionTitle(18, 'Preguntas frecuentes'),
       _faqCard(
         '¿Dónde se guardan los datos de la app?',
         'Todo se guarda de forma local en el dispositivo (equipos, jugadores y partidos). Desinstalar la '
@@ -1344,17 +1410,17 @@ List<pw.Widget> _section16Faq() => [
       ),
       _faqCard(
         '¿Necesito conexión a internet para poder tomar la estadística?',
-        'Solo para iniciar sesión (sección 18), que valida la cuenta contra un servidor. Una vez adentro, '
+        'Solo para iniciar sesión (sección 2), que valida la cuenta contra un servidor. Una vez adentro, '
             'la carga en vivo, las planillas de equipo y el cálculo de estadísticas se hacen enteramente en '
             'el dispositivo, sin necesitar conexión. También hace falta conexión para acciones puntuales '
             'que dependen del sistema operativo, como enviar el reporte en PDF por WhatsApp o correo '
-            '(sección 14).',
+            '(sección 16).',
       ),
       _faqCard(
         '¿Puedo usar la misma cuenta en dos dispositivos a la vez?',
         'No. Cada cuenta solo puede tener la sesión abierta en un dispositivo por vez; si se intenta '
             'entrar con la misma cuenta en otro dispositivo mientras el primero sigue adentro, el segundo '
-            'login se rechaza (ver sección 18). Hay que cerrar sesión en uno para poder usar la cuenta en '
+            'login se rechaza (ver sección 2). Hay que cerrar sesión en uno para poder usar la cuenta en '
             'el otro.',
       ),
       _faqCard(
@@ -1362,13 +1428,13 @@ List<pw.Widget> _section16Faq() => [
         'No debería perderse: cada toque, punto, cambio de jugador o sanción se guarda en el dispositivo apenas se '
             'carga, sin esperar a que termine el set ni el partido. Si la app se cierra sola, se traba o el '
             'celular se apaga, al volver a abrirla el partido va a aparecer "en curso" en Archivo de '
-            'Partidos (sección 12) y se puede retomar exactamente donde había quedado. Como mucho se puede '
+            'Partidos (sección 14) y se puede retomar exactamente donde había quedado. Como mucho se puede '
             'llegar a perder la última acción que se estaba por confirmar justo en el momento del cierre.',
       ),
       _faqCard(
         '¿Puedo pasar un partido de un celular a otro, o verlo en dos dispositivos a la vez?',
-        'Se puede pasar un partido a otro dispositivo exportándolo (sección 12.1) e importándolo ahí '
-            '(sección 12.2); a diferencia del reporte en PDF (sección 14), que es solo para leer, ese '
+        'Se puede pasar un partido a otro dispositivo exportándolo (sección 14.1) e importándolo ahí '
+            '(sección 14.2); a diferencia del reporte en PDF (sección 16), que es solo para leer, ese '
             'archivo se puede volver a abrir en la app, incluso si el partido todavía estaba en curso. Lo '
             'que no se puede hacer es cargar el mismo partido en vivo desde dos dispositivos a la vez: una '
             'vez importada, cada copia queda independiente y no se sincroniza sola con el original.',
@@ -1378,11 +1444,11 @@ List<pw.Widget> _section16Faq() => [
         'Sí. Desde "Equipos", tocá el equipo que querés modificar para entrar a "Editar equipo": ahí se '
             'puede cambiar el nombre, agregar o quitar jugadores, y editar los datos de cada uno (nombre, '
             'número, posición, edad o fecha de nacimiento, altura, peso, alcances y mano de ataque). Los '
-            'cambios se guardan automáticamente, igual que al crear el equipo (sección 3.1).',
+            'cambios se guardan automáticamente, igual que al crear el equipo (sección 5.1).',
       ),
       _faqCard(
         '¿Hace falta cargar el equipo rival como equipo propio antes de jugar?',
-        'No. En "Datos del rival y del partido" (sección 4.1) alcanza con escribir el nombre del rival a '
+        'No. En "Datos del rival y del partido" (sección 6.1) alcanza con escribir el nombre del rival a '
             'mano. Precargarlo como equipo propio en "Equipos" es opcional, y solo sirve para autocompletar '
             'el nombre más rápido si se enfrenta seguido al mismo rival.',
       ),
@@ -1394,7 +1460,7 @@ List<pw.Widget> _section16Faq() => [
       ),
       _faqCard(
         'Me equivoqué en un cambio de jugador, ¿cómo lo corrijo?',
-        'Desde el panel de Cambio de jugador, tocá Deshacer último cambio (sección 8.3). Solo funciona '
+        'Desde el panel de Cambio de jugador, tocá Deshacer último cambio (sección 10.3). Solo funciona '
             'para el cambio más reciente del set y, si era un cambio regular, no queda contado contra el '
             'cupo de cambios.',
       ),
@@ -1406,36 +1472,36 @@ List<pw.Widget> _section16Faq() => [
       ),
       _faqCard(
         '¿Puedo cambiar la configuración de sets o de cambios una vez arrancado el partido?',
-        'No: la configuración se define al crear el partido (sección 4.2) y se mantiene durante todos sus '
+        'No: la configuración se define al crear el partido (sección 6.2) y se mantiene durante todos sus '
             'sets.',
       ),
       _faqCard(
         '¿Qué pasa si abandono un partido por error?',
         '"Abandonar partido" borra el partido por completo y no se puede deshacer. Si el partido ya tenía '
-            'un set terminado o estaba definido, se recomienda exportar el PDF (sección 14) antes de '
+            'un set terminado o estaba definido, se recomienda exportar el PDF (sección 16) antes de '
             'abandonarlo, por si se necesitan esos datos más adelante.',
       ),
       _faqCard(
         '¿Puedo corregir las estadísticas de un partido que ya terminó?',
         'No directamente. Sí hay margen para corregir un punto justo al final de un set (por ejemplo, si el '
             'árbitro revierte el último punto): mientras un set no se haya confirmado con el botón Confirmar '
-            'fin de set del encabezado (sección 10 y sección 11), Deshacer sigue funcionando con normalidad, '
+            'fin de set del encabezado (sección 12 y sección 13), Deshacer sigue funcionando con normalidad, '
             'aunque el marcador ya haya llegado al puntaje que cierra el set. Una vez confirmado ese botón, '
             'el set queda bloqueado y ya no se puede deshacer nada de ahí; lo mismo pasa con el partido '
             'entero al confirmar el set decisivo. Si un partido ya confirmado tiene un error importante, se '
-            'puede eliminar desde el menú de tres puntos en Archivo de Partidos (sección 12) y cargarlo de '
+            'puede eliminar desde el menú de tres puntos en Archivo de Partidos (sección 14) y cargarlo de '
             'nuevo desde cero.',
       ),
       _faqCard(
         '¿El líbero puede sacar?',
         'No. Por eso la app no permite que un líbero entre en el puesto que está a punto de sacar (posición '
-            '1 cuando saca el equipo propio); ver la sección 8.2.',
+            '1 cuando saca el equipo propio); ver la sección 10.2.',
       ),
       _faqCard(
         '¿Cómo cambio entre modo claro y modo oscuro?',
         'Con el interruptor de modo claro / modo oscuro (ícono de sol / luna) que aparece en la esquina '
-            'superior derecha de casi cualquier pantalla de la app (ver sección 2); en la pantalla de '
-            'partido en vivo está dentro del menú "Más opciones" del encabezado (sección 10). La elección '
+            'superior derecha de casi cualquier pantalla de la app (ver sección 3); en la pantalla de '
+            'partido en vivo está dentro del menú "Más opciones" del encabezado (sección 12). La elección '
             'queda guardada en el dispositivo.',
       ),
       _faqCard(
@@ -1445,77 +1511,6 @@ List<pw.Widget> _section16Faq() => [
             'forma parte del flujo de trabajo del proyecto. Por ahora, RallyStats está disponible para '
             'Android y, como versión de escritorio, para Windows (ver la pregunta anterior); para iOS y '
             'para Mac todavía no.',
-      ),
-    ];
-
-// ---------------------------------------------------------------------------
-// 17. Cuenta e inicio de sesión
-// ---------------------------------------------------------------------------
-
-List<pw.Widget> _section17CuentaLogin() => [
-      _sectionTitle(17, 'Cuenta e inicio de sesión'),
-      _p(
-        'Antes de llegar a la pantalla principal (sección 2), RallyStats pide iniciar sesión con una '
-        'cuenta (email y contraseña). Si todavía no tenés una, "¿No tenés cuenta? Crear una" arma una '
-        'nueva con esos mismos datos.',
-        bottom: 6,
-      ),
-      _infoBox(
-        'Cada cuenta solo puede estar activa en un dispositivo a la vez. Si se intenta iniciar sesión con '
-        'la misma cuenta en un segundo dispositivo mientras el primero sigue con la sesión abierta, el '
-        'segundo login se rechaza con un aviso ("Esta cuenta ya está en uso en otro dispositivo..."). Esto '
-        'evita que una sola cuenta se comparta libremente entre varios dispositivos a la vez.',
-      ),
-      _p(
-        'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: el '
-        'ícono de salida, en el encabezado de la pantalla principal (sección 2), cierra la sesión de este '
-        'dispositivo.',
-        bottom: 6,
-      ),
-      _p(
-        'A diferencia del resto de los datos de la app (equipos, jugadores, partidos, jugadas de pizarra), '
-        'que se guardan solo en el dispositivo (sección 1), el inicio de sesión sí necesita conexión a '
-        'internet: sin ella, no se puede validar la cuenta ni saber si otro dispositivo la tiene tomada.',
-      ),
-    ];
-
-// ---------------------------------------------------------------------------
-// 18. Pizarra táctica
-// ---------------------------------------------------------------------------
-
-List<pw.Widget> _section18Pizarra() => [
-      _sectionTitle(18, 'Pizarra táctica'),
-      _p(
-        'La Pizarra es una cancha en blanco para dibujar formaciones y jugadas a mano (saques, rotaciones, '
-        'sistemas de ataque o de defensa), pensada para explicar una jugada al equipo antes de ponerla en '
-        'práctica.',
-        bottom: 6,
-      ),
-      _p('Se puede abrir desde tres lugares:', bottom: 6),
-      _bullets([
-        [_b('Pantalla principal: '), _t('acceso "Pizarra" (sección 2), para armar o repasar una jugada fuera de un partido.')],
-        [_b('Formación inicial: '), _t('ícono de Pizarra en el encabezado (sección 6), antes de arrancar un set.')],
-        [_b('Partido en vivo: '), _t('ícono de Pizarra en el encabezado (sección 10), sin salir de la carga en vivo.')],
-      ]),
-      _p('Dentro de la pizarra:', bottom: 6),
-      _bullets([
-        [_t('Se dibuja con el dedo (o el mouse en la versión de escritorio) directamente sobre la cancha.')],
-        [_t('Se puede elegir el color del trazo entre cinco colores, y activar o desactivar que termine en una flecha (útil para marcar desplazamientos o direcciones de ataque).')],
-        [_t('Deshacer quita el último trazo dibujado; Borrar todo limpia la cancha por completo.')],
-        [
-          _t('Guardar pide un nombre y agrega la jugada al archivo de jugadas, igual que un partido se '
-              'guarda en el archivo de partidos (sección 12): queda disponible para abrirla de nuevo más '
-              'adelante, editarla o eliminarla.')
-        ],
-        [
-          _t('Abrir jugada guardada abre el archivo de jugadas para elegir una ya guardada y seguir '
-              'editándola (o simplemente repasarla) en vez de empezar un dibujo nuevo.')
-        ],
-      ]),
-      _p(
-        'El archivo de jugadas (accesible también tocando el ícono de carpeta dentro de la pizarra) '
-        'muestra todas las jugadas guardadas con su nombre, fecha y cantidad de trazos; desde ahí se puede '
-        'abrir, editar o eliminar cualquiera.',
       ),
     ];
 
