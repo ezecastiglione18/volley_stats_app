@@ -6,9 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RallyStats (paquete Dart `rally_stats`) es una app Flutter para anotar en vivo estadísticas de vóley
 (saque, recepción, ataque, contraataque, bloqueo, errores) jugada por jugada, aplicando las reglas
-oficiales de la FIVB para cambios de jugador y de líbero. Genera reportes en PDF y es 100% offline: todo
-se persiste localmente (Hive), sin backend ni cuenta de usuario. Se distribuye como APK (Android) y como
-ejecutable de escritorio para Windows.
+oficiales de la FIVB para cambios de jugador y de líbero. Genera reportes en PDF, incluye una pizarra
+táctica para dibujar formaciones/jugadas, y es offline para todos los datos de juego (equipos, jugadores,
+partidos, jugadas de pizarra: todo se persiste localmente en Hive, sin backend). La única excepción es el
+inicio de sesión (ver más abajo), que sí depende de un backend (Firebase) para controlar que una cuenta no
+se use en más de un dispositivo a la vez. Se distribuye como APK (Android, solo orientación vertical) y
+como ejecutable de escritorio para Windows.
 
 ## Comandos
 
@@ -70,6 +73,25 @@ lectura, para compartir/imprimir) a partir de `MatchStats`. `match_export_servic
 distinto: exporta el `VolleyMatch.toJson()` completo como archivo `.json` (para pasar el partido —
 incluso en curso — a otro dispositivo e importarlo con `pickMatchJson()`); en Android/iOS comparte con
 `share_plus`, en desktop usa `file_picker` para elegir dónde guardar.
+
+**Login y control de dispositivo único (`lib/services/auth_service.dart`)**: usa Firebase Authentication
+(email/contraseña) + Firestore. Cada usuario tiene un documento en la colección `account_devices` (id =
+uid) con el `deviceId` que tiene la sesión tomada (`deviceId` es un id de instalación persistido en Hive
+vía `StorageService.loadOrCreateDeviceId()`, no un id de hardware). `signIn` valida en una transacción de
+Firestore que nadie más tenga la cuenta tomada; si otro dispositivo la tiene, deshace el login y lanza
+`DeviceConflictException` (rechaza el segundo login, no desloguea al primero). `signOut` libera el
+`deviceId` del documento antes de cerrar sesión. El gate de `main.dart` (`_AuthGate`) muestra
+`LoginScreen` mientras no haya sesión, y si Firebase no está configurado (`firebase_options.dart` con
+placeholders) muestra una pantalla de aviso en vez de romper el arranque. Setup manual requerido (crear
+proyecto, activar Auth/Firestore, generar `firebase_options.dart` con `flutterfire configure`, reglas de
+seguridad): ver `SETUP_FIREBASE.md`.
+
+**Pizarra táctica (`lib/screens/whiteboard/`)**: cancha dibujable a mano (`WhiteboardPainter`, un
+`CustomPainter`) sobre la que se registran trazos (`PlayStroke`: color, flecha opcional, puntos
+normalizados 0.0–1.0 para independizarse del tamaño de pantalla). Se guarda como `Play` igual que
+`Team`/`VolleyMatch` (`toJson`/`fromJson` a mano, persistido en Hive vía `StorageService`/
+`AppDataController`). Accesible desde la pantalla principal, el encabezado de `LineupScreen` (formación
+previa al set) y el encabezado de `LiveMatchScreen` (carga en vivo).
 
 **Manual de usuario**: `manual_usuario_rallystats.pdf` no tiene fuente editable de otro tipo; se genera
 por completo con `tool/generate_manual.dart` (usa `package:pdf`). Los números de página del índice están

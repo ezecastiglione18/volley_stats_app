@@ -33,9 +33,15 @@ estadísticas exportable como reporte en PDF.
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
+- Pizarra táctica: cancha dibujable a mano (formaciones, rotaciones, sistemas de ataque/defensa), con
+  colores, modo flecha y archivo propio de jugadas guardadas, accesible desde la pantalla principal, la
+  formación previa al set y la carga en vivo.
 - Modo claro y modo oscuro.
-- 100% offline: todos los datos (equipos, jugadores y partidos) se guardan solo en el dispositivo, sin
-  backend ni cuenta de usuario.
+- En Android, la app se usa solo en orientación vertical.
+- Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
+  dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +
+  Firestore para que una misma cuenta no se pueda usar en dos dispositivos a la vez (ver
+  [`SETUP_FIREBASE.md`](SETUP_FIREBASE.md)), así que necesita conexión a internet para validarse.
 
 ## Requisitos
 
@@ -68,11 +74,17 @@ flutter build windows --release
 
 ```
 lib/
-  models/     # Team, Player, VolleyMatch, MatchSet, RallyEvent, SubstitutionEvent, MatchConfig
+  models/     # Team, Player, VolleyMatch, MatchSet, RallyEvent, SubstitutionEvent, MatchConfig, Play
   state/      # MatchController (reglas del juego y estado en vivo), AppDataController, ThemeController
-  screens/    # pantallas: home, equipos, armado de partido, carga en vivo, resumen y archivo
-  services/   # persistencia local (Hive), estadísticas, reportes en PDF y exportar/importar partidos
+  screens/    # pantallas: home, auth, equipos, armado de partido, carga en vivo, resumen, archivo, pizarra
+  services/   # persistencia local (Hive), estadísticas, reportes en PDF, exportar/importar partidos, auth (Firebase)
 ```
+
+## Login / control de dispositivo único (Firebase)
+
+El inicio de sesión y el bloqueo de "una cuenta, un dispositivo a la vez" necesitan un proyecto de
+Firebase propio (Authentication + Firestore). Los pasos para configurarlo están en
+[`SETUP_FIREBASE.md`](SETUP_FIREBASE.md).
 
 ## Manual de usuario
 

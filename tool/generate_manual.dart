@@ -32,7 +32,9 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 19;
+// TODO: estimado tras agregar las secciones 18 y 19 — confirmar/corregir
+// después de regenerar (ver nota en _pCuentaLogin/_pPizarra más abajo).
+const _coverTotalPages = 21;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -70,7 +72,12 @@ const _pResumen = 14;
 const _pExportarPdf = 14;
 const _pGlosario = 15;
 const _pFaq = 16;
-const _pContacto = 18;
+// TODO: estos dos números son una estimación (no se pudo regenerar el PDF
+// para verificarlos en esta pasada) — revisar y corregir después de correr
+// `dart run tool/generate_manual.dart` y mirar en qué página cayó cada uno.
+const _pCuentaLogin = 18;
+const _pPizarra = 19;
+const _pContacto = 20;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -217,7 +224,9 @@ pw.MultiPage _bodyPages(pw.MemoryImage logo) {
       ..._section14ExportarPdf(),
       ..._section15Glosario(),
       ..._section16Faq(),
-      ..._section17Contacto(),
+      ..._section17CuentaLogin(),
+      ..._section18Pizarra(),
+      ..._section19Contacto(),
     ],
   );
 }
@@ -506,6 +515,8 @@ List<pw.Widget> _indexContent() {
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
     entry('Preguntas frecuentes', _pFaq),
+    entry('Cuenta e inicio de sesión', _pCuentaLogin),
+    entry('Pizarra táctica', _pPizarra),
     entry('Contacto', _pContacto),
   ];
 }
@@ -546,16 +557,21 @@ List<pw.Widget> _section1Introduccion() => [
         ],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
         [_t('Guardar el archivo histórico de partidos jugados.')],
+        [_t('Dibujar y guardar jugadas en una pizarra táctica, con su propio archivo (sección 19).')],
       ]),
       _p(
         'Además del celular o la tablet (Android), RallyStats también tiene una versión de escritorio '
-        'para Windows, con las mismas funciones (ver sección 16 para los requisitos).',
+        'para Windows, con las mismas funciones (ver sección 16 para los requisitos). En el celular, la app '
+        'se usa siempre en posición vertical (no rota a horizontal).',
       ),
       _infoBox(
-        'Nota: todos los datos (equipos, jugadores y partidos) se guardan únicamente en el dispositivo '
-        'donde se usa la app. No se suben a internet ni se sincronizan solos entre dispositivos: conviene '
-        'exportar (sección 12.1) o generar el PDF (sección 14) de los partidos importantes para '
-        'conservarlos, pasarlos a otro dispositivo o compartirlos con el cuerpo técnico.',
+        'Nota: los equipos, jugadores, partidos y jugadas de pizarra se guardan únicamente en el '
+        'dispositivo donde se usa la app; no se suben a internet ni se sincronizan solos entre '
+        'dispositivos, así que conviene exportar (sección 12.1) o generar el PDF (sección 14) de los '
+        'partidos importantes para conservarlos, pasarlos a otro dispositivo o compartirlos con el cuerpo '
+        'técnico. La cuenta con la que se inicia sesión (sección 18) es la única excepción: necesita '
+        'internet para validarse y sí se controla desde un servidor, para que la misma cuenta no se pueda '
+        'usar en dos dispositivos a la vez.',
       ),
     ];
 
@@ -566,13 +582,15 @@ List<pw.Widget> _section1Introduccion() => [
 List<pw.Widget> _section2PantallaPrincipal() => [
       _sectionTitle(2, 'Pantalla principal'),
       _p(
-        'Al abrir la app aparece la pantalla principal con tres accesos, que son también el orden natural '
-        'en el que se usa la app para armar y jugar un partido:',
+        'Antes de llegar a la pantalla principal hay que iniciar sesión (ver sección 18). Una vez adentro, '
+        'aparecen cuatro accesos, que son también el orden natural en el que se usa la app para armar y '
+        'jugar un partido:',
         bottom: 6,
       ),
       _numbered([
         [_b('Nuevo Partido: '), _t('inicia el asistente para configurar y arrancar un partido nuevo.')],
         [_b('Archivo de Partidos: '), _t('lista todos los partidos guardados, terminados o en curso.')],
+        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (ver sección 19).')],
         [_b('Equipos: '), _t('administra los equipos propios y sus planteles de jugadores.')],
       ]),
       _p(
@@ -770,6 +788,10 @@ List<pw.Widget> _section6FormacionInicial() => [
       ),
       _p('Con todas las posiciones asignadas, tocá Comenzar partido (o Comenzar set N si es un set siguiente '
           'dentro de un partido ya en curso) para pasar a la pantalla de carga en vivo.'),
+      _p(
+        'En el encabezado de esta pantalla hay además un ícono de Pizarra, para repasar una formación o '
+        'jugada dibujada de antemano (sección 19) antes de arrancar el set, sin perder lo ya elegido acá.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -813,7 +835,7 @@ List<pw.Widget> _section7PantallaVivo() => [
           ['Bloqueo (Punto)', 'Con la pelota en juego del lado rival.', 'Punto de bloqueo; permite elegir uno o más bloqueadores.'],
           ['Error Genérico', 'En cualquier momento.', 'Error propio no atribuible a un toque puntual (rotación, cuatro toques, etc.), con jugador opcional.'],
           ['Punto Rival', 'Al recibir o defender.', 'Punto directo del rival no atribuible a una acción propia cargada aparte; pide elegir si fue de ataque o de contraataque.'],
-          ['Error Rival', 'Al recibir o defender.', 'Error no forzado del rival que le da el punto al equipo propio; pide elegir si fue de saque, ataque, contraataque o genérico.'],
+          ['Error Rival', 'Al recibir, atacar o defender.', 'Error no forzado del rival que le da el punto al equipo propio; pide elegir si fue de saque, ataque, contraataque o genérico.'],
         ],
       ),
       pw.SizedBox(height: 10),
@@ -821,6 +843,12 @@ List<pw.Widget> _section7PantallaVivo() => [
         'Al tocar Punto Rival o Error Rival se abre un panel chico para elegir con qué tocó el rival, antes '
         'de registrar el punto. Es una clasificación distinta e independiente de Error Genérico, que sigue '
         'siendo para errores propios (de rotación, cuatro toques, etc.), no del rival.',
+      ),
+      _infoBox(
+        'A diferencia de Punto Rival, el botón Error Rival también queda habilitado mientras es el turno de '
+        'ataque propio (K1): el rival puede cometer una falta (por ejemplo, un toque de red) antes de que la '
+        'pelota llegue siquiera a nuestro jugador, y ese punto también se tiene que poder cargar sin esperar '
+        'a la etapa de recepción o defensa.',
       ),
       _p(
         'Al tocar Saque, Recepción, Ataque o Contra se abre un panel donde, si corresponde, primero se '
@@ -1062,6 +1090,7 @@ List<pw.Widget> _section10Herramientas() => [
           ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 11).'],
           ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 13).'],
           ['Cambio de jugador', 'Abre el panel de cambios (ver sección 8), que también permite deshacer el último cambio (sección 8.3).'],
+          ['Pizarra', 'Abre la pizarra táctica (sección 19) para dibujar una jugada sin salir de la carga en vivo.'],
           ['Confirmar fin de set', 'Solo aparece cuando el set en curso llegó a su puntaje de cierre y todavía no fue confirmado. Ver sección 11.'],
           ['Más opciones (⋮)', 'Agrupa Simular resto del set, Abandonar partido y el interruptor de modo claro/oscuro, para no ocupar tanto lugar en el encabezado en pantallas angostas.'],
         ],
@@ -1315,10 +1344,18 @@ List<pw.Widget> _section16Faq() => [
       ),
       _faqCard(
         '¿Necesito conexión a internet para poder tomar la estadística?',
-        'No. RallyStats funciona completamente sin conexión: la carga en vivo, las planillas de equipo y el '
-            'cálculo de estadísticas se hacen en el dispositivo. Solo hace falta conexión para acciones '
-            'puntuales que dependen del sistema operativo, como enviar el reporte en PDF por WhatsApp o '
-            'correo (sección 14).',
+        'Solo para iniciar sesión (sección 18), que valida la cuenta contra un servidor. Una vez adentro, '
+            'la carga en vivo, las planillas de equipo y el cálculo de estadísticas se hacen enteramente en '
+            'el dispositivo, sin necesitar conexión. También hace falta conexión para acciones puntuales '
+            'que dependen del sistema operativo, como enviar el reporte en PDF por WhatsApp o correo '
+            '(sección 14).',
+      ),
+      _faqCard(
+        '¿Puedo usar la misma cuenta en dos dispositivos a la vez?',
+        'No. Cada cuenta solo puede tener la sesión abierta en un dispositivo por vez; si se intenta '
+            'entrar con la misma cuenta en otro dispositivo mientras el primero sigue adentro, el segundo '
+            'login se rechaza (ver sección 18). Hay que cerrar sesión en uno para poder usar la cuenta en '
+            'el otro.',
       ),
       _faqCard(
         '¿Qué pasa si la aplicación deja de funcionar mientras estoy anotando? ¿Pierdo el progreso?',
@@ -1412,11 +1449,82 @@ List<pw.Widget> _section16Faq() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 17. Contacto
+// 17. Cuenta e inicio de sesión
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section17Contacto() => [
-      _sectionTitle(17, 'Contacto'),
+List<pw.Widget> _section17CuentaLogin() => [
+      _sectionTitle(17, 'Cuenta e inicio de sesión'),
+      _p(
+        'Antes de llegar a la pantalla principal (sección 2), RallyStats pide iniciar sesión con una '
+        'cuenta (email y contraseña). Si todavía no tenés una, "¿No tenés cuenta? Crear una" arma una '
+        'nueva con esos mismos datos.',
+        bottom: 6,
+      ),
+      _infoBox(
+        'Cada cuenta solo puede estar activa en un dispositivo a la vez. Si se intenta iniciar sesión con '
+        'la misma cuenta en un segundo dispositivo mientras el primero sigue con la sesión abierta, el '
+        'segundo login se rechaza con un aviso ("Esta cuenta ya está en uso en otro dispositivo..."). Esto '
+        'evita que una sola cuenta se comparta libremente entre varios dispositivos a la vez.',
+      ),
+      _p(
+        'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: el '
+        'ícono de salida, en el encabezado de la pantalla principal (sección 2), cierra la sesión de este '
+        'dispositivo.',
+        bottom: 6,
+      ),
+      _p(
+        'A diferencia del resto de los datos de la app (equipos, jugadores, partidos, jugadas de pizarra), '
+        'que se guardan solo en el dispositivo (sección 1), el inicio de sesión sí necesita conexión a '
+        'internet: sin ella, no se puede validar la cuenta ni saber si otro dispositivo la tiene tomada.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 18. Pizarra táctica
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section18Pizarra() => [
+      _sectionTitle(18, 'Pizarra táctica'),
+      _p(
+        'La Pizarra es una cancha en blanco para dibujar formaciones y jugadas a mano (saques, rotaciones, '
+        'sistemas de ataque o de defensa), pensada para explicar una jugada al equipo antes de ponerla en '
+        'práctica.',
+        bottom: 6,
+      ),
+      _p('Se puede abrir desde tres lugares:', bottom: 6),
+      _bullets([
+        [_b('Pantalla principal: '), _t('acceso "Pizarra" (sección 2), para armar o repasar una jugada fuera de un partido.')],
+        [_b('Formación inicial: '), _t('ícono de Pizarra en el encabezado (sección 6), antes de arrancar un set.')],
+        [_b('Partido en vivo: '), _t('ícono de Pizarra en el encabezado (sección 10), sin salir de la carga en vivo.')],
+      ]),
+      _p('Dentro de la pizarra:', bottom: 6),
+      _bullets([
+        [_t('Se dibuja con el dedo (o el mouse en la versión de escritorio) directamente sobre la cancha.')],
+        [_t('Se puede elegir el color del trazo entre cinco colores, y activar o desactivar que termine en una flecha (útil para marcar desplazamientos o direcciones de ataque).')],
+        [_t('Deshacer quita el último trazo dibujado; Borrar todo limpia la cancha por completo.')],
+        [
+          _t('Guardar pide un nombre y agrega la jugada al archivo de jugadas, igual que un partido se '
+              'guarda en el archivo de partidos (sección 12): queda disponible para abrirla de nuevo más '
+              'adelante, editarla o eliminarla.')
+        ],
+        [
+          _t('Abrir jugada guardada abre el archivo de jugadas para elegir una ya guardada y seguir '
+              'editándola (o simplemente repasarla) en vez de empezar un dibujo nuevo.')
+        ],
+      ]),
+      _p(
+        'El archivo de jugadas (accesible también tocando el ícono de carpeta dentro de la pizarra) '
+        'muestra todas las jugadas guardadas con su nombre, fecha y cantidad de trazos; desde ahí se puede '
+        'abrir, editar o eliminar cualquiera.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 19. Contacto
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section19Contacto() => [
+      _sectionTitle(19, 'Contacto'),
       _p(
         'Para consultas, reportar un problema o sugerir una mejora para RallyStats, podés escribir a:',
       ),
