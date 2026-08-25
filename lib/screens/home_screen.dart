@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../widgets/theme_toggle_switch.dart';
 import 'matches/match_archive_screen.dart';
 import 'new_match/new_match_screen.dart';
 import 'teams/team_list_screen.dart';
+import 'whiteboard/whiteboard_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -13,7 +15,14 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('RallyStats'),
-        actions: const [ThemeToggleSwitch()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesión',
+            onPressed: () => AuthService.instance.signOut(),
+          ),
+          const ThemeToggleSwitch(),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -44,6 +53,15 @@ class HomeScreen extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const MatchArchiveScreen()),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _HomeButton(
+                icon: Icons.draw_outlined,
+                label: 'Pizarra',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
                 ),
               ),
               const SizedBox(height: 14),

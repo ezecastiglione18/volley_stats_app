@@ -10,6 +10,7 @@ import '../../state/match_controller.dart';
 import '../../utils/id_gen.dart';
 import '../../widgets/theme_toggle_switch.dart';
 import '../live/live_match_screen.dart';
+import '../whiteboard/whiteboard_screen.dart';
 
 class LineupScreen extends StatefulWidget {
   final String ownTeamName;
@@ -188,7 +189,17 @@ class _LineupScreenState extends State<LineupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isNextSet ? 'Formación — set siguiente' : 'Formación inicial'),
-        actions: const [ThemeToggleSwitch()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.draw_outlined),
+            tooltip: 'Pizarra',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+            ),
+          ),
+          const ThemeToggleSwitch(),
+        ],
       ),
       body: SafeArea(
         top: false,

@@ -238,8 +238,21 @@ class MatchController extends ChangeNotifier {
   bool get actionAttackEnabled => _stage == RallyStage.attackK1Own && !currentSet.finished;
   bool get actionCounterEnabled => _stage == RallyStage.defending && !currentSet.finished;
   bool get actionBlockEnabled => _stage == RallyStage.defending && !currentSet.finished;
+  // "Punto rival" (nos gana el punto con ataque/contra) solo tiene sentido
+  // mientras la pelota puede llegar a terminar del lado rival: mientras
+  // recibimos su saque o defendemos su ataque/contra.
   bool get actionOpponentButtonsEnabled =>
       (_stage == RallyStage.receiveOwn || _stage == RallyStage.defending) && !currentSet.finished;
+
+  // "Error rival" además puede darse mientras es nuestro turno de atacar o
+  // contraatacar (p. ej. un toque de red del rival antes de que la pelota
+  // llegue a nuestro jugador), así que se habilita también en
+  // `attackK1Own`, no solo mientras esperamos su punto.
+  bool get actionOpponentErrorEnabled =>
+      (_stage == RallyStage.receiveOwn ||
+          _stage == RallyStage.attackK1Own ||
+          _stage == RallyStage.defending) &&
+      !currentSet.finished;
   bool get actionGenericErrorEnabled => !currentSet.finished;
 
   // ---------------- Registro de acciones ----------------

@@ -187,7 +187,7 @@ class ActionGrid extends StatelessWidget {
         label: 'Error\nRival',
         icon: Icons.arrow_circle_up,
         color: err,
-        enabled: controller.actionOpponentButtonsEnabled,
+        enabled: controller.actionOpponentErrorEnabled,
         onTap: () => _opponentError(context),
       ),
     ];

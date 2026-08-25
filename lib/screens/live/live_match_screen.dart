@@ -8,6 +8,7 @@ import '../../state/theme_controller.dart';
 import '../../utils/theme.dart';
 import '../matches/match_summary_screen.dart';
 import '../new_match/lineup_screen.dart';
+import '../whiteboard/whiteboard_screen.dart';
 import 'widgets/action_grid.dart';
 import 'widgets/court_view.dart';
 import 'widgets/sanction_dialog.dart';
@@ -66,6 +67,14 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Cambio de jugador',
             onPressed: () => showSubstitutionDialog(context: context, controller: controller),
+          ),
+          IconButton(
+            icon: const Icon(Icons.draw_outlined),
+            tooltip: 'Pizarra',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+            ),
           ),
           IconButton(
             icon: Badge(
