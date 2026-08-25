@@ -30,17 +30,21 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REEMPLAZAR',
-    appId: 'REEMPLAZAR',
-    messagingSenderId: 'REEMPLAZAR',
-    projectId: 'REEMPLAZAR',
+    apiKey: 'AIzaSyBeG0qH8_Ds1Q2egcE_B8wZJwPw6ahUy8Y',
+    appId: '1:1082356934892:web:be539c436db9b9a1299dc9',
+    messagingSenderId: '1082356934892',
+    projectId: 'volleystatsapp-be835',
+    authDomain: 'volleystatsapp-be835.firebaseapp.com',
+    storageBucket: 'volleystatsapp-be835.firebasestorage.app',
+    measurementId: 'G-37J8MN2B61',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REEMPLAZAR',
-    appId: 'REEMPLAZAR',
-    messagingSenderId: 'REEMPLAZAR',
-    projectId: 'REEMPLAZAR',
+    apiKey: 'AIzaSyDXdkxD4aO-VTBSE-WO0wIQF_c7CJSNm5M',
+    appId: '1:1082356934892:android:4be0af08001aec8c299dc9',
+    messagingSenderId: '1082356934892',
+    projectId: 'volleystatsapp-be835',
+    storageBucket: 'volleystatsapp-be835.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -51,10 +55,8 @@ class DefaultFirebaseOptions {
     iosBundleId: 'REEMPLAZAR',
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'REEMPLAZAR',
-    appId: 'REEMPLAZAR',
-    messagingSenderId: 'REEMPLAZAR',
-    projectId: 'REEMPLAZAR',
-  );
+  // Firebase no tiene un tipo de app nativo para Windows: se usa la config
+  // de la app Web (mismo proyecto), que es lo que recomienda el equipo de
+  // FlutterFire para desktop.
+  static const FirebaseOptions windows = web;
 }
