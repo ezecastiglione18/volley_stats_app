@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../models/play.dart';
 import '../../state/app_data_controller.dart';
+import '../../state/subscription_controller.dart';
 import '../../utils/id_gen.dart';
+import '../../widgets/premium_required_screen.dart';
 import 'plays_archive_screen.dart';
 import 'widgets/whiteboard_painter.dart';
 
@@ -141,6 +143,10 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.watch<SubscriptionController>().isPremium) {
+      return const PremiumRequiredScreen(feature: 'Pizarra');
+    }
+
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(

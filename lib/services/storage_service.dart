@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -15,6 +17,7 @@ class StorageService {
   static const _settingsBox = 'settings_box';
   static const _themeModeKey = 'theme_mode';
   static const _deviceIdKey = 'device_id';
+  static const _subscriptionCacheKey = 'subscription_cache';
 
   late Box _teams;
   late Box _matches;
@@ -113,5 +116,19 @@ class StorageService {
     final generated = generateId('device_');
     _settings.put(_deviceIdKey, generated);
     return generated;
+  }
+
+  /// Última caché conocida del estado de la suscripción (ver
+  /// `SubscriptionController`), para poder resolver algo razonable al abrir
+  /// la app sin depender de una llamada de red a RevenueCat. `null` si
+  /// todavía no se guardó nunca (primera vez que se abre la app).
+  Map<String, dynamic>? loadSubscriptionCache() {
+    final raw = _settings.get(_subscriptionCacheKey) as String?;
+    if (raw == null || raw.isEmpty) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<void> saveSubscriptionCache(Map<String, dynamic> json) async {
+    await _settings.put(_subscriptionCacheKey, jsonEncode(json));
   }
 }

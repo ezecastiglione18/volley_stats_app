@@ -1,26 +1,33 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'storage_service.dart';
+import 'subscription_tiers.dart';
+import '../utils/platform_support.dart';
 
-/// Se lanza cuando la cuenta ya está en uso en OTRO dispositivo (distinto
-/// [StorageService.loadOrCreateDeviceId]). El login para este dispositivo
-/// se rechaza (no se desloguea al que ya estaba adentro).
+/// Se lanza cuando la cuenta ya alcanzó el máximo de dispositivos que
+/// permite su plan actual. El login para este dispositivo se rechaza (no
+/// se desloguea a ninguno de los que ya estaban adentro).
 class DeviceConflictException implements Exception {
-  final String otherDeviceLabel;
-  DeviceConflictException(this.otherDeviceLabel);
+  final int deviceLimit;
+  DeviceConflictException(this.deviceLimit);
 
   @override
   String toString() =>
-      'Esta cuenta ya está en uso en otro dispositivo${otherDeviceLabel.isEmpty ? '' : ' ($otherDeviceLabel)'}. '
-      'Cerrá sesión ahí primero para poder entrar acá.';
+      'Esta cuenta ya alcanzó el máximo de $deviceLimit dispositivo${deviceLimit == 1 ? '' : 's'} '
+      'para su plan actual. Cerrá sesión en alguno de los otros dispositivos, o sumá un '
+      'complemento de dispositivo adicional, para poder entrar acá.';
 }
 
-/// Login por cuenta (un entrenador/comprador) + control de "un solo
-/// dispositivo a la vez" por cuenta, para que una sola licencia comprada
-/// no se comparta libremente entre varios dispositivos.
+/// Login por cuenta (un entrenador/comprador) + control de cuántos
+/// dispositivos pueden tener la sesión activa a la vez por cuenta, para que
+/// una sola suscripción no se comparta libremente sin límite. El límite
+/// depende del plan de RevenueCat activo (ver `SubscriptionController`/
+/// `subscription_tiers.dart`): 1 por defecto, hasta 4 sumando complementos.
 ///
 /// Requiere un proyecto de Firebase (Authentication con Email/Password +
 /// Firestore) ya configurado — ver `SETUP_FIREBASE.md` en la raíz del
@@ -34,9 +41,25 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Future de todo el proceso de `signIn`/`register` en curso (si hay uno),
+  /// compartido con `revalidateThisDevice`. Existe por una condición de
+  /// carrera real: `authStateChanges` puede avisar la sesión nueva —y
+  /// `_AuthGate` reaccionar llamando a `revalidateThisDevice`— en cualquier
+  /// punto de `_auth.signInWithEmailAndPassword(...)`, incluso antes de que
+  /// esa llamada termine de resolverse del lado de este mismo método; si
+  /// `revalidateThisDevice` llega a leer Firestore antes de que el reclamo
+  /// del lugar termine de guardarse, ve el dispositivo ausente y desloguea
+  /// al toque (de ahí que hiciera falta un segundo intento de login para
+  /// que ya lo encontrara guardado). Por eso este campo se instala *antes*
+  /// de tocar Firebase Auth siquiera (ver `_withPendingClaim`), no después
+  /// de que se resuelve: así no queda ninguna ventana, sea cual sea el
+  /// orden real en que el plugin dispare el `Future` del login y el evento
+  /// del stream.
+  Future<void>? _pendingClaim;
+
   /// Colección con un documento por usuario (id = uid de Firebase Auth),
-  /// con el `deviceId` que tiene la sesión activa (o null si nadie la
-  /// tiene tomada).
+  /// con el mapa `devices` de los dispositivos que tienen la sesión activa
+  /// (deviceId -> {label, loggedInAt}).
   CollectionReference<Map<String, dynamic>> get _devices =>
       _db.collection('account_devices');
 
@@ -53,44 +76,105 @@ class AuthService {
     }
   }
 
-  /// Inicia sesión y valida el dispositivo. Si la cuenta ya está tomada
-  /// por otro dispositivo, deshace el login (`signOut`) y lanza
+  /// Inicia sesión y reclama un lugar de dispositivo. Si la cuenta ya
+  /// alcanzó el límite de su plan (y este dispositivo no es uno de los que
+  /// ya lo tenían), deshace el login (`signOut`) y lanza
   /// [DeviceConflictException] — el llamador debe mostrar ese mensaje.
   Future<void> signIn({required String email, required String password}) async {
-    final credential =
-        await _auth.signInWithEmailAndPassword(email: email, password: password);
-    final uid = credential.user!.uid;
-    final docRef = _devices.doc(uid);
-
-    try {
-      await _db.runTransaction((tx) async {
-        final snap = await tx.get(docRef);
-        final takenBy = snap.data()?['deviceId'] as String?;
-        if (takenBy != null && takenBy.isNotEmpty && takenBy != _thisDeviceId) {
-          throw DeviceConflictException(snap.data()?['deviceLabel'] as String? ?? '');
-        }
-        tx.set(docRef, {
-          'deviceId': _thisDeviceId,
-          'deviceLabel': _thisDeviceLabel,
-          'loggedInAt': FieldValue.serverTimestamp(),
-        });
-      });
-    } on DeviceConflictException {
-      await _auth.signOut();
-      rethrow;
-    }
+    await _withPendingClaim(() async {
+      final credential =
+          await _auth.signInWithEmailAndPassword(email: email, password: password);
+      await _claimDeviceSlot(credential.user!.uid);
+    });
   }
 
   /// Registra una cuenta nueva (mismo control de dispositivo que [signIn]:
-  /// como es la primera vez, siempre toma la sesión para este dispositivo).
-  Future<void> register({required String email, required String password}) async {
-    final credential =
-        await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    await _devices.doc(credential.user!.uid).set({
-      'deviceId': _thisDeviceId,
-      'deviceLabel': _thisDeviceLabel,
-      'loggedInAt': FieldValue.serverTimestamp(),
+  /// como el mapa `devices` empieza vacío, siempre entra sin conflicto).
+  /// [firstName]/[lastName] se guardan en el mismo documento de
+  /// `account_devices` (no en una colección aparte, para no necesitar una
+  /// regla de seguridad nueva en Firestore).
+  Future<void> register({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+  }) async {
+    await _withPendingClaim(() async {
+      final credential =
+          await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      await _claimDeviceSlot(credential.user!.uid);
+      await _devices.doc(credential.user!.uid).set(
+        {'firstName': firstName, 'lastName': lastName},
+        SetOptions(merge: true),
+      );
     });
+  }
+
+  /// Corre [action] (el `signIn`/`register` de Firebase Auth completo, más
+  /// el reclamo del lugar de dispositivo) con [_pendingClaim] ya instalado
+  /// *antes* de arrancar — ver el comentario de ese campo sobre por qué el
+  /// orden importa. Maneja [DeviceConflictException] igual para ambos
+  /// llamadores: deshace el login y relanza.
+  Future<void> _withPendingClaim(Future<void> Function() action) async {
+    final completer = Completer<void>();
+    _pendingClaim = completer.future;
+    try {
+      await action();
+    } on DeviceConflictException {
+      await _auth.signOut();
+      rethrow;
+    } finally {
+      completer.complete();
+      if (identical(_pendingClaim, completer.future)) _pendingClaim = null;
+    }
+  }
+
+  Future<void> _claimDeviceSlot(String uid) async {
+    if (isRevenueCatSupported) {
+      try {
+        await Purchases.logIn(uid);
+      } catch (_) {
+        // Defensivo: no bloquear el login si RevenueCat no responde.
+      }
+    }
+    final deviceLimit = await _computeDeviceLimit();
+    final docRef = _devices.doc(uid);
+
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
+      // Volver a entrar desde el mismo dispositivo no debe contar contra
+      // el límite: se saca (si estaba) y se vuelve a agregar más abajo.
+      devices.remove(_thisDeviceId);
+      if (devices.length >= deviceLimit) {
+        throw DeviceConflictException(deviceLimit);
+      }
+      tx.set(
+        docRef,
+        {
+          'devices': {
+            ...devices,
+            _thisDeviceId: {
+              'label': _thisDeviceLabel,
+              'loggedInAt': FieldValue.serverTimestamp(),
+            },
+          },
+        },
+      );
+    });
+  }
+
+  /// Cantidad de dispositivos que permite el plan activo de esta cuenta.
+  /// Cualquier error (offline, RevenueCat inalcanzable) o Windows cae en 1
+  /// — nunca confía en un número más alto sin poder verificarlo.
+  Future<int> _computeDeviceLimit() async {
+    if (!isRevenueCatSupported) return 1;
+    try {
+      final info = await Purchases.getCustomerInfo();
+      return deviceLimitFromActiveSubscriptions(info.activeSubscriptions);
+    } catch (_) {
+      return 1;
+    }
   }
 
   /// Libera el dispositivo (para que otro pueda loguearse con esta cuenta)
@@ -98,21 +182,46 @@ class AuthService {
   Future<void> signOut() async {
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
-      await _devices.doc(uid).set({'deviceId': null, 'deviceLabel': null}, SetOptions(merge: true));
+      await _devices.doc(uid).update({'devices.$_thisDeviceId': FieldValue.delete()});
+    }
+    if (isRevenueCatSupported) {
+      try {
+        await Purchases.logOut();
+      } catch (_) {
+        // Defensivo: no bloquear el signOut si RevenueCat no responde.
+      }
     }
     await _auth.signOut();
   }
 
-  /// Revalida que este dispositivo siga siendo el que tiene la sesión
-  /// tomada (por si se liberó/tomó desde otro lado mientras esta app
-  /// estaba abierta). Si no coincide, cierra la sesión local sin tocar el
-  /// documento (no es "este" dispositivo el que la tiene reservada).
+  /// Envía el email de Firebase Auth para restablecer la contraseña de
+  /// [email]. No hace falta estar logueado. Si el proyecto de Firebase tiene
+  /// activa la protección contra enumeración de emails, esto no falla aunque
+  /// el email no esté registrado (comportamiento normal de Firebase, no un
+  /// bug); si no la tiene activa, puede lanzar `user-not-found`.
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
+  }
+
+  /// Revalida que este dispositivo siga teniendo un lugar reservado (por
+  /// si se liberó desde otro lado mientras esta app estaba abierta). Si ya
+  /// no está, cierra la sesión local sin tocar el documento (no es "este"
+  /// dispositivo el que hay que sacar). No expulsa a nadie por un cambio
+  /// de plan que baje el límite — sólo bloquea reclamos *nuevos*.
   Future<bool> revalidateThisDevice() async {
+    final pending = _pendingClaim;
+    if (pending != null) {
+      // Siempre se resuelve sin error (ver `_withPendingClaim`), incluso si
+      // el intento de `signIn`/`register` terminó fallando: esta espera es
+      // sólo para no leer Firestore mientras ese intento todavía está en
+      // curso, no para conocer su resultado.
+      await pending;
+    }
     final uid = _auth.currentUser?.uid;
     if (uid == null) return true;
     final snap = await _devices.doc(uid).get();
-    final takenBy = snap.data()?['deviceId'] as String?;
-    if (takenBy != null && takenBy != _thisDeviceId) {
+    final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
+    if (!devices.containsKey(_thisDeviceId)) {
       await _auth.signOut();
       return false;
     }

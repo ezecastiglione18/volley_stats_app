@@ -5,9 +5,12 @@ import '../../models/match_config.dart';
 import '../../models/player.dart';
 import '../../models/rally_event.dart';
 import '../../models/volley_match.dart';
+import '../../services/paywall_launcher.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
+import '../../state/subscription_controller.dart';
 import '../../utils/id_gen.dart';
+import '../../widgets/premium_gate.dart';
 import '../../widgets/theme_toggle_switch.dart';
 import '../live/live_match_screen.dart';
 import '../whiteboard/whiteboard_screen.dart';
@@ -127,6 +130,8 @@ class _LineupScreenState extends State<LineupScreen> {
     }
     final order = List.generate(6, (i) => _positions[i + 1]!);
 
+    final isPremium = context.read<SubscriptionController>().isPremium;
+
     if (_isNextSet) {
       final controller = widget.existingController!;
       final setNumber = controller.match.sets.length + 1;
@@ -134,13 +139,13 @@ class _LineupScreenState extends State<LineupScreen> {
         setNumber: setNumber,
         startingOrderOwn: order,
         startingServer: _startingServer,
-        trackHitZones: _trackHitZones,
+        trackHitZones: isPremium && _trackHitZones,
         defensiveLiberoId: _defensiveLiberoId,
         receptionLiberoId: _receptionLiberoId,
         autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
       );
       controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
-      await context.read<AppDataController>().saveMatch(controller.match);
+      await context.read<AppDataController>().saveMatch(controller.match, isPremium: isPremium);
       if (!mounted) return;
       Navigator.pop(context); // vuelve a la pantalla en vivo, que ya observa este mismo controller
       return;
@@ -165,13 +170,19 @@ class _LineupScreenState extends State<LineupScreen> {
       setNumber: 1,
       startingOrderOwn: order,
       startingServer: _startingServer,
-      trackHitZones: _trackHitZones,
+      trackHitZones: isPremium && _trackHitZones,
       defensiveLiberoId: _defensiveLiberoId,
       receptionLiberoId: _receptionLiberoId,
       autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
     );
     controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
-    await context.read<AppDataController>().saveMatch(match);
+    try {
+      await context.read<AppDataController>().saveMatch(match, isPremium: isPremium);
+    } on MatchArchiveLimitException {
+      if (!mounted) return;
+      await showRallyStatsPaywall(context);
+      return;
+    }
 
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -185,6 +196,7 @@ class _LineupScreenState extends State<LineupScreen> {
     // Orden visual de la cancha (fila delantera 4-3-2, fila trasera 5-6-1).
     const frontRow = [4, 3, 2];
     const backRow = [5, 6, 1];
+    final isPremium = context.watch<SubscriptionController>().isPremium;
 
     return Scaffold(
       appBar: AppBar(
@@ -193,9 +205,12 @@ class _LineupScreenState extends State<LineupScreen> {
           IconButton(
             icon: const Icon(Icons.draw_outlined),
             tooltip: 'Pizarra',
-            onPressed: () => Navigator.push(
+            onPressed: () => runIfPremium(
               context,
-              MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+              ),
             ),
           ),
           const ThemeToggleSwitch(),
@@ -312,14 +327,18 @@ class _LineupScreenState extends State<LineupScreen> {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            value: _trackHitZones,
+            value: isPremium && _trackHitZones,
             title: const Text('Registrar zona de destino en saque y ataque'),
-            subtitle: const Text(
-              'Al calificar un saque o un ataque, vas a poder marcar (opcional) a qué '
-              'zona de la cancha fue dirigido.',
-              style: TextStyle(fontSize: 12),
+            subtitle: Text(
+              isPremium
+                  ? 'Al calificar un saque o un ataque, vas a poder marcar (opcional) a qué '
+                      'zona de la cancha fue dirigido.'
+                  : 'Función premium — suscribite para poder registrar la zona de destino.',
+              style: const TextStyle(fontSize: 12),
             ),
-            onChanged: (v) => setState(() => _trackHitZones = v ?? true),
+            onChanged: isPremium
+                ? (v) => setState(() => _trackHitZones = v ?? true)
+                : (_) => showRallyStatsPaywall(context),
           ),
           const SizedBox(height: 4),
           ElevatedButton(

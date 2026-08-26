@@ -4,14 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'firebase_options.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/subscription/subscription_blocked_screen.dart';
 import 'services/auth_service.dart';
 import 'state/app_data_controller.dart';
+import 'state/subscription_controller.dart';
 import 'state/theme_controller.dart';
+import 'utils/platform_support.dart';
 import 'utils/theme.dart';
+
+/// API key pública de RevenueCat (proyecto Android de RallyStats). No es un
+/// secreto en el sentido tradicional — está pensada para viajar embebida en
+/// el cliente, es lo mismo que hace `firebase_options.dart` con la de
+/// Firebase.
+const _revenueCatApiKey = 'goog_sjVcBJpFjdArStnNfqwNQrhzcZX';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,13 +44,27 @@ Future<void> main() async {
     firebaseReady = false;
   }
 
+  // Independiente de Firebase: RevenueCat no necesita `firebaseReady`. En
+  // Windows no hay implementación nativa del SDK, así que ni se intenta.
+  if (isRevenueCatSupported) {
+    try {
+      await Purchases.configure(PurchasesConfiguration(_revenueCatApiKey));
+    } catch (_) {
+      // Si falla, SubscriptionController.init() igual puede resolver algo
+      // razonable desde la caché local.
+    }
+  }
+
   final appData = AppDataController();
   final themeController = ThemeController();
+  final subscriptionController = SubscriptionController();
   await appData.loadAll();
   await themeController.load();
+  await subscriptionController.init();
   runApp(RallyStatsApp(
     appData: appData,
     themeController: themeController,
+    subscriptionController: subscriptionController,
     firebaseReady: firebaseReady,
   ));
 }
@@ -48,11 +72,13 @@ Future<void> main() async {
 class RallyStatsApp extends StatelessWidget {
   final AppDataController appData;
   final ThemeController themeController;
+  final SubscriptionController subscriptionController;
   final bool firebaseReady;
   const RallyStatsApp({
     super.key,
     required this.appData,
     required this.themeController,
+    required this.subscriptionController,
     required this.firebaseReady,
   });
 
@@ -62,6 +88,7 @@ class RallyStatsApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: appData),
         ChangeNotifierProvider.value(value: themeController),
+        ChangeNotifierProvider.value(value: subscriptionController),
       ],
       child: Consumer<ThemeController>(
         builder: (context, theme, _) {
@@ -88,9 +115,35 @@ class RallyStatsApp extends StatelessWidget {
 
 /// Muestra [LoginScreen] hasta que haya una sesión activa (y validada
 /// contra el dispositivo, ver `AuthService.revalidateThisDevice`), y
-/// [HomeScreen] una vez adentro.
-class _AuthGate extends StatelessWidget {
+/// [_SubscriptionGate] una vez adentro. También revalida el estado de la
+/// suscripción cada vez que la app vuelve a primer plano (alcanza con eso,
+/// no hace falta push).
+class _AuthGate extends StatefulWidget {
   const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<SubscriptionController>().refresh();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,11 +168,41 @@ class _AuthGate extends StatelessWidget {
               // se va a reconstruir solo con `snapshot.data == null`.
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
             }
-            return const HomeScreen();
+            return const _SubscriptionGate();
           },
         );
       },
     );
+  }
+}
+
+/// Revalida la suscripción al entrar (cubre arranque + login recién hecho)
+/// y muestra [SubscriptionBlockedScreen] en vez de [HomeScreen] si la
+/// cuenta no es premium y ya venció el trial de 7 días.
+class _SubscriptionGate extends StatefulWidget {
+  const _SubscriptionGate();
+
+  @override
+  State<_SubscriptionGate> createState() => _SubscriptionGateState();
+}
+
+class _SubscriptionGateState extends State<_SubscriptionGate> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<SubscriptionController>().refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subscription = context.watch<SubscriptionController>();
+    if (subscription.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (subscription.isBlocked) {
+      return const SubscriptionBlockedScreen();
+    }
+    return const HomeScreen();
   }
 }
 

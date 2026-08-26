@@ -37,11 +37,18 @@ estadísticas exportable como reporte en PDF.
   colores, modo flecha y archivo propio de jugadas guardadas, accesible desde la pantalla principal, la
   formación previa al set y la carga en vivo.
 - Modo claro y modo oscuro.
+- Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
+  hasta 3 partidos guardados y partidos al mejor de 3 sets, sin pizarra, sin estadísticas/reporte en PDF ni
+  zona de destino; premium quita esos límites y permite sumar hasta 3 dispositivos adicionales. Incluye
+  período de prueba de 7 días, restaurar compras y gestión/cancelación desde Google Play (ver la sección 18
+  del manual de usuario para el detalle completo). La versión de Windows queda fuera de este esquema por
+  ahora, sin restricciones.
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
   dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +
-  Firestore para que una misma cuenta no se pueda usar en dos dispositivos a la vez (ver
-  [`SETUP_FIREBASE.md`](SETUP_FIREBASE.md)), así que necesita conexión a internet para validarse.
+  Firestore para controlar cuántos dispositivos pueden tener la cuenta abierta a la vez (1 por defecto,
+  hasta 4 sumando complementos de dispositivo adicional — ver [`SETUP_FIREBASE.md`](SETUP_FIREBASE.md)),
+  así que necesita conexión a internet para validarse.
 
 ## Requisitos
 
@@ -75,9 +82,12 @@ flutter build windows --release
 ```
 lib/
   models/     # Team, Player, VolleyMatch, MatchSet, RallyEvent, SubstitutionEvent, MatchConfig, Play
-  state/      # MatchController (reglas del juego y estado en vivo), AppDataController, ThemeController
-  screens/    # pantallas: home, auth, equipos, armado de partido, carga en vivo, resumen, archivo, pizarra
-  services/   # persistencia local (Hive), estadísticas, reportes en PDF, exportar/importar partidos, auth (Firebase)
+  state/      # MatchController (reglas del juego y estado en vivo), AppDataController, ThemeController,
+              # SubscriptionController (estado de la suscripción premium)
+  screens/    # pantallas: home, auth, equipos, armado de partido, carga en vivo, resumen, archivo, pizarra,
+              # suscripción/paywall
+  services/   # persistencia local (Hive), estadísticas, reportes en PDF, exportar/importar partidos,
+              # auth (Firebase), compras (RevenueCat)
 ```
 
 ## Login / control de dispositivo único (Firebase)
@@ -85,6 +95,24 @@ lib/
 El inicio de sesión y el bloqueo de "una cuenta, un dispositivo a la vez" necesitan un proyecto de
 Firebase propio (Authentication + Firestore). Los pasos para configurarlo están en
 [`SETUP_FIREBASE.md`](SETUP_FIREBASE.md).
+
+## Suscripción premium (Google Play Billing vía RevenueCat)
+
+Android usa [RevenueCat](https://app.revenuecat.com) (`purchases_flutter`) para la suscripción premium
+mensual (qué queda bloqueado sin ella está detallado en la sección 18 del manual de usuario). Para que las
+compras funcionen de verdad hace falta:
+
+- Un producto de suscripción cargado en Play Console con el mismo product id / base plan que
+  `kBasePremiumProductId` en [`lib/services/subscription_tiers.dart`](lib/services/subscription_tiers.dart)
+  (y los 3 complementos de "dispositivo adicional" de `kDeviceAddOnProductIds`, en ese mismo archivo).
+- Un proyecto de RevenueCat conectado a ese Play Console, con un entitlement asociado al producto base
+  (identificador `rallystats_pro`, coincide con `kPremiumEntitlementId`). La API key pública de RevenueCat
+  va hardcodeada en `lib/main.dart`, igual que la de Firebase.
+
+La versión de Windows queda deliberadamente fuera de este esquema por ahora (no existe Play Billing fuera
+de Android): `isRevenueCatSupported` en
+[`lib/utils/platform_support.dart`](lib/utils/platform_support.dart) desactiva ahí toda la lógica de
+RevenueCat y fuerza `isPremium = true`.
 
 ## Manual de usuario
 

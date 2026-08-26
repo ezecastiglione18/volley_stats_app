@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rally_stats/main.dart';
 import 'package:rally_stats/services/storage_service.dart';
 import 'package:rally_stats/state/app_data_controller.dart';
+import 'package:rally_stats/state/subscription_controller.dart';
 import 'package:rally_stats/state/theme_controller.dart';
 
 void main() {
@@ -43,7 +44,12 @@ void main() {
   // loadAll()/load()), que es exactamente el estado con el que abre un
   // usuario nuevo: sin equipos ni partidos guardados, tema claro.
   Widget buildApp(AppDataController appData, ThemeController themeController) {
-    return RallyStatsApp(appData: appData, themeController: themeController);
+    return RallyStatsApp(
+      appData: appData,
+      themeController: themeController,
+      subscriptionController: SubscriptionController(),
+      firebaseReady: true,
+    );
   }
 
   testWidgets('La pantalla de inicio muestra el título y los accesos principales',

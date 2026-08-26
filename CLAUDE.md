@@ -8,10 +8,12 @@ RallyStats (paquete Dart `rally_stats`) es una app Flutter para anotar en vivo e
 (saque, recepción, ataque, contraataque, bloqueo, errores) jugada por jugada, aplicando las reglas
 oficiales de la FIVB para cambios de jugador y de líbero. Genera reportes en PDF, incluye una pizarra
 táctica para dibujar formaciones/jugadas, y es offline para todos los datos de juego (equipos, jugadores,
-partidos, jugadas de pizarra: todo se persiste localmente en Hive, sin backend). La única excepción es el
-inicio de sesión (ver más abajo), que sí depende de un backend (Firebase) para controlar que una cuenta no
-se use en más de un dispositivo a la vez. Se distribuye como APK (Android, solo orientación vertical) y
-como ejecutable de escritorio para Windows.
+partidos, jugadas de pizarra: todo se persiste localmente en Hive, sin backend). Dos excepciones dependen
+de un backend: el inicio de sesión (Firebase, ver más abajo), para controlar que una cuenta no se use en
+más de un dispositivo a la vez, y en Android la suscripción premium mensual (Google Play Billing vía
+RevenueCat, ver Arquitectura), que limita ciertas funciones en la versión gratuita; la versión de Windows
+queda fuera de este segundo esquema por ahora, sin restricciones. Se distribuye como APK (Android, solo
+orientación vertical) y como ejecutable de escritorio para Windows.
 
 ## Comandos
 
@@ -74,17 +76,41 @@ distinto: exporta el `VolleyMatch.toJson()` completo como archivo `.json` (para 
 incluso en curso — a otro dispositivo e importarlo con `pickMatchJson()`); en Android/iOS comparte con
 `share_plus`, en desktop usa `file_picker` para elegir dónde guardar.
 
-**Login y control de dispositivo único (`lib/services/auth_service.dart`)**: usa Firebase Authentication
-(email/contraseña) + Firestore. Cada usuario tiene un documento en la colección `account_devices` (id =
-uid) con el `deviceId` que tiene la sesión tomada (`deviceId` es un id de instalación persistido en Hive
-vía `StorageService.loadOrCreateDeviceId()`, no un id de hardware). `signIn` valida en una transacción de
-Firestore que nadie más tenga la cuenta tomada; si otro dispositivo la tiene, deshace el login y lanza
-`DeviceConflictException` (rechaza el segundo login, no desloguea al primero). `signOut` libera el
-`deviceId` del documento antes de cerrar sesión. El gate de `main.dart` (`_AuthGate`) muestra
-`LoginScreen` mientras no haya sesión, y si Firebase no está configurado (`firebase_options.dart` con
-placeholders) muestra una pantalla de aviso en vez de romper el arranque. Setup manual requerido (crear
-proyecto, activar Auth/Firestore, generar `firebase_options.dart` con `flutterfire configure`, reglas de
-seguridad): ver `SETUP_FIREBASE.md`.
+**Login y control de dispositivos por plan (`lib/services/auth_service.dart`)**: usa Firebase
+Authentication (email/contraseña) + Firestore. Cada usuario tiene un documento en la colección
+`account_devices` (id = uid) con un mapa `devices` (deviceId -> `{label, loggedInAt}`; `deviceId` es un id
+de instalación persistido en Hive vía `StorageService.loadOrCreateDeviceId()`, no un id de hardware). El
+límite de dispositivos simultáneos ya **no** es fijo en 1: `_computeDeviceLimit()` consulta RevenueCat
+(`deviceLimitFromActiveSubscriptions`, ver Suscripción premium más abajo) y permite hasta 4 según cuántos
+complementos de "dispositivo adicional" tenga activos la cuenta (Windows, o cualquier error de red al
+consultar, cae siempre a 1 — nunca confía en un número más alto sin poder verificarlo). `signIn`/
+`register` reclaman un lugar en ese mapa dentro de una transacción de Firestore (volver a entrar desde el
+mismo `deviceId` no cuenta contra el límite); si ya está lleno, deshacen el login y lanzan
+`DeviceConflictException` (rechaza el login nuevo, no desloguea a los que ya estaban adentro). `signOut`
+libera sólo la entrada de este `deviceId`. `revalidateThisDevice` (llamado desde `_AuthGate` en cada
+arranque) chequea que este dispositivo siga teniendo un lugar reservado por si se liberó desde otro lado;
+no expulsa a nadie por una baja de plan, sólo bloquea reclamos *nuevos*. El gate de `main.dart`
+(`_AuthGate`) muestra `LoginScreen` mientras no haya sesión, y si Firebase no está configurado
+(`firebase_options.dart` con placeholders) muestra una pantalla de aviso en vez de romper el arranque.
+Setup manual requerido (crear proyecto, activar Auth/Firestore, generar `firebase_options.dart` con
+`flutterfire configure`, reglas de seguridad): ver `SETUP_FIREBASE.md`.
+
+**Suscripción premium (`lib/state/subscription_controller.dart`, `lib/services/subscription_tiers.dart`,
+`purchase_service.dart`, `device_addon_service.dart`, `subscription_management_launcher.dart`)**: en
+Android usa RevenueCat (`purchases_flutter`) sobre Google Play Billing; `isRevenueCatSupported`
+(`lib/utils/platform_support.dart`) lo desactiva por completo en Windows y fuerza `isPremium = true` (no
+hay Play Billing fuera de Android). `SubscriptionController` (`ChangeNotifier`) cachea `isPremium`/
+`deviceLimit` en Hive (para resolver algo sin red al abrir la app) y los revalida contra RevenueCat en
+`refresh()` (al loguearse y cada vez que la app vuelve a primer plano). Importante: el trial de 7 días
+(`isTrialActive`, contado desde el `creationTime` de la cuenta de Firebase) **no** desbloquea funciones
+premium — sólo pospone `isBlocked` (el bloqueo total de la app, `SubscriptionBlockedScreen`); las
+restricciones puntuales (pizarra, estadísticas, zona de destino, tope de 3 partidos en el archivo, tope de
+3 sets) se resuelven todas contra `isPremium` directamente, cada una en su propia pantalla/callback — no
+hay un único gate central para esto (a diferencia del login). El plan base habilita 1 dispositivo; hasta 3
+complementos de "dispositivo adicional" (`kDeviceAddOnProductIds`, se compran de a uno y en ese orden)
+suman hasta 4. Restaurar compras y gestionar/cancelar (enlace a Play Store) están en `SubscriptionScreen`/
+`SubscriptionBlockedScreen`. Para que las compras funcionen de verdad hace falta, del lado de Play
+Console/RevenueCat, que existan los product ids de `subscription_tiers.dart` (ver README).
 
 **Pizarra táctica (`lib/screens/whiteboard/`)**: cancha dibujable a mano (`WhiteboardPainter`, un
 `CustomPainter`) sobre la que se registran trazos (`PlayStroke`: color, flecha opcional, puntos
@@ -168,7 +194,13 @@ no volver a perder tiempo re-diagnosticándolos si algo los pisa (una reinstalac
   8.x) traían un `compileSdk` viejo hardcodeado en su propio `build.gradle`, incompatible con
   `flutter_plugin_android_lifecycle`. Con `file_picker` ya en `^12.0.0` puede que ya no haga falta para
   ese plugin puntual, pero se dejó como red de seguridad general para cualquier otro plugin.
-- **`android/gradle.properties`**: `android.builtInKotlin=true` es necesario para que compile
-  `share_plus` 13.x (su código Kotlin propio no resuelve si esta flag está en `false`). Si en el futuro
-  algún plugin todavía no migrado a Built-in Kotlin rompe el build pidiendo lo contrario, es un conflicto
-  real entre plugins, no un capricho de configuración.
+- **`android/gradle.properties`**: `android.builtInKotlin` quedó en `false` (lo puso así automáticamente
+  el propio toolchain de Flutter al resolver dependencias, no fue un cambio manual) porque
+  `purchases_flutter`/`purchases_ui_flutter` 10.x todavía aplican el Kotlin Gradle Plugin (KGP) legacy,
+  incompatible con Built-in Kotlin bajo AGP 9 (`flutter build` avisa esto con un WARNING explícito en cada
+  build, con un link al issue de RevenueCat). Antes de sumar RevenueCat, este flag tenía que estar en
+  `true` para que compilara `share_plus` 13.x; con las versiones actuales de ambos plugins, `false` compila
+  igual (se verificó con `flutter build apk --debug`) — si en algún momento `share_plus` vuelve a fallar
+  por esto, es un conflicto real entre plugins que hay que resolver eligiendo versiones compatibles entre
+  sí, no alternar el flag a ciegas. Revertir a `true` cuando RevenueCat publique una versión con Built-in
+  Kotlin (hay un comentario en el propio archivo con este recordatorio).

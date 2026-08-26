@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 20;
+const _coverTotalPages = 22;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -56,23 +56,30 @@ const _pMarcador = 9;
 const _pCancha = 9;
 const _pBotonesAccion = 9;
 const _pZonaDestino = 10;
-const _pCambiosJugador = 10;
-const _pCambioRegular = 10;
-const _pCambioLibero = 10;
-const _pDeshacerCambio = 11;
-const _pSancionesTarjetas = 11;
-const _pComoCargarSancion = 11;
-const _pEscalaSanciones = 12;
-const _pHerramientas = 13;
-const _pFinSet = 13;
-const _pArchivo = 14;
-const _pExportarPartido = 14;
-const _pImportarPartido = 14;
-const _pResumen = 14;
-const _pExportarPdf = 15;
-const _pGlosario = 15;
-const _pFaq = 17;
-const _pContacto = 20;
+const _pCambiosJugador = 11;
+const _pCambioRegular = 11;
+const _pCambioLibero = 11;
+const _pDeshacerCambio = 12;
+const _pSancionesTarjetas = 12;
+const _pComoCargarSancion = 12;
+const _pEscalaSanciones = 13;
+const _pHerramientas = 14;
+const _pFinSet = 14;
+const _pArchivo = 15;
+const _pExportarPartido = 15;
+const _pImportarPartido = 15;
+const _pResumen = 15;
+const _pExportarPdf = 16;
+const _pGlosario = 16;
+const _pSuscripcionPremium = 18;
+const _pQueIncluyePremium = 18;
+const _pPruebaGratuita = 18;
+const _pComoSuscribirse = 18;
+const _pDispositivosAdicionales = 19;
+const _pRestaurarCompras = 19;
+const _pGestionarCancelar = 19;
+const _pFaq = 19;
+const _pContacto = 22;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -220,8 +227,9 @@ pw.MultiPage _bodyPages(pw.MemoryImage logo) {
       ..._section15Resumen(),
       ..._section16ExportarPdf(),
       ..._section17Glosario(),
-      ..._section18Faq(),
-      ..._section19Contacto(),
+      ..._section18SuscripcionPremium(),
+      ..._section19Faq(),
+      ..._section20Contacto(),
     ],
   );
 }
@@ -511,6 +519,13 @@ List<pw.Widget> _indexContent() {
     entry('Resumen del partido y estadísticas', _pResumen),
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
+    entry('Suscripción Premium', _pSuscripcionPremium),
+    entry('Qué incluye la versión gratuita y qué es premium', _pQueIncluyePremium, sub: true),
+    entry('Período de prueba gratuito de 7 días', _pPruebaGratuita, sub: true),
+    entry('Cómo suscribirse', _pComoSuscribirse, sub: true),
+    entry('Dispositivos adicionales', _pDispositivosAdicionales, sub: true),
+    entry('Restaurar compras', _pRestaurarCompras, sub: true),
+    entry('Gestionar o cancelar la suscripción', _pGestionarCancelar, sub: true),
     entry('Preguntas frecuentes', _pFaq),
     entry('Contacto', _pContacto),
   ];
@@ -568,6 +583,11 @@ List<pw.Widget> _section1Introduccion() => [
         'internet para validarse y sí se controla desde un servidor, para que la misma cuenta no se pueda '
         'usar en dos dispositivos a la vez.',
       ),
+      _p(
+        'Algunas de estas funciones (pizarra, estadísticas, zona de destino, y guardar más de 3 partidos o '
+        'jugar al mejor de 5 sets) requieren la suscripción premium: ver el detalle completo en la '
+        'sección 18.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -583,10 +603,10 @@ List<pw.Widget> _section2CuentaLogin() => [
         bottom: 6,
       ),
       _infoBox(
-        'Cada cuenta solo puede estar activa en un dispositivo a la vez. Si se intenta iniciar sesión con '
-        'la misma cuenta en un segundo dispositivo mientras el primero sigue con la sesión abierta, el '
-        'segundo login se rechaza con un aviso ("Esta cuenta ya está en uso en otro dispositivo..."). Esto '
-        'evita que una sola cuenta se comparta libremente entre varios dispositivos a la vez.',
+        'La cantidad de dispositivos que pueden tener la cuenta abierta a la vez depende del plan: 1 sin '
+        'la suscripción premium, hasta 4 sumando complementos de dispositivo adicional (sección 18.4). Si '
+        'se intenta iniciar sesión superando ese límite, el login nuevo se rechaza con un aviso, sin '
+        'afectar a los dispositivos que ya estaban adentro.',
       ),
       _p(
         'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: el '
@@ -609,15 +629,16 @@ List<pw.Widget> _section3PantallaPrincipal() => [
       _sectionTitle(3, 'Pantalla principal'),
       _p(
         'Antes de llegar a la pantalla principal hay que iniciar sesión (ver sección 2). Una vez adentro, '
-        'aparecen cuatro accesos, que son también el orden natural en el que se usa la app para armar y '
-        'jugar un partido:',
+        'aparecen cinco accesos; los primeros cuatro son también el orden natural en el que se usa la app '
+        'para armar y jugar un partido:',
         bottom: 6,
       ),
       _numbered([
         [_b('Nuevo Partido: '), _t('inicia el asistente para configurar y arrancar un partido nuevo.')],
         [_b('Archivo de Partidos: '), _t('lista todos los partidos guardados, terminados o en curso.')],
-        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (ver sección 4).')],
+        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (función premium, ver sección 4 y sección 18).')],
         [_b('Equipos: '), _t('administra los equipos propios y sus planteles de jugadores.')],
+        [_b('Mi suscripción: '), _t('muestra el estado de la suscripción premium y permite suscribirse, sumar dispositivos adicionales, restaurar compras o gestionar/cancelar (ver sección 18).')],
       ]),
       _p(
         'En la parte superior derecha de casi todas las pantallas hay un interruptor de modo claro / modo '
@@ -638,7 +659,7 @@ List<pw.Widget> _section4Pizarra() => [
       _p(
         'La Pizarra es una cancha en blanco para dibujar formaciones y jugadas a mano (saques, rotaciones, '
         'sistemas de ataque o de defensa), pensada para explicar una jugada al equipo antes de ponerla en '
-        'práctica.',
+        'práctica. Es una función premium (sección 18).',
         bottom: 6,
       ),
       _p('Se puede abrir desde tres lugares:', bottom: 6),
@@ -767,7 +788,11 @@ List<pw.Widget> _section6CrearPartido() => [
         headers: ['Parámetro', 'Valor por defecto', 'Qué controla'],
         flex: [3, 2, 5],
         rows: [
-          ['Cantidad máxima de sets', '5', 'Sets totales que se juegan como máximo (mejor de 5).'],
+          [
+            'Cantidad máxima de sets',
+            '5 (3 sin premium)',
+            'Sets totales que se juegan como máximo (mejor de 5 con la suscripción premium; hasta 3 en la versión gratuita, sección 18.1).'
+          ],
           ['Puntos para ganar un set (1° al 4°)', '25', 'Puntos necesarios para ganar los sets regulares.'],
           ['Diferencia mínima (sets 1° al 4°)', '2', 'Ventaja mínima de puntos para cerrar esos sets.'],
           ['Puntos para ganar el tie-break', '15', 'Puntos del set decisivo (el último posible).'],
@@ -826,9 +851,10 @@ List<pw.Widget> _section8FormacionInicial() => [
         ],
         [_b('Armador rival '), _t('(opcional): solo a modo informativo, en qué posición arranca.')],
         [
-          _b('Registrar zona de destino en saque y ataque: '),
-          _t('si está activada, al calificar un saque o un ataque se va a poder marcar (opcionalmente) a '
-              'qué zona de la cancha rival fue dirigido. Esta opción se define una vez por set.')
+          _b('Registrar zona de destino en saque y ataque '),
+          _t('(función premium, sección 18): si está activada, al calificar un saque o un ataque se va a '
+              'poder marcar (opcionalmente) a qué zona de la cancha rival fue dirigido. Esta opción se '
+              'define una vez por set.')
         ],
       ]),
       _subHeading('8.1 Roles de líbero (por set)'),
@@ -1222,7 +1248,8 @@ List<pw.Widget> _section14Archivo() => [
       _p(
         'Desde la pantalla principal, Archivo de Partidos lista todos los partidos guardados, con fecha, '
         'torneo, resultado en sets y un ícono que indica si están terminados (tilde, en verde) o todavía en '
-        'curso (flecha de reproducir, en naranja).',
+        'curso (flecha de reproducir, en naranja). Sin la suscripción premium, se pueden guardar hasta 3 '
+        'partidos; con premium activo, no hay límite (sección 18.1).',
         bottom: 6,
       ),
       _bullets([
@@ -1259,8 +1286,9 @@ List<pw.Widget> _section14Archivo() => [
 List<pw.Widget> _section15Resumen() => [
       _sectionTitle(15, 'Resumen del partido y estadísticas'),
       _p(
-        'Esta pantalla se abre automáticamente al terminar un partido, o desde el ícono de estadísticas '
-        'durante la carga en vivo, o tocando un partido terminado en el archivo. Muestra:',
+        'Es una función premium (sección 18). Esta pantalla se abre automáticamente al terminar un '
+        'partido, o desde el ícono de estadísticas durante la carga en vivo, o tocando un partido terminado '
+        'en el archivo. Muestra:',
         bottom: 6,
       ),
       _bullets([
@@ -1377,11 +1405,102 @@ List<pw.Widget> _section17Glosario() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 18. Preguntas frecuentes
+// 18. Suscripción Premium
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section18Faq() => [
-      _sectionTitle(18, 'Preguntas frecuentes'),
+List<pw.Widget> _section18SuscripcionPremium() => [
+      _sectionTitle(18, 'Suscripción Premium'),
+      _p(
+        'RallyStats tiene una versión gratuita y una suscripción premium mensual, que se gestiona desde '
+        '"Mi suscripción" (acceso disponible en la pantalla principal, sección 3, esté o no activa la '
+        'suscripción).',
+      ),
+      _subHeading('18.1 Qué incluye la versión gratuita y qué es premium'),
+      _p(
+        'Sin la suscripción premium activa, RallyStats se puede seguir usando (incluso durante el período '
+        'de prueba de los primeros 7 días, ver sección 18.2) con estos límites:',
+        bottom: 6,
+      ),
+      _bullets([
+        [
+          _t('Hasta 3 partidos guardados en el Archivo de Partidos (sección 14): al llegar al tope, hay '
+              'que suscribirse para poder guardar uno nuevo.')
+        ],
+        [_t('Hasta 3 sets por partido (no se puede jugar al mejor de 5, sección 6.2).')],
+        [_t('Sin acceso a la Pizarra táctica ni a su archivo de jugadas (sección 4).')],
+        [
+          _t('Sin acceso al resumen de estadísticas de ningún partido (sección 15) ni, por lo tanto, al '
+              'reporte en PDF (sección 16).')
+        ],
+        [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
+      ]),
+      _p(
+        'La suscripción premium desbloquea las cinco funciones de la lista de arriba (partidos y sets sin '
+        'límite, pizarra, estadísticas y zona de destino) y permite además sumar dispositivos adicionales '
+        '(sección 18.4).',
+      ),
+      _infoBox(
+        'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
+        'quedan intactos, y el Archivo de Partidos sigue mostrando todos los partidos guardados. Lo que '
+        'vuelve a quedar bloqueado son las funciones premium en sí: no se va a poder abrir el resumen de '
+        'estadísticas de ningún partido, ni la Pizarra, ni guardar un partido nuevo si ya hay 3 o más '
+        'guardados, hasta volver a suscribirse.',
+      ),
+      _p(
+        'En la versión de escritorio para Windows, por el momento, todas estas funciones están disponibles '
+        'sin ninguna restricción.',
+      ),
+      _subHeading('18.2 Período de prueba gratuito de 7 días'),
+      _p(
+        'Al crear la cuenta (sección 2), la app no exige la suscripción premium desde el primer momento: '
+        'durante los primeros 7 días funciona igual que la versión gratuita (con los mismos límites de la '
+        'sección 18.1), pero sin llegar a bloquear el acceso a la aplicación por completo. Pasados esos 7 '
+        'días, si la cuenta todavía no tiene la suscripción activa, ahí sí la app se bloquea por completo '
+        '(pantalla "Tu período de prueba terminó") hasta suscribirse o restaurar una compra ya existente '
+        '(sección 18.5).',
+      ),
+      _subHeading('18.3 Cómo suscribirse'),
+      _numbered([
+        [
+          _t('Entrá a "Mi suscripción" desde la pantalla principal, o tocá cualquier función premium '
+              'bloqueada: la app te lleva directamente a la pantalla de suscripción.')
+        ],
+        [_t('Tocá Ver planes / Actualizate a Premium para ver el detalle de lo que incluye y el precio mensual.')],
+        [_t('Confirmá la compra con el método de pago configurado en tu cuenta de Google Play.')],
+      ]),
+      _p(
+        'La suscripción se cobra mensualmente y se renueva sola hasta que se cancele (sección 18.6); el '
+        'pago y la renovación los administra Google Play, no RallyStats.',
+      ),
+      _subHeading('18.4 Dispositivos adicionales'),
+      _p(
+        'El plan premium base habilita 1 dispositivo. Desde "Mi suscripción", con la suscripción base ya '
+        'activa, se puede sumar hasta un total de 4 dispositivos (3 complementos adicionales), cada uno '
+        'como una suscripción mensual aparte que se suma a la base. Se habilitan de a uno: para comprar el '
+        'segundo complemento hace falta tener activo el primero, y así con el tercero.',
+      ),
+      _subHeading('18.5 Restaurar compras'),
+      _p(
+        'Si reinstalaste la app, cambiaste de dispositivo o iniciaste sesión en uno nuevo y la app no '
+        'reconoce automáticamente una suscripción que ya tenías activa, el botón Restaurar compras (en '
+        '"Mi suscripción", y también en la pantalla de bloqueo por período de prueba vencido) vuelve a '
+        'consultar la compra contra la cuenta de Google Play y la aplica sin tener que pagar de nuevo.',
+      ),
+      _subHeading('18.6 Gestionar o cancelar la suscripción'),
+      _p(
+        'Con la suscripción activa, "Mi suscripción" muestra el botón Gestionar o cancelar suscripción, que '
+        'abre la pantalla de Google Play donde se puede cancelar la renovación automática o cambiar el '
+        'medio de pago. RallyStats no tiene su propio botón de cancelación: toda suscripción de Google Play '
+        'se cancela desde ahí.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 19. Preguntas frecuentes
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section19Faq() => [
+      _sectionTitle(19, 'Preguntas frecuentes'),
       _faqCard(
         '¿Dónde se guardan los datos de la app?',
         'Todo se guarda de forma local en el dispositivo (equipos, jugadores y partidos). Desinstalar la '
@@ -1390,9 +1509,16 @@ List<pw.Widget> _section18Faq() => [
       ),
       _faqCard(
         '¿Cuántos partidos puedo cargar en el Archivo de Partidos?',
-        'No hay un límite fijo: la app no pone ningún tope a la cantidad de partidos guardados. En la '
-            'práctica, el único límite es el espacio libre en el dispositivo, y como cada partido ocupa muy '
-            'poco, se pueden acumular miles de partidos sin problema.',
+        'Sin la suscripción premium, hasta 3 partidos guardados; con premium activo, no hay ningún tope '
+            '(sección 18.1). En la práctica, con premium el único límite es el espacio libre en el '
+            'dispositivo, y como cada partido ocupa muy poco, se pueden acumular miles sin problema.',
+      ),
+      _faqCard(
+        '¿Qué pasa si se vence o cancelo la suscripción premium? ¿Pierdo los partidos ya guardados?',
+        'No: cancelar o dejar vencer la suscripción no borra ningún dato. Vuelven a aplicarse los límites '
+            'de la versión gratuita (sección 18.1): no se puede abrir el resumen/estadísticas de ningún '
+            'partido, ni la Pizarra, ni guardar uno nuevo si ya hay 3 o más guardados. Pero los partidos, '
+            'jugadores y jugadas de pizarra siguen ahí, disponibles apenas se vuelve a suscribir.',
       ),
       _faqCard(
         '¿Qué versión de Android necesito para usar RallyStats?',
@@ -1418,10 +1544,9 @@ List<pw.Widget> _section18Faq() => [
       ),
       _faqCard(
         '¿Puedo usar la misma cuenta en dos dispositivos a la vez?',
-        'No. Cada cuenta solo puede tener la sesión abierta en un dispositivo por vez; si se intenta '
-            'entrar con la misma cuenta en otro dispositivo mientras el primero sigue adentro, el segundo '
-            'login se rechaza (ver sección 2). Hay que cerrar sesión en uno para poder usar la cuenta en '
-            'el otro.',
+        'Depende del plan (sección 2): sin premium, en 1 solo; con premium y complementos de dispositivo '
+            'adicional (sección 18.4), hasta en 4 a la vez. Al superar ese límite, el login nuevo se '
+            'rechaza; hay que cerrar sesión en alguno de los otros, o sumar un complemento, para entrar.',
       ),
       _faqCard(
         '¿Qué pasa si la aplicación deja de funcionar mientras estoy anotando? ¿Pierdo el progreso?',
@@ -1515,11 +1640,11 @@ List<pw.Widget> _section18Faq() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 19. Contacto
+// 20. Contacto
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section19Contacto() => [
-      _sectionTitle(19, 'Contacto'),
+List<pw.Widget> _section20Contacto() => [
+      _sectionTitle(20, 'Contacto'),
       _p(
         'Para consultas, reportar un problema o sugerir una mejora para RallyStats, podés escribir a:',
       ),

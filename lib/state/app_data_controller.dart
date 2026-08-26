@@ -5,6 +5,16 @@ import '../models/team.dart';
 import '../models/volley_match.dart';
 import '../services/storage_service.dart';
 
+/// Se lanza al intentar guardar un partido nuevo (no una actualización de
+/// uno ya guardado) cuando la cuenta no es premium y el archivo ya llegó al
+/// tope de 3 partidos de la versión free.
+class MatchArchiveLimitException implements Exception {
+  @override
+  String toString() =>
+      'La versión free permite hasta 3 partidos en el archivo. Suscribite a premium '
+      'para guardar partidos ilimitados.';
+}
+
 /// Estado global de la app: lista de equipos precargados, archivo de
 /// partidos y archivo de jugadas de pizarra guardados. Se mantiene en
 /// memoria y se sincroniza con Hive.
@@ -39,9 +49,17 @@ class AppDataController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveMatch(VolleyMatch match) async {
-    await StorageService.instance.saveMatch(match);
+  /// [isPremium] es obligatorio a propósito: fuerza a que cada lugar que
+  /// crea/guarda un partido pase el estado de suscripción actual, para que
+  /// el tope de 3 partidos de la versión free (sólo aplica a partidos
+  /// *nuevos*, no a actualizar uno ya contado) no se pueda pisar por
+  /// descuido.
+  Future<void> saveMatch(VolleyMatch match, {required bool isPremium}) async {
     final idx = matches.indexWhere((m) => m.id == match.id);
+    if (idx == -1 && !isPremium && matches.length >= 3) {
+      throw MatchArchiveLimitException();
+    }
+    await StorageService.instance.saveMatch(match);
     if (idx == -1) {
       matches.add(match);
     } else {

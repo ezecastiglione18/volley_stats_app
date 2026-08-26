@@ -41,7 +41,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDXdkxD4aO-VTBSE-WO0wIQF_c7CJSNm5M',
-    appId: '1:1082356934892:android:4be0af08001aec8c299dc9',
+    appId: '1:1082356934892:android:fdcf1c7d5871a765299dc9',
     messagingSenderId: '1082356934892',
     projectId: 'volleystatsapp-be835',
     storageBucket: 'volleystatsapp-be835.firebasestorage.app',

@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../../models/volley_match.dart';
 import '../../services/match_export_service.dart';
+import '../../services/paywall_launcher.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
+import '../../state/subscription_controller.dart';
 import '../../utils/id_gen.dart';
 import '../../utils/theme.dart';
 import '../../widgets/theme_toggle_switch.dart';
@@ -48,11 +50,14 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
         json['id'] = generateId('match_');
       }
       final match = VolleyMatch.fromJson(json);
-      await appData.saveMatch(match);
+      final isPremium = context.read<SubscriptionController>().isPremium;
+      await appData.saveMatch(match, isPremium: isPremium);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Partido importado: ${match.ownTeamName} vs ${match.rivalTeamName}')));
       }
+    } on MatchArchiveLimitException {
+      if (mounted) await showRallyStatsPaywall(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

@@ -15,10 +15,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _registering = false;
   bool _busy = false;
+  bool _obscurePassword = true;
   String? _error;
 
   Future<void> _submit() async {
@@ -29,7 +32,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       if (_registering) {
-        await AuthService.instance.register(email: _email.text.trim(), password: _password.text);
+        await AuthService.instance.register(
+          email: _email.text.trim(),
+          password: _password.text,
+          firstName: _firstName.text.trim(),
+          lastName: _lastName.text.trim(),
+        );
       } else {
         await AuthService.instance.signIn(email: _email.text.trim(), password: _password.text);
       }
@@ -63,6 +71,68 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(text: _email.text.trim());
+    final dialogFormKey = GlobalKey<FormState>();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restablecer contraseña'),
+        content: Form(
+          key: dialogFormKey,
+          child: TextFormField(
+            controller: emailController,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+            validator: (v) => (v == null || !v.contains('@')) ? 'Ingresá un email válido' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (dialogFormKey.currentState!.validate()) {
+                Navigator.of(context).pop(emailController.text.trim());
+              }
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+    if (email == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await AuthService.instance.sendPasswordResetEmail(email);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Te enviamos un email a $email con instrucciones para restablecer tu contraseña.'),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(_friendlyResetError(e))));
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo enviar el email. Revisá tu conexión a internet.')),
+      );
+    }
+  }
+
+  String _friendlyResetError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No existe una cuenta con ese email.';
+      case 'invalid-email':
+        return 'El email no es válido.';
+      default:
+        return 'No se pudo enviar el email (${e.code}).';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,6 +162,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: Colors.grey),
                     ),
                     const SizedBox(height: 24),
+                    if (_registering) ...[
+                      TextFormField(
+                        controller: _firstName,
+                        decoration:
+                            const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder()),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Ingresá tu nombre' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _lastName,
+                        decoration:
+                            const InputDecoration(labelText: 'Apellido', border: OutlineInputBorder()),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Ingresá tu apellido' : null,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     TextFormField(
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
@@ -102,12 +190,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _password,
-                      obscureText: true,
-                      decoration:
-                          const InputDecoration(labelText: 'Contraseña', border: OutlineInputBorder()),
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                          tooltip: _obscurePassword ? 'Mostrar contraseña' : 'Ocultar contraseña',
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
                       validator: (v) =>
                           (v == null || v.length < 6) ? 'Al menos 6 caracteres' : null,
                     ),
+                    if (!_registering) ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _busy ? null : _showForgotPasswordDialog,
+                          child: const Text('¿Olvidaste tu contraseña?'),
+                        ),
+                      ),
+                    ],
                     if (_error != null) ...[
                       const SizedBox(height: 12),
                       Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),

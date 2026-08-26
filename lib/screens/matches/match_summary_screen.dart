@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/rally_event.dart';
 import '../../models/stat_line.dart';
 import '../../models/volley_match.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/stats_engine.dart';
+import '../../state/subscription_controller.dart';
 import '../../utils/theme.dart';
+import '../../widgets/premium_required_screen.dart';
 import '../../widgets/theme_toggle_switch.dart';
 
 class MatchSummaryScreen extends StatefulWidget {
@@ -45,6 +48,10 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.watch<SubscriptionController>().isPremium) {
+      return const PremiumRequiredScreen(feature: 'Estadísticas');
+    }
+
     final match = widget.match;
     final df = DateFormat('dd/MM/yyyy');
     final stats = StatsEngine.compute(match, setNumber: _selectedSet);

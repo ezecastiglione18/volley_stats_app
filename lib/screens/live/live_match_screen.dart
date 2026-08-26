@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../models/volley_match.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/match_controller.dart';
+import '../../state/subscription_controller.dart';
 import '../../state/theme_controller.dart';
 import '../../utils/theme.dart';
+import '../../widgets/premium_gate.dart';
 import '../matches/match_summary_screen.dart';
 import '../new_match/lineup_screen.dart';
 import '../whiteboard/whiteboard_screen.dart';
@@ -71,9 +73,12 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
           IconButton(
             icon: const Icon(Icons.draw_outlined),
             tooltip: 'Pizarra',
-            onPressed: () => Navigator.push(
+            onPressed: () => runIfPremium(
               context,
-              MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+              ),
             ),
           ),
           IconButton(
@@ -241,7 +246,10 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
       // MatchController.confirmSetFinished), así que no hace falta chequear
       // `set.locked` de nuevo.
       _handledEnd = true;
-      await context.read<AppDataController>().saveMatch(match);
+      await context.read<AppDataController>().saveMatch(
+            match,
+            isPremium: context.read<SubscriptionController>().isPremium,
+          );
       if (!mounted) return;
       Navigator.pushReplacement(
         context,

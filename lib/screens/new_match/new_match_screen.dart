@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/match_config.dart';
 import '../../models/team.dart';
 import '../../state/app_data_controller.dart';
+import '../../state/subscription_controller.dart';
 import '../../widgets/theme_toggle_switch.dart';
 import 'roster_screen.dart';
 
@@ -26,6 +27,17 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
   Team? _rivalTeam;
   final MatchConfig _config = MatchConfig();
   bool _configExpanded = false;
+
+  int get _maxSetsAllowed =>
+      context.read<SubscriptionController>().isPremium ? 5 : 3;
+
+  @override
+  void initState() {
+    super.initState();
+    // La versión free tiene tope de 3 sets — sin esto, un usuario free
+    // vería "5" precargado con sólo el botón de restar habilitado.
+    _config.maxSets = _maxSetsAllowed;
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -175,7 +187,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
                         value: _config.maxSets,
                         onChanged: (v) => setState(() => _config.maxSets = v),
                         min: 1,
-                        max: 7,
+                        max: _maxSetsAllowed,
                         allowedOdd: true,
                       ),
                       _NumberField(

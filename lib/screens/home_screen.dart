@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../services/auth_service.dart';
+import '../widgets/premium_gate.dart';
+import '../widgets/sign_out_confirmation.dart';
 import '../widgets/theme_toggle_switch.dart';
 import 'matches/match_archive_screen.dart';
 import 'new_match/new_match_screen.dart';
+import 'subscription/subscription_screen.dart';
 import 'teams/team_list_screen.dart';
 import 'whiteboard/whiteboard_screen.dart';
 
@@ -19,7 +21,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
-            onPressed: () => AuthService.instance.signOut(),
+            onPressed: () => confirmAndSignOut(context),
           ),
           const ThemeToggleSwitch(),
         ],
@@ -59,9 +61,12 @@ class HomeScreen extends StatelessWidget {
               _HomeButton(
                 icon: Icons.draw_outlined,
                 label: 'Pizarra',
-                onTap: () => Navigator.push(
+                onTap: () => runIfPremium(
                   context,
-                  MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const WhiteboardScreen()),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -71,6 +76,15 @@ class HomeScreen extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const TeamListScreen()),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _HomeButton(
+                icon: Icons.workspace_premium_outlined,
+                label: 'Mi suscripción',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                 ),
               ),
             ],
