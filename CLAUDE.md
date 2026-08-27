@@ -24,6 +24,7 @@ flutter analyze              # linter/analizador estático (usa analysis_options
 flutter test                 # correr todos los tests (test/widget_test.dart)
 flutter test --plain-name "nombre del test"   # correr un solo testWidgets por su descripción
 flutter build apk --release      # generar el APK de Android (build/app/outputs/flutter-apk/)
+flutter build appbundle --release  # generar el .aab para subir a Play Console (build/app/outputs/bundle/release/)
 flutter build windows --release  # generar el ejecutable de Windows (build/windows/x64/runner/Release/)
 dart run tool/generate_manual.dart   # regenerar manual_usuario_rallystats.pdf
 & "C:\Users\Usuario\AppData\Local\Programs\Inno Setup 6\ISCC.exe" installer\rallystats.iss   # instalador wizard de Windows (requiere el build de Release ya hecho)
@@ -204,3 +205,13 @@ no volver a perder tiempo re-diagnosticándolos si algo los pisa (una reinstalac
   por esto, es un conflicto real entre plugins que hay que resolver eligiendo versiones compatibles entre
   sí, no alternar el flag a ciegas. Revertir a `true` cuando RevenueCat publique una versión con Built-in
   Kotlin (hay un comentario en el propio archivo con este recordatorio).
+- **Keystore de release para Play Console** (`android/app/upload-keystore.jks` + `android/key.properties`,
+  generada el 26/08/2026): sin esto, `flutter build appbundle`/`apk --release` quedan firmados con la
+  clave de debug (el placeholder que trae el template de Flutter en `android/app/build.gradle.kts`), y
+  Play Console rechaza subir un `.aab` firmado así. Ambos archivos están excluidos por
+  `android/.gitignore` (`key.properties`, `**/*.jks`) — no viven en el repo ni la contraseña está acá:
+  sólo en `key.properties`, que hay que respaldar aparte (fuera del repo) porque si se pierde, recuperar
+  la "upload key" implica un trámite con soporte de Google Play (Play App Signing conserva la clave real
+  de firma del lado de Google, así que no es una pérdida total, pero sí una demora evitable). El
+  `signingConfig` de `buildTypes.release` en `android/app/build.gradle.kts` cae solo a la clave de debug
+  si no encuentra `key.properties` (para no romper el build en otra máquina que no la tenga).
