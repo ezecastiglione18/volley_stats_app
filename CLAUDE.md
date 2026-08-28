@@ -11,9 +11,9 @@ táctica para dibujar formaciones/jugadas, y es offline para todos los datos de 
 partidos, jugadas de pizarra: todo se persiste localmente en Hive, sin backend). Dos excepciones dependen
 de un backend: el inicio de sesión (Firebase, ver más abajo), para controlar que una cuenta no se use en
 más de un dispositivo a la vez, y en Android la suscripción premium mensual (Google Play Billing vía
-RevenueCat, ver Arquitectura), que limita ciertas funciones en la versión gratuita; la versión de Windows
-queda fuera de este segundo esquema por ahora, sin restricciones. Se distribuye como APK (Android, solo
-orientación vertical) y como ejecutable de escritorio para Windows.
+RevenueCat, ver Arquitectura), que limita ciertas funciones en la versión gratuita. Se distribuye y
+comercializa como APK para Android (celular o tablet, solo orientación vertical); el código también
+incluye una versión de escritorio para Windows, pero por el momento no se está comercializando.
 
 ## Comandos
 

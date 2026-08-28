@@ -570,9 +570,8 @@ List<pw.Widget> _section1Introduccion() => [
         [_t('Dibujar y guardar jugadas en una pizarra táctica, con su propio archivo (sección 4).')],
       ]),
       _p(
-        'Además del celular o la tablet (Android), RallyStats también tiene una versión de escritorio '
-        'para Windows, con las mismas funciones (ver sección 18 para los requisitos). En el celular, la app '
-        'se usa siempre en posición vertical (no rota a horizontal).',
+        'RallyStats se usa en el celular o la tablet (Android), siempre en posición vertical (no rota a '
+        'horizontal).',
       ),
       _infoBox(
         'Nota: los equipos, jugadores, partidos y jugadas de pizarra se guardan únicamente en el '
@@ -670,7 +669,7 @@ List<pw.Widget> _section4Pizarra() => [
       ]),
       _p('Dentro de la pizarra:', bottom: 6),
       _bullets([
-        [_t('Se dibuja con el dedo (o el mouse en la versión de escritorio) directamente sobre la cancha.')],
+        [_t('Se dibuja con el dedo directamente sobre la cancha.')],
         [_t('Se puede elegir el color del trazo entre cinco colores, y activar o desactivar que termine en una flecha (útil para marcar desplazamientos o direcciones de ataque).')],
         [_t('Deshacer quita el último trazo dibujado; Borrar todo limpia la cancha por completo.')],
         [
@@ -1272,9 +1271,8 @@ List<pw.Widget> _section14Archivo() => [
         'todavía estaba en curso.',
       ),
       _p(
-        'En Android se abre la hoja para compartir de siempre (WhatsApp, correo, Drive, etc.); en la '
-        'versión de Windows, en cambio, se abre un cuadro para elegir en qué carpeta de la computadora '
-        'guardar el archivo.',
+        'Se abre la hoja para compartir de siempre (WhatsApp, correo, Drive, etc.) para elegir a dónde '
+        'mandar el archivo.',
       ),
       _subHeading('14.2 Importar un partido'),
       _p(
@@ -1452,10 +1450,6 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         'estadísticas de ningún partido, ni la Pizarra, ni guardar un partido nuevo si ya hay 3 o más '
         'guardados, hasta volver a suscribirse.',
       ),
-      _p(
-        'En la versión de escritorio para Windows, por el momento, todas estas funciones están disponibles '
-        'sin ninguna restricción.',
-      ),
       _subHeading('18.2 Período de prueba gratuito de 7 días'),
       _p(
         'Al crear la cuenta (sección 2), la app no exige la suscripción premium desde el primer momento: '
@@ -1530,15 +1524,6 @@ List<pw.Widget> _section19Faq() => [
         '¿Qué versión de Android necesito para usar RallyStats?',
         'RallyStats necesita Android 7.0 (API 24) o superior. Se recomienda mantener el sistema operativo '
             'del celular o la tablet actualizado para un mejor funcionamiento.',
-      ),
-      _faqCard(
-        '¿Qué necesito para usar RallyStats en Windows (PC o notebook)?',
-        'Hace falta Windows 10 de 64 bits o superior (Windows 11 incluido); no funciona en Windows 7, 8 / '
-            '8.1 ni en versiones de 32 bits. La versión de Windows es un ejecutable (volley_stats_app.exe) '
-            'que no requiere instalación, pero viene acompañado de varios archivos .dll necesarios para que '
-            'funcione: hay que conservar todos los archivos de la carpeta juntos (no alcanza con copiar '
-            'solo el .exe a otro lado) y ejecutarlo desde ahí. Tiene las mismas funciones que la versión de '
-            'Android.',
       ),
       _faqCard(
         '¿Necesito conexión a internet para poder tomar la estadística?',
@@ -1639,9 +1624,8 @@ List<pw.Widget> _section19Faq() => [
         '¿RallyStats está disponible en iOS (iPhone/iPad)?',
         'Todavía no. El proyecto está hecho en Flutter, que sí permite compilar para iOS, pero esa parte '
             'todavía no se armó ni se probó: para hacerlo hace falta una Mac con Xcode, algo que hoy no '
-            'forma parte del flujo de trabajo del proyecto. Por ahora, RallyStats está disponible para '
-            'Android y, como versión de escritorio, para Windows (ver la pregunta anterior); para iOS y '
-            'para Mac todavía no.',
+            'forma parte del flujo de trabajo del proyecto. Por ahora, RallyStats está disponible solo '
+            'para Android.',
       ),
     ];
 

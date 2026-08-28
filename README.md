@@ -41,8 +41,7 @@ estadísticas exportable como reporte en PDF.
   hasta 3 partidos guardados y partidos al mejor de 3 sets, sin pizarra, sin estadísticas/reporte en PDF ni
   zona de destino; premium quita esos límites y permite sumar hasta 3 dispositivos adicionales. Incluye
   período de prueba de 7 días, restaurar compras y gestión/cancelación desde Google Play (ver la sección 18
-  del manual de usuario para el detalle completo). La versión de Windows queda fuera de este esquema por
-  ahora, sin restricciones.
+  del manual de usuario para el detalle completo).
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
   dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +
@@ -54,8 +53,7 @@ estadísticas exportable como reporte en PDF.
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) estable (probado con Flutter 3.47 / Dart
   ^3.3).
-- Para instalar y correr la app compilada: Android 7.0 (API 24) o superior, o Windows 10 de 64 bits o
-  superior (incluye Windows 11) para la versión de escritorio.
+- Para instalar y correr la app compilada: Android 7.0 (API 24) o superior.
 
 ## Cómo correr el proyecto
 
