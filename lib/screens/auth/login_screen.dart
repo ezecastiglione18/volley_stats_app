@@ -1,7 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../../legal/privacy_policy_text.dart';
+import '../../legal/terms_conditions_text.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/legal_document_dialog.dart';
 
 /// Pantalla de login/registro previa al resto de la app (ver
 /// `RallyStatsApp` en `main.dart`). Controla que una misma cuenta no se
@@ -22,10 +26,54 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _registering = false;
   bool _busy = false;
   bool _obscurePassword = true;
+  bool _acceptedPrivacy = false;
+  bool _acceptedTerms = false;
   String? _error;
+
+  late final TapGestureRecognizer _privacyLinkRecognizer;
+  late final TapGestureRecognizer _termsLinkRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _privacyLinkRecognizer = TapGestureRecognizer()..onTap = _openPrivacyPolicy;
+    _termsLinkRecognizer = TapGestureRecognizer()..onTap = _openTermsAndConditions;
+  }
+
+  @override
+  void dispose() {
+    _privacyLinkRecognizer.dispose();
+    _termsLinkRecognizer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final accepted = await showLegalDocumentDialog(
+      context: context,
+      title: 'Política de Privacidad',
+      subtitle: 'Vigente desde $kPrivacyPolicyEffectiveDate · Versión $kPrivacyPolicyVersion',
+      sections: privacyPolicySections,
+    );
+    if (accepted && mounted) setState(() => _acceptedPrivacy = true);
+  }
+
+  Future<void> _openTermsAndConditions() async {
+    final accepted = await showLegalDocumentDialog(
+      context: context,
+      title: 'Términos y Condiciones',
+      subtitle: 'Vigente desde $kTermsEffectiveDate · Versión $kTermsVersion',
+      sections: termsConditionsSections,
+    );
+    if (accepted && mounted) setState(() => _acceptedTerms = true);
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_registering && (!_acceptedPrivacy || !_acceptedTerms)) {
+      setState(() => _error =
+          'Tenés que aceptar la política de privacidad y los términos y condiciones para crear una cuenta.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -37,6 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _password.text,
           firstName: _firstName.text.trim(),
           lastName: _lastName.text.trim(),
+          privacyPolicyVersion: kPrivacyPolicyVersion,
+          termsVersion: kTermsVersion,
         );
       } else {
         await AuthService.instance.signIn(email: _email.text.trim(), password: _password.text);
@@ -110,7 +160,11 @@ class _LoginScreenState extends State<LoginScreen> {
       await AuthService.instance.sendPasswordResetEmail(email);
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Te enviamos un email a $email con instrucciones para restablecer tu contraseña.'),
+          content: Text(
+            'Te enviamos un email a $email con instrucciones para restablecer tu contraseña. '
+            'Si no lo ves en la bandeja de entrada, revisá también la carpeta de spam / correo no deseado.',
+          ),
+          duration: const Duration(seconds: 7),
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -203,6 +257,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (v) =>
                           (v == null || v.length < 6) ? 'Al menos 6 caracteres' : null,
                     ),
+                    if (_registering) ...[
+                      const SizedBox(height: 8),
+                      _consentRow(
+                        value: _acceptedPrivacy,
+                        onChanged: (v) => setState(() => _acceptedPrivacy = v),
+                        prefix: 'He leído y acepto la ',
+                        link: 'política de privacidad',
+                        recognizer: _privacyLinkRecognizer,
+                      ),
+                      _consentRow(
+                        value: _acceptedTerms,
+                        onChanged: (v) => setState(() => _acceptedTerms = v),
+                        prefix: 'He leído y aceptado los ',
+                        link: 'términos y condiciones',
+                        recognizer: _termsLinkRecognizer,
+                      ),
+                    ],
                     if (!_registering) ...[
                       Align(
                         alignment: Alignment.centerRight,
@@ -241,6 +312,52 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Fila de checkbox de consentimiento con un texto parcialmente
+  /// clickeable (abre el documento completo en un diálogo; "Aceptar" ahí
+  /// tilda el checkbox). El checkbox también se puede tildar/destildar
+  /// tocándolo directo, sin pasar por el diálogo.
+  Widget _consentRow({
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required String prefix,
+    required String link,
+    required TapGestureRecognizer recognizer,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: value,
+          onChanged: _busy ? null : (v) => onChanged(v ?? false),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 13),
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 13, color: scheme.onSurface),
+                children: [
+                  TextSpan(text: prefix),
+                  TextSpan(
+                    text: link,
+                    style: TextStyle(
+                      color: scheme.primary,
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    recognizer: recognizer,
+                  ),
+                  const TextSpan(text: '.'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

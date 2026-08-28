@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/delete_account_dialog.dart';
 import '../widgets/premium_gate.dart';
 import '../widgets/sign_out_confirmation.dart';
 import '../widgets/theme_toggle_switch.dart';
@@ -18,6 +19,11 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('RallyStats'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_remove_outlined),
+            tooltip: 'Eliminar cuenta',
+            onPressed: () => confirmAndDeleteAccount(context),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',

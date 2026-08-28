@@ -164,6 +164,12 @@ class MatchController extends ChangeNotifier {
   List<Player> get onCourtPlayers =>
       onCourtOwn.values.map(playerById).whereType<Player>().toList();
 
+  /// Igual que [onCourtPlayers] pero sin el líbero: el líbero no puede
+  /// rematar ni bloquear (reglas FIVB), así que no se ofrece como opción al
+  /// cargar ataque, contraataque o punto de bloqueo.
+  List<Player> get onCourtAttackersAndBlockers =>
+      onCourtPlayers.where((p) => p.position != PlayerPosition.libero).toList();
+
   /// Jugadores propios del roster que no están en cancha en este momento
   /// (candidatos para entrar en un cambio), sin contar a quienes una sanción
   /// les impide volver a jugar ahora mismo (ver [isBarredFromPlay]).
@@ -493,9 +499,19 @@ class MatchController extends ChangeNotifier {
       final s = _slotState(i);
       if (s.regularSubstituteId != null) lockedElsewhere.add(s.regularSubstituteId!);
     }
-    return benchPlayers
-        .where((p) => p.position != PlayerPosition.libero && !lockedElsewhere.contains(p.id))
-        .toList();
+    var candidates = benchPlayers
+        .where((p) => p.position != PlayerPosition.libero && !lockedElsewhere.contains(p.id));
+    // Un central solo se reemplaza por otro central que no haya sido
+    // titular en este set: un central que ya arrancó el set en otro puesto
+    // está atado a su propio suplente designado (o ya volvió a entrar por
+    // él), no puede entrar de nuevo a cubrir el puesto de un central
+    // distinto.
+    if (playerById(playerOutId)?.position == PlayerPosition.central) {
+      final startingIds = currentSet.startingOrderOwn.toSet();
+      candidates = candidates
+          .where((p) => p.position == PlayerPosition.central && !startingIds.contains(p.id));
+    }
+    return candidates.toList();
   }
 
   /// Cambio regular manual: [playerOutId] en cancha, [playerInId] en banco.

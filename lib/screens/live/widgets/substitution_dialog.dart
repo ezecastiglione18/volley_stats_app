@@ -35,54 +35,62 @@ Future<void> showSubstitutionDialog({
                 top: 16,
                 bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              // El plantel puede tener hasta 16 jugadores: sin scroll, el
+              // contenido no entra en la altura de un celular y se corta sin
+              // avisar (no hay overflow visible, solo desaparecen jugadores).
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Expanded(
-                        child: Text('Cambio de jugador',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text('Cambio de jugador',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          ),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.undo, size: 18),
+                            label: const Text('Deshacer último cambio'),
+                            onPressed: controller.canUndoLastSubstitution
+                                ? () {
+                                    controller.undoLastSubstitution();
+                                    setState(() {});
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(content: Text('Cambio deshecho')),
+                                    );
+                                  }
+                                : null,
+                          ),
+                        ],
                       ),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.undo, size: 18),
-                        label: const Text('Deshacer último cambio'),
-                        onPressed: controller.canUndoLastSubstitution
-                            ? () {
-                                controller.undoLastSubstitution();
-                                setState(() {});
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  const SnackBar(content: Text('Cambio deshecho')),
-                                );
-                              }
-                            : null,
+                      const SizedBox(height: 12),
+                      SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment(value: false, label: Text('Cambio regular')),
+                          ButtonSegment(value: true, label: Text('Cambio de líbero')),
+                        ],
+                        selected: {liberoMode},
+                        onSelectionChanged: (s) => setState(() {
+                          liberoMode = s.first;
+                          playerOutId = null;
+                        }),
                       ),
+                      const SizedBox(height: 14),
+                      if (liberoMode)
+                        _LiberoPanel(controller: controller, setState: setState)
+                      else
+                        _RegularPanel(
+                          controller: controller,
+                          playerOutId: playerOutId,
+                          onPlayerOutSelected: (id) => setState(() => playerOutId = id),
+                          setState: setState,
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Cambio regular')),
-                      ButtonSegment(value: true, label: Text('Cambio de líbero')),
-                    ],
-                    selected: {liberoMode},
-                    onSelectionChanged: (s) => setState(() {
-                      liberoMode = s.first;
-                      playerOutId = null;
-                    }),
-                  ),
-                  const SizedBox(height: 14),
-                  if (liberoMode)
-                    _LiberoPanel(controller: controller, setState: setState)
-                  else
-                    _RegularPanel(
-                      controller: controller,
-                      playerOutId: playerOutId,
-                      onPlayerOutSelected: (id) => setState(() => playerOutId = id),
-                      setState: setState,
-                    ),
-                ],
+                ),
               ),
             ),
           );

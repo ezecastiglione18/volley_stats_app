@@ -37,62 +37,71 @@ Future<void> showTouchDialog({
                 top: 16,
                 bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  if (fixedPlayerId == null) ...[
-                    const Text('Jugador', style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    groupedFichaRow(
-                      players,
-                      isSelected: (p) => selected == p.id,
-                      onSelect: (p) => setState(() => selected = p.id),
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-                  if (trackZone) ...[
-                    HitZonePicker(
-                      selectedZone: selectedZone,
-                      onChanged: (z) => setState(() => selectedZone = z),
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-                  const Text('Calificación', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  GridView.count(
-                    crossAxisCount: grades.length <= 2 ? grades.length : 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.9,
-                    children: grades.map((g) {
-                      return ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: g.color,
-                          foregroundColor: Colors.white,
+              // Con planteles grandes (hasta 16 jugadores) más zona de
+              // destino y calificación, el contenido puede no entrar en la
+              // altura de un celular: sin scroll se corta sin avisar.
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      if (fixedPlayerId == null) ...[
+                        const Text('Jugador', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        groupedFichaRow(
+                          players,
+                          isSelected: (p) => selected == p.id,
+                          onSelect: (p) => setState(() => selected = p.id),
                         ),
-                        onPressed: selected == null
-                            ? null
-                            : () {
-                                Navigator.pop(ctx);
-                                onConfirm(selected!, g.code, selectedZone);
-                              },
-                        child: Text(g.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
-                      );
-                    }).toList(),
+                        const SizedBox(height: 18),
+                      ],
+                      if (trackZone) ...[
+                        HitZonePicker(
+                          selectedZone: selectedZone,
+                          onChanged: (z) => setState(() => selectedZone = z),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                      const Text('Calificación', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      GridView.count(
+                        crossAxisCount: grades.length <= 2 ? grades.length : 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 1.9,
+                        children: grades.map((g) {
+                          return ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: g.color,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: selected == null
+                                ? null
+                                : () {
+                                    Navigator.pop(ctx);
+                                    onConfirm(selected!, g.code, selectedZone);
+                                  },
+                            child: Text(g.label,
+                                textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
+                          );
+                        }).toList(),
+                      ),
+                      if (selected == null && fixedPlayerId == null)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Elegí un jugador para habilitar la calificación',
+                              style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
-                  if (selected == null && fixedPlayerId == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text('Elegí un jugador para habilitar la calificación',
-                          style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    ),
-                  const SizedBox(height: 8),
-                ],
+                ),
               ),
             ),
           );

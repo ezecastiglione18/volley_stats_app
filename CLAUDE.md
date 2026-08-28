@@ -145,21 +145,26 @@ seguir este orden. No todos los pasos aplican siempre — evaluar cada uno:
 2. **Verificar que compila**: `flutter analyze` sin errores nuevos.
 3. **Generar el APK**: `flutter build apk --release`. Ver la sección de abajo si falla con
    `Gradle task assembleRelease failed` sin más detalle.
-4. **Generar el ejecutable de Windows**: `flutter build windows --release`. Queda en
+4. **Generar el .aab (Android App Bundle) para Play Console**: `flutter build appbundle --release`.
+   Queda en `build\app\outputs\bundle\release\app-release.aab`. Es el archivo que hay que subir a Play
+   Console (pruebas cerradas o producción) — Play Console ya no acepta `.apk` para esos canales, así que
+   este paso no es opcional a partir de este release; el `.apk` del paso 3 sigue sirviendo aparte para
+   instalar directo en un dispositivo sin pasar por Play.
+5. **Generar el ejecutable de Windows**: `flutter build windows --release`. Queda en
    `build\windows\x64\runner\Release\` (el `.exe` + varios `.dll` + la carpeta `data\`; hay que
    compartir la carpeta entera, no el `.exe` suelto).
-5. **Borrar el .zip anterior del escritorio si ya existe**: antes de armar uno nuevo, revisar si
+6. **Borrar el .zip anterior del escritorio si ya existe**: antes de armar uno nuevo, revisar si
    `C:\Users\Usuario\Desktop\RallyStats-Windows.zip` existe y, en ese caso, borrarlo (para no dejar dos
    versiones distintas con el mismo nombre dando vueltas y mandar por error la vieja):
    ```powershell
    $zipPath = "C:\Users\Usuario\Desktop\RallyStats-Windows.zip"
    if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
    ```
-6. **Armar el .zip para compartir la versión de Windows, guardado en el escritorio**: comprimir toda la
+7. **Armar el .zip para compartir la versión de Windows, guardado en el escritorio**: comprimir toda la
    carpeta `build\windows\x64\runner\Release\` (copiarla a una carpeta con nombre prolijo, p. ej.
    `RallyStats-Windows`, y `Compress-Archive` sobre esa carpeta) directo a
    `C:\Users\Usuario\Desktop\RallyStats-Windows.zip`. No alcanza con zippear solo el `.exe`.
-7. **Generar el instalador de Windows (Inno Setup)**: requiere tener instalado Inno Setup 6.3+
+8. **Generar el instalador de Windows (Inno Setup)**: requiere tener instalado Inno Setup 6.3+
    (https://jrsoftware.org/isinfo.php; en esta máquina está instalado vía `winget install
    JRSoftware.InnoSetup`, que lo dejó en `C:\Users\Usuario\AppData\Local\Programs\Inno Setup 6\ISCC.exe`,
    no en Archivos de Programa — si se reinstala con el instalador oficial en vez de winget puede terminar
@@ -169,11 +174,11 @@ seguir este orden. No todos los pasos aplican siempre — evaluar cada uno:
    ```powershell
    & "C:\Users\Usuario\AppData\Local\Programs\Inno Setup 6\ISCC.exe" installer\rallystats.iss
    ```
-   Esto empaqueta `build\windows\x64\runner\Release\` (por eso el paso 4 tiene que estar hecho antes) y
+   Esto empaqueta `build\windows\x64\runner\Release\` (por eso el paso 5 tiene que estar hecho antes) y
    genera `installer\Output\RallyStats-Setup-<version>.exe`: un wizard de instalación autocontenido (no
    necesita el `.zip` ni la carpeta `Release` para funcionar en la máquina de destino). Copiar ese
    instalador al escritorio o subirlo como asset de un GitHub Release para compartirlo — es la vía
-   recomendada para el usuario final; el `.zip` del paso 6 sigue sirviendo como alternativa portátil sin
+   recomendada para el usuario final; el `.zip` del paso 7 sigue sirviendo como alternativa portátil sin
    instalación.
 
 ## Particularidades del entorno de build en esta máquina (Windows)

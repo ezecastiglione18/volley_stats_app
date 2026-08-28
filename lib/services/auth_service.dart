@@ -92,19 +92,33 @@ class AuthService {
   /// como el mapa `devices` empieza vacío, siempre entra sin conflicto).
   /// [firstName]/[lastName] se guardan en el mismo documento de
   /// `account_devices` (no en una colección aparte, para no necesitar una
-  /// regla de seguridad nueva en Firestore).
+  /// regla de seguridad nueva en Firestore). [privacyPolicyVersion]/
+  /// [termsVersion] (ver `lib/legal/`) quedan guardados como prueba de qué
+  /// versión de cada documento aceptó la cuenta al registrarse — el
+  /// checkbox correspondiente ya se validó en la pantalla de login antes de
+  /// llegar acá.
   Future<void> register({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
+    required String privacyPolicyVersion,
+    required String termsVersion,
   }) async {
     await _withPendingClaim(() async {
       final credential =
           await _auth.createUserWithEmailAndPassword(email: email, password: password);
       await _claimDeviceSlot(credential.user!.uid);
       await _devices.doc(credential.user!.uid).set(
-        {'firstName': firstName, 'lastName': lastName},
+        {
+          'firstName': firstName,
+          'lastName': lastName,
+          'consent': {
+            'privacyPolicyVersion': privacyPolicyVersion,
+            'termsVersion': termsVersion,
+            'acceptedAt': FieldValue.serverTimestamp(),
+          },
+        },
         SetOptions(merge: true),
       );
     });
@@ -226,5 +240,36 @@ class AuthService {
       return false;
     }
     return true;
+  }
+
+  /// Elimina la cuenta actual de forma permanente: el usuario de Firebase
+  /// Auth y el documento `account_devices/{uid}` (dispositivos, nombre y
+  /// consentimiento). No toca los datos locales de equipos/partidos/pizarra
+  /// en Hive: no están asociados a la cuenta (ver `StorageService`), así que
+  /// siguen disponibles en este dispositivo aunque la cuenta se borre.
+  ///
+  /// Firebase exige una sesión reciente para operaciones sensibles como
+  /// borrar el usuario, así que primero se reautentica con [password]; eso
+  /// puede lanzar `FirebaseAuthException` (`wrong-password`,
+  /// `invalid-credential`) si la contraseña no es correcta.
+  ///
+  /// El documento de Firestore se borra *antes* que el usuario de Auth (no
+  /// después): las reglas de seguridad exigen seguir autenticado como esa
+  /// cuenta para poder borrar su propio documento.
+  Future<void> deleteAccount({required String password}) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) return;
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: user.email!, password: password),
+    );
+    await _devices.doc(user.uid).delete();
+    if (isRevenueCatSupported) {
+      try {
+        await Purchases.logOut();
+      } catch (_) {
+        // Defensivo: no bloquear el borrado de cuenta si RevenueCat no responde.
+      }
+    }
+    await user.delete();
   }
 }

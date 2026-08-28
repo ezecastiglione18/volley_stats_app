@@ -64,7 +64,7 @@ class ActionGrid extends StatelessWidget {
     showTouchDialog(
       context: context,
       title: 'Ataque',
-      players: controller.onCourtPlayers,
+      players: controller.onCourtAttackersAndBlockers,
       grades: attackCounterGrades,
       trackZone: controller.currentSet.trackHitZones,
       onConfirm: (playerId, grade, zone) => controller.logAttack(playerId, grade, targetZone: zone),
@@ -75,7 +75,7 @@ class ActionGrid extends StatelessWidget {
     showTouchDialog(
       context: context,
       title: 'Contraataque',
-      players: controller.onCourtPlayers,
+      players: controller.onCourtAttackersAndBlockers,
       grades: attackCounterGrades,
       trackZone: controller.currentSet.trackHitZones,
       onConfirm: (playerId, grade, zone) => controller.logCounter(playerId, grade, targetZone: zone),
@@ -86,7 +86,7 @@ class ActionGrid extends StatelessWidget {
     showMultiPlayerDialog(
       context: context,
       title: 'Punto de bloqueo',
-      players: controller.onCourtPlayers,
+      players: controller.onCourtAttackersAndBlockers,
       onConfirm: (ids) => controller.logBlockPoint(ids),
     );
   }

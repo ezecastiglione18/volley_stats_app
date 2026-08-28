@@ -1003,7 +1003,13 @@ List<pw.Widget> _section10CambiosJugador() => [
           _t('Entre las opciones del banco, la app resalta con una estrella y un borde de color a quienes '
               'juegan la misma posición que el titular que sale, como "cambio sugerido": es solo una '
               'ayuda visual, no una restricción, se puede elegir cualquier otro jugador habilitado del '
-              'banco igual.')
+              'banco igual, con la excepción de los centrales (ver el punto siguiente).')
+        ],
+        [
+          _t('Si quien sale es un central, a diferencia del resto de los puestos la app sí restringe las '
+              'opciones de entrada: solo ofrece otros centrales del banco que no hayan sido titulares en '
+              'este set, para no romper el emparejamiento fijo de un central que ya arrancó el set en otro '
+              'puesto.')
         ],
       ]),
       _subHeading('10.2 Cambio de líbero'),
