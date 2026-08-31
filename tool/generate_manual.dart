@@ -73,7 +73,6 @@ const _pExportarPdf = 16;
 const _pGlosario = 16;
 const _pSuscripcionPremium = 18;
 const _pQueIncluyePremium = 18;
-const _pPruebaGratuita = 18;
 const _pComoSuscribirse = 18;
 const _pDispositivosAdicionales = 19;
 const _pRestaurarCompras = 19;
@@ -521,7 +520,6 @@ List<pw.Widget> _indexContent() {
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
     entry('Suscripción Premium', _pSuscripcionPremium),
     entry('Qué incluye la versión gratuita y qué es premium', _pQueIncluyePremium, sub: true),
-    entry('Período de prueba gratuito de 7 días', _pPruebaGratuita, sub: true),
     entry('Cómo suscribirse', _pComoSuscribirse, sub: true),
     entry('Dispositivos adicionales', _pDispositivosAdicionales, sub: true),
     entry('Restaurar compras', _pRestaurarCompras, sub: true),
@@ -603,7 +601,7 @@ List<pw.Widget> _section2CuentaLogin() => [
       ),
       _infoBox(
         'La cantidad de dispositivos que pueden tener la cuenta abierta a la vez depende del plan: 1 sin '
-        'la suscripción premium, hasta 4 sumando complementos de dispositivo adicional (sección 18.4). Si '
+        'la suscripción premium, hasta 4 sumando complementos de dispositivo adicional (sección 18.3). Si '
         'se intenta iniciar sesión superando ese límite, el login nuevo se rechaza con un aviso, sin '
         'afectar a los dispositivos que ya estaban adentro.',
       ),
@@ -1421,8 +1419,8 @@ List<pw.Widget> _section18SuscripcionPremium() => [
       ),
       _subHeading('18.1 Qué incluye la versión gratuita y qué es premium'),
       _p(
-        'Sin la suscripción premium activa, RallyStats se puede seguir usando (incluso durante el período '
-        'de prueba de los primeros 7 días, ver sección 18.2) con estos límites:',
+        'Sin la suscripción premium activa, RallyStats se puede seguir usando siempre, de forma gratuita '
+        'e indefinida, con estos límites:',
         bottom: 6,
       ),
       _bullets([
@@ -1441,7 +1439,7 @@ List<pw.Widget> _section18SuscripcionPremium() => [
       _p(
         'La suscripción premium desbloquea las cinco funciones de la lista de arriba (partidos y sets sin '
         'límite, pizarra, estadísticas y zona de destino) y permite además sumar dispositivos adicionales '
-        '(sección 18.4).',
+        '(sección 18.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
@@ -1450,16 +1448,7 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         'estadísticas de ningún partido, ni la Pizarra, ni guardar un partido nuevo si ya hay 3 o más '
         'guardados, hasta volver a suscribirse.',
       ),
-      _subHeading('18.2 Período de prueba gratuito de 7 días'),
-      _p(
-        'Al crear la cuenta (sección 2), la app no exige la suscripción premium desde el primer momento: '
-        'durante los primeros 7 días funciona igual que la versión gratuita (con los mismos límites de la '
-        'sección 18.1), pero sin llegar a bloquear el acceso a la aplicación por completo. Pasados esos 7 '
-        'días, si la cuenta todavía no tiene la suscripción activa, ahí sí la app se bloquea por completo '
-        '(pantalla "Tu período de prueba terminó") hasta suscribirse o restaurar una compra ya existente '
-        '(sección 18.5).',
-      ),
-      _subHeading('18.3 Cómo suscribirse'),
+      _subHeading('18.2 Cómo suscribirse'),
       _numbered([
         [
           _t('Entrá a "Mi suscripción" desde la pantalla principal, o tocá cualquier función premium '
@@ -1469,24 +1458,24 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         [_t('Confirmá la compra con el método de pago configurado en tu cuenta de Google Play.')],
       ]),
       _p(
-        'La suscripción se cobra mensualmente y se renueva sola hasta que se cancele (sección 18.6); el '
+        'La suscripción se cobra mensualmente y se renueva sola hasta que se cancele (sección 18.5); el '
         'pago y la renovación los administra Google Play, no RallyStats.',
       ),
-      _subHeading('18.4 Dispositivos adicionales'),
+      _subHeading('18.3 Dispositivos adicionales'),
       _p(
         'El plan premium base habilita 1 dispositivo. Desde "Mi suscripción", con la suscripción base ya '
         'activa, se puede sumar hasta un total de 4 dispositivos (3 complementos adicionales), cada uno '
         'como una suscripción mensual aparte que se suma a la base. Se habilitan de a uno: para comprar el '
         'segundo complemento hace falta tener activo el primero, y así con el tercero.',
       ),
-      _subHeading('18.5 Restaurar compras'),
+      _subHeading('18.4 Restaurar compras'),
       _p(
         'Si reinstalaste la app, cambiaste de dispositivo o iniciaste sesión en uno nuevo y la app no '
         'reconoce automáticamente una suscripción que ya tenías activa, el botón Restaurar compras (en '
-        '"Mi suscripción", y también en la pantalla de bloqueo por período de prueba vencido) vuelve a '
-        'consultar la compra contra la cuenta de Google Play y la aplica sin tener que pagar de nuevo.',
+        '"Mi suscripción") vuelve a consultar la compra contra la cuenta de Google Play y la aplica sin '
+        'tener que pagar de nuevo.',
       ),
-      _subHeading('18.6 Gestionar o cancelar la suscripción'),
+      _subHeading('18.5 Gestionar o cancelar la suscripción'),
       _p(
         'Con la suscripción activa, "Mi suscripción" muestra el botón Gestionar o cancelar suscripción, que '
         'abre la pantalla de Google Play donde se puede cancelar la renovación automática o cambiar el '
@@ -1536,7 +1525,7 @@ List<pw.Widget> _section19Faq() => [
       _faqCard(
         '¿Puedo usar la misma cuenta en dos dispositivos a la vez?',
         'Depende del plan (sección 2): sin premium, en 1 solo; con premium y complementos de dispositivo '
-            'adicional (sección 18.4), hasta en 4 a la vez. Al superar ese límite, el login nuevo se '
+            'adicional (sección 18.3), hasta en 4 a la vez. Al superar ese límite, el login nuevo se '
             'rechaza; hay que cerrar sesión en alguno de los otros, o sumar un complemento, para entrar.',
       ),
       _faqCard(

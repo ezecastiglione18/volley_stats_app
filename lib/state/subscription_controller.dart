@@ -6,29 +6,17 @@ import '../services/storage_service.dart';
 import '../services/subscription_tiers.dart';
 import '../utils/platform_support.dart';
 
-/// Estado de la suscripción premium de la cuenta logueada: si está activa,
-/// cuántos dispositivos habilita, y si la cuenta todavía está dentro del
-/// período de prueba gratuito de 7 días.
+/// Estado de la suscripción premium de la cuenta logueada: si está activa y
+/// cuántos dispositivos habilita.
 ///
-/// Dos ejes independientes: [isPremium] controla las restricciones de
-/// funcionalidad siempre (haya o no trial); el trial sólo pospone el bloqueo
-/// total de la app mientras no hay premium — nunca desbloquea funciones
-/// premium por sí solo.
+/// [isPremium] es el único eje: sin ella, la app sigue siendo usable siempre
+/// con las restricciones puntuales de la versión gratuita (pizarra,
+/// estadísticas, zona de destino, tope de partidos/sets) — no hay un bloqueo
+/// total de la app en ningún caso.
 class SubscriptionController extends ChangeNotifier {
-  static const _trialDuration = Duration(days: 7);
-
   bool isLoading = true;
   bool isPremium = false;
   int deviceLimit = 1;
-  DateTime? _trialDeadline;
-
-  bool get isTrialActive =>
-      !isPremium && _trialDeadline != null && DateTime.now().isBefore(_trialDeadline!);
-
-  /// Sin premium y con el trial ya vencido: bloquea toda la app. Mientras
-  /// [isLoading] sea true todavía no hay veredicto — nunca se considera
-  /// bloqueado antes de tener una respuesta (cacheada o fresca).
-  bool get isBlocked => !isLoading && !isPremium && !isTrialActive;
 
   /// Sólo lee la última caché guardada en Hive (rápido, sin red), para no
   /// frenar el arranque de la app con una llamada de red a RevenueCat. Se
@@ -40,7 +28,6 @@ class SubscriptionController extends ChangeNotifier {
       isPremium = cache['isPremium'] as bool? ?? false;
       deviceLimit = cache['deviceLimit'] as int? ?? 1;
     }
-    _trialDeadline = _computeTrialDeadline();
   }
 
   /// La consulta real contra RevenueCat. Se llama al iniciar sesión, al
@@ -76,7 +63,6 @@ class SubscriptionController extends ChangeNotifier {
       // aplica de inmediato, sin período de gracia propio.
     }
 
-    _trialDeadline = _computeTrialDeadline();
     isLoading = false;
     notifyListeners();
   }
@@ -98,8 +84,4 @@ class SubscriptionController extends ChangeNotifier {
     });
   }
 
-  DateTime? _computeTrialDeadline() {
-    final creationTime = AuthService.instance.currentUser?.metadata.creationTime;
-    return creationTime?.add(_trialDuration);
-  }
 }

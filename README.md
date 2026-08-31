@@ -39,9 +39,9 @@ estadísticas exportable como reporte en PDF.
 - Modo claro y modo oscuro.
 - Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
   hasta 3 partidos guardados y partidos al mejor de 3 sets, sin pizarra, sin estadísticas/reporte en PDF ni
-  zona de destino; premium quita esos límites y permite sumar hasta 3 dispositivos adicionales. Incluye
-  período de prueba de 7 días, restaurar compras y gestión/cancelación desde Google Play (ver la sección 18
-  del manual de usuario para el detalle completo).
+  zona de destino, y se puede seguir usando así de forma indefinida sin suscribirse; premium quita esos
+  límites y permite sumar hasta 3 dispositivos adicionales. Incluye restaurar compras y gestión/cancelación
+  desde Google Play (ver la sección 18 del manual de usuario para el detalle completo).
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
   dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +

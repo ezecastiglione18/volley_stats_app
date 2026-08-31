@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/paywall_launcher.dart';
 
 /// Pantalla de reemplazo para cuando se navega a una función premium sin
-/// serlo (estadísticas, pizarra) — con AppBar/back, a diferencia de
-/// `SubscriptionBlockedScreen` (que reemplaza toda la app).
+/// serlo (estadísticas, pizarra).
 class PremiumRequiredScreen extends StatelessWidget {
   final String feature;
 

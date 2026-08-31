@@ -4,9 +4,8 @@ import '../services/purchase_service.dart';
 import '../utils/platform_support.dart';
 
 /// Botón de texto "Restaurar compras" — RevenueCat en Play Store, no hace
-/// nada en Windows (ver `isRevenueCatSupported`). Pensado para las pantallas
-/// donde alguien puede llegar sin que la app reconozca todavía su
-/// suscripción activa: `SubscriptionScreen` y `SubscriptionBlockedScreen`.
+/// nada en Windows (ver `isRevenueCatSupported`). Pensado para `SubscriptionScreen`,
+/// donde alguien puede llegar sin que la app reconozca todavía su suscripción activa.
 class RestorePurchasesButton extends StatefulWidget {
   const RestorePurchasesButton({super.key});
 

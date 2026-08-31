@@ -9,7 +9,6 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'firebase_options.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/subscription/subscription_blocked_screen.dart';
 import 'services/auth_service.dart';
 import 'state/app_data_controller.dart';
 import 'state/subscription_controller.dart';
@@ -177,8 +176,10 @@ class _AuthGateState extends State<_AuthGate> with WidgetsBindingObserver {
 }
 
 /// Revalida la suscripción al entrar (cubre arranque + login recién hecho)
-/// y muestra [SubscriptionBlockedScreen] en vez de [HomeScreen] si la
-/// cuenta no es premium y ya venció el trial de 7 días.
+/// contra RevenueCat antes de mostrar [HomeScreen], para que las
+/// restricciones puntuales de la versión gratuita (pizarra, estadísticas,
+/// zona de destino, tope de partidos/sets) usen un [isPremium] fresco y no
+/// sólo el último valor cacheado.
 class _SubscriptionGate extends StatefulWidget {
   const _SubscriptionGate();
 
@@ -198,9 +199,6 @@ class _SubscriptionGateState extends State<_SubscriptionGate> {
     final subscription = context.watch<SubscriptionController>();
     if (subscription.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    if (subscription.isBlocked) {
-      return const SubscriptionBlockedScreen();
     }
     return const HomeScreen();
   }

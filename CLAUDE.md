@@ -102,16 +102,15 @@ Android usa RevenueCat (`purchases_flutter`) sobre Google Play Billing; `isReven
 (`lib/utils/platform_support.dart`) lo desactiva por completo en Windows y fuerza `isPremium = true` (no
 hay Play Billing fuera de Android). `SubscriptionController` (`ChangeNotifier`) cachea `isPremium`/
 `deviceLimit` en Hive (para resolver algo sin red al abrir la app) y los revalida contra RevenueCat en
-`refresh()` (al loguearse y cada vez que la app vuelve a primer plano). Importante: el trial de 7 días
-(`isTrialActive`, contado desde el `creationTime` de la cuenta de Firebase) **no** desbloquea funciones
-premium — sólo pospone `isBlocked` (el bloqueo total de la app, `SubscriptionBlockedScreen`); las
+`refresh()` (al loguearse y cada vez que la app vuelve a primer plano). No hay bloqueo total de la app en
+ningún caso: sin `isPremium`, la app se puede seguir usando de forma gratuita e indefinida; las
 restricciones puntuales (pizarra, estadísticas, zona de destino, tope de 3 partidos en el archivo, tope de
 3 sets) se resuelven todas contra `isPremium` directamente, cada una en su propia pantalla/callback — no
 hay un único gate central para esto (a diferencia del login). El plan base habilita 1 dispositivo; hasta 3
 complementos de "dispositivo adicional" (`kDeviceAddOnProductIds`, se compran de a uno y en ese orden)
-suman hasta 4. Restaurar compras y gestionar/cancelar (enlace a Play Store) están en `SubscriptionScreen`/
-`SubscriptionBlockedScreen`. Para que las compras funcionen de verdad hace falta, del lado de Play
-Console/RevenueCat, que existan los product ids de `subscription_tiers.dart` (ver README).
+suman hasta 4. Restaurar compras y gestionar/cancelar (enlace a Play Store) están en `SubscriptionScreen`.
+Para que las compras funcionen de verdad hace falta, del lado de Play Console/RevenueCat, que existan los
+product ids de `subscription_tiers.dart` (ver README).
 
 **Pizarra táctica (`lib/screens/whiteboard/`)**: cancha dibujable a mano (`WhiteboardPainter`, un
 `CustomPainter`) sobre la que se registran trazos (`PlayStroke`: color, flecha opcional, puntos
