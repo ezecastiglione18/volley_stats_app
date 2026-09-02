@@ -34,8 +34,9 @@ estadísticas exportable como reporte en PDF.
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
 - Pizarra táctica: cancha dibujable a mano (formaciones, rotaciones, sistemas de ataque/defensa), con
-  colores, modo flecha y archivo propio de jugadas guardadas, accesible desde la pantalla principal, la
-  formación previa al set y la carga en vivo.
+  colores, modo flecha, fichines arrastrables para representar jugadores por puesto (armador, punta/
+  receptor, central, opuesto, líbero) y archivo propio de jugadas guardadas, accesible desde la pantalla
+  principal, la formación previa al set y la carga en vivo.
 - Modo claro y modo oscuro.
 - Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
   hasta 3 partidos guardados y partidos al mejor de 3 sets, sin pizarra, sin estadísticas/reporte en PDF ni

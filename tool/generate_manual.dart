@@ -669,7 +669,14 @@ List<pw.Widget> _section4Pizarra() => [
       _bullets([
         [_t('Se dibuja con el dedo directamente sobre la cancha.')],
         [_t('Se puede elegir el color del trazo entre cinco colores, y activar o desactivar que termine en una flecha (útil para marcar desplazamientos o direcciones de ataque).')],
-        [_t('Deshacer quita el último trazo dibujado; Borrar todo limpia la cancha por completo.')],
+        [
+          _t('Fichines: además de trazos, se pueden ubicar sobre la cancha fichines que representan '
+              'jugadores. Hay uno por cada puesto de una formación titular: A (armador), dos P (punta/'
+              'receptor), dos C (central), O (opuesto) y L (líbero). Se arrastran desde la bandeja hasta la '
+              'cancha; una vez ubicados se pueden arrastrar de nuevo para reubicarlos, o tocarlos para '
+              'sacarlos (vuelven a la bandeja).')
+        ],
+        [_t('Deshacer quita el último trazo dibujado; Borrar todo limpia la cancha por completo (trazos y fichines).')],
         [
           _t('Guardar pide un nombre y agrega la jugada al archivo de jugadas, igual que un partido se '
               'guarda en el archivo de partidos (sección 14): queda disponible para abrirla de nuevo más '
@@ -702,8 +709,9 @@ List<pw.Widget> _section5GestionEquipos() => [
         [_b('En la pantalla "Equipos", tocá el botón '), _b('+ Nuevo equipo'), _t('.')],
         [_t('Escribí el nombre del equipo o club.')],
         [
-          _t('Opcionalmente, completá los datos del cuerpo técnico: Entrenador, Asistente de entrenador, '
-              'Auxiliar, Médico y Preparador físico.')
+          _t('Opcionalmente, tocá la tarjeta "Cuerpo técnico" para completar en una ventana aparte los datos '
+              'de Entrenador, Asistente de entrenador, Auxiliar, Médico y Preparador físico; la tarjeta '
+              'muestra un resumen de lo cargado sin ocupar espacio fijo en la pantalla.')
         ],
         [_t('El equipo se guarda automáticamente a medida que se completan los datos (no hace falta un botón "Guardar" aparte para el nombre ni para el cuerpo técnico).')],
       ]),

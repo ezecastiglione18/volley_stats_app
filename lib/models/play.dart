@@ -32,6 +32,54 @@ class PlayStroke {
   }
 }
 
+/// Un fichín (marcador de jugador) apoyado sobre la cancha de la pizarra:
+/// representa un puesto (A/P/C/O/L) en una posición normalizada (0.0–1.0)
+/// para independizarse del tamaño de pantalla, igual que [PlayStroke].
+/// [tokenId] identifica cuál de los fichines fijos del set (ver
+/// `_kTokenCatalog` en `WhiteboardScreen`) es, para poder devolverlo a la
+/// bandeja de disponibles al borrarlo de la cancha.
+class PlacedToken {
+  final String tokenId;
+  final String label;
+  final int colorValue;
+  final double x;
+  final double y;
+
+  const PlacedToken({
+    required this.tokenId,
+    required this.label,
+    required this.colorValue,
+    required this.x,
+    required this.y,
+  });
+
+  PlacedToken copyWith({double? x, double? y}) => PlacedToken(
+        tokenId: tokenId,
+        label: label,
+        colorValue: colorValue,
+        x: x ?? this.x,
+        y: y ?? this.y,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'tokenId': tokenId,
+        'label': label,
+        'colorValue': colorValue,
+        'x': x,
+        'y': y,
+      };
+
+  factory PlacedToken.fromJson(Map<dynamic, dynamic> json) {
+    return PlacedToken(
+      tokenId: json['tokenId'] as String,
+      label: json['label'] as String,
+      colorValue: json['colorValue'] as int,
+      x: (json['x'] as num).toDouble(),
+      y: (json['y'] as num).toDouble(),
+    );
+  }
+}
+
 /// Una jugada guardada en la pizarra táctica: un dibujo sobre la cancha
 /// (formaciones, movimientos, sistemas de ataque/defensa) con nombre y
 /// fecha, persistido igual que los partidos (ver [StorageService]).
@@ -40,20 +88,23 @@ class Play {
   final String name;
   final DateTime date;
   final List<PlayStroke> strokes;
+  final List<PlacedToken> tokens;
 
   const Play({
     required this.id,
     required this.name,
     required this.date,
     required this.strokes,
+    this.tokens = const [],
   });
 
-  Play copyWith({String? name, List<PlayStroke>? strokes}) {
+  Play copyWith({String? name, List<PlayStroke>? strokes, List<PlacedToken>? tokens}) {
     return Play(
       id: id,
       name: name ?? this.name,
       date: date,
       strokes: strokes ?? this.strokes,
+      tokens: tokens ?? this.tokens,
     );
   }
 
@@ -62,6 +113,7 @@ class Play {
         'name': name,
         'date': date.toIso8601String(),
         'strokes': strokes.map((s) => s.toJson()).toList(),
+        'tokens': tokens.map((t) => t.toJson()).toList(),
       };
 
   factory Play.fromJson(Map<dynamic, dynamic> json) {
@@ -72,6 +124,11 @@ class Play {
       strokes: (json['strokes'] as List)
           .map((s) => PlayStroke.fromJson(Map<dynamic, dynamic>.from(s as Map)))
           .toList(),
+      // Jugadas guardadas antes de agregar los fichines no tienen esta clave.
+      tokens: (json['tokens'] as List?)
+              ?.map((t) => PlacedToken.fromJson(Map<dynamic, dynamic>.from(t as Map)))
+              .toList() ??
+          const [],
     );
   }
 }

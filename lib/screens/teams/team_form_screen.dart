@@ -100,6 +100,95 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
     await _save(showSnack: false);
   }
 
+  /// Resumen de una línea del cuerpo técnico cargado, para mostrar en la
+  /// fila colapsada sin ocupar el espacio de los 5 campos.
+  String get _staffSummary {
+    final entries = <String>[];
+    void add(String label, String value) {
+      final v = value.trim();
+      if (v.isNotEmpty) entries.add('$label: $v');
+    }
+
+    add('Entrenador', _headCoachCtrl.text);
+    add('Asistente', _assistantCoachCtrl.text);
+    add('Auxiliar', _auxiliaryCtrl.text);
+    add('Médico', _doctorCtrl.text);
+    add('Prep. físico', _physicalTrainerCtrl.text);
+    return entries.isEmpty ? 'Sin cargar' : entries.join(' · ');
+  }
+
+  /// Abre los 5 campos del cuerpo técnico en una hoja modal en vez de
+  /// mostrarlos siempre fijos en la pantalla principal.
+  Future<void> _editStaff() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Cuerpo técnico (opcional)',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: _headCoachCtrl,
+                    decoration: const InputDecoration(labelText: 'Entrenador'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _assistantCoachCtrl,
+                    decoration: const InputDecoration(labelText: 'Asistente de entrenador'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _auxiliaryCtrl,
+                    decoration: const InputDecoration(labelText: 'Auxiliar'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _doctorCtrl,
+                    decoration: const InputDecoration(labelText: 'Médico'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _physicalTrainerCtrl,
+                    decoration: const InputDecoration(labelText: 'Preparador físico'),
+                    onChanged: (_) => _save(showSnack: false),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    // Los TextField de la hoja modal usan los mismos controllers: refrescar
+    // acá para que el resumen colapsado muestre lo recién editado.
+    if (mounted) setState(() {});
+  }
+
   Future<void> _deleteTeam() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -133,99 +222,85 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: TextField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nombre del equipo / club'),
-                onChanged: (_) => _save(showSnack: false),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Cuerpo técnico (opcional)',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _headCoachCtrl,
-                    decoration: const InputDecoration(labelText: 'Entrenador'),
-                    onChanged: (_) => _save(showSnack: false),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _assistantCoachCtrl,
-                    decoration: const InputDecoration(labelText: 'Asistente de entrenador'),
-                    onChanged: (_) => _save(showSnack: false),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _auxiliaryCtrl,
-                    decoration: const InputDecoration(labelText: 'Auxiliar'),
-                    onChanged: (_) => _save(showSnack: false),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _doctorCtrl,
-                    decoration: const InputDecoration(labelText: 'Médico'),
-                    onChanged: (_) => _save(showSnack: false),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _physicalTrainerCtrl,
-                    decoration: const InputDecoration(labelText: 'Preparador físico'),
-                    onChanged: (_) => _save(showSnack: false),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: Row(
-                children: [
-                  Text('Jugadores (${players.length}/${Team.maxPlayers})',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: _addPlayer,
-                    icon: const Icon(Icons.person_add_alt_1),
-                    label: const Text('Agregar'),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: players.isEmpty
-                  ? const Center(
-                      child: Text('Sin jugadores todavía', style: TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: players.length,
-                      itemBuilder: (context, i) {
-                        final p = players[i];
-                        return Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage:
-                                  p.photoPath == null ? null : FileImage(File(p.photoPath!)),
-                              child: p.photoPath == null ? Text('${p.number}') : null,
-                            ),
-                            title: Text(p.fullName.isEmpty ? '(sin nombre)' : p.fullName),
-                            subtitle: Text(p.position.label),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                              onPressed: () => _deletePlayer(p),
-                            ),
-                            onTap: () => _editPlayer(p),
-                          ),
-                        );
-                      },
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: TextField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(labelText: 'Nombre del equipo / club'),
+                      onChanged: (_) => _save(showSnack: false),
                     ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(Icons.groups_outlined),
+                        title: const Text('Cuerpo técnico (opcional)'),
+                        subtitle: Text(_staffSummary, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        trailing: const Icon(Icons.edit_outlined),
+                        onTap: _editStaff,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: Row(
+                      children: [
+                        Text('Jugadores (${players.length}/${Team.maxPlayers})',
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _addPlayer,
+                          icon: const Icon(Icons.person_add_alt_1),
+                          label: const Text('Agregar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+            if (players.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Text('Sin jugadores todavía', style: TextStyle(color: Colors.grey)),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) {
+                      final p = players[i];
+                      return Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage:
+                                p.photoPath == null ? null : FileImage(File(p.photoPath!)),
+                            child: p.photoPath == null ? Text('${p.number}') : null,
+                          ),
+                          title: Text(p.fullName.isEmpty ? '(sin nombre)' : p.fullName),
+                          subtitle: Text(p.position.label),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                            onPressed: () => _deletePlayer(p),
+                          ),
+                          onTap: () => _editPlayer(p),
+                        ),
+                      );
+                    },
+                    childCount: players.length,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
