@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'storage_service.dart';
@@ -56,6 +57,27 @@ class AuthService {
   /// orden real en que el plugin dispare el `Future` del login y el evento
   /// del stream.
   Future<void>? _pendingClaim;
+
+  /// Mensaje del último `DeviceConflictException` que forzó un `signOut()`
+  /// dentro de [_withPendingClaim], para que sobreviva a la carrera con
+  /// `authStateChanges`: el sign-in de Firebase Auth se completa (dispara el
+  /// stream con el usuario) *antes* de que el reclamo del lugar de
+  /// dispositivo termine de fallar acá, así que `_AuthGate` ya reemplazó
+  /// (desmontó) el `LoginScreen` que originó el intento por el momento en
+  /// que este `catch` se resuelve — un `setState` ahí se perdería en
+  /// silencio. `LoginScreen` (la instancia nueva que aparece tras el
+  /// `signOut` forzado) lo lee en `initState` y lo limpia.
+  final ValueNotifier<String?> lastLoginError = ValueNotifier<String?>(null);
+
+  /// Suscripción en vivo a `account_devices/{uid}` mientras hay sesión en
+  /// este dispositivo (ver [_watchDeviceSlot]): permite detectar, sin
+  /// esperar al próximo arranque, que la cuenta se borró desde otro
+  /// dispositivo o que este dispositivo perdió su lugar, y cerrar la sesión
+  /// local al toque. [_watchedUid] evita reabrirla si ya está escuchando
+  /// al mismo uid (p. ej. `_claimDeviceSlot` y `revalidateThisDevice`
+  /// pueden llamarla para el mismo login).
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _deviceDocSub;
+  String? _watchedUid;
 
   /// Colección con un documento por usuario (id = uid de Firebase Auth),
   /// con el mapa `devices` de los dispositivos que tienen la sesión activa
@@ -134,7 +156,8 @@ class AuthService {
     _pendingClaim = completer.future;
     try {
       await action();
-    } on DeviceConflictException {
+    } on DeviceConflictException catch (e) {
+      lastLoginError.value = e.toString();
       await _auth.signOut();
       rethrow;
     } finally {
@@ -176,6 +199,55 @@ class AuthService {
         },
       );
     });
+    _watchDeviceSlot(uid);
+  }
+
+  /// Empieza (o reutiliza) una escucha en vivo de `account_devices/{uid}`
+  /// para este login: si el documento desaparece (cuenta eliminada desde
+  /// otro dispositivo) o el mapa `devices` deja de incluir a
+  /// [_thisDeviceId] (este dispositivo perdió su lugar), cierra la sesión
+  /// local de inmediato, sin esperar a que la app se reabra. Se arranca
+  /// tanto después de reclamar el lugar ([_claimDeviceSlot], login/registro
+  /// nuevo) como después de revalidarlo ([revalidateThisDevice], sesión ya
+  /// persistida al abrir la app), para cubrir ambos puntos de entrada.
+  void _watchDeviceSlot(String uid) {
+    if (_watchedUid == uid && _deviceDocSub != null) return;
+    _stopWatchingDeviceSlot();
+    _watchedUid = uid;
+    _deviceDocSub = _devices.doc(uid).snapshots().listen((snap) {
+      if (!snap.exists) {
+        _forceSignOutLocally();
+        return;
+      }
+      final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
+      if (!devices.containsKey(_thisDeviceId)) {
+        _forceSignOutLocally();
+      }
+    });
+  }
+
+  void _stopWatchingDeviceSlot() {
+    _deviceDocSub?.cancel();
+    _deviceDocSub = null;
+    _watchedUid = null;
+  }
+
+  /// Cierra la sesión local (Firebase Auth + RevenueCat) sin tocar el
+  /// documento de Firestore: usado cuando ya no tiene sentido tocarlo,
+  /// porque o bien se borró entero (cuenta eliminada desde otro
+  /// dispositivo) o bien este dispositivo ya no figura ahí (lo sacó otro
+  /// login). Idempotente: no falla si ya no hay sesión activa.
+  Future<void> _forceSignOutLocally() async {
+    _stopWatchingDeviceSlot();
+    if (_auth.currentUser == null) return;
+    if (isRevenueCatSupported) {
+      try {
+        await Purchases.logOut();
+      } catch (_) {
+        // Defensivo: no bloquear el signOut si RevenueCat no responde.
+      }
+    }
+    await _auth.signOut();
   }
 
   /// Cantidad de dispositivos que permite el plan activo de esta cuenta.
@@ -194,6 +266,10 @@ class AuthService {
   /// Libera el dispositivo (para que otro pueda loguearse con esta cuenta)
   /// y cierra la sesión local.
   Future<void> signOut() async {
+    // Se corta la escucha antes de tocar el documento: si no, el propio
+    // listener de este dispositivo reacciona a que se saca a sí mismo del
+    // mapa y dispara un `_forceSignOutLocally` innecesario en paralelo.
+    _stopWatchingDeviceSlot();
     final uid = _auth.currentUser?.uid;
     if (uid != null) {
       await _devices.doc(uid).update({'devices.$_thisDeviceId': FieldValue.delete()});
@@ -218,10 +294,12 @@ class AuthService {
   }
 
   /// Revalida que este dispositivo siga teniendo un lugar reservado (por
-  /// si se liberó desde otro lado mientras esta app estaba abierta). Si ya
-  /// no está, cierra la sesión local sin tocar el documento (no es "este"
-  /// dispositivo el que hay que sacar). No expulsa a nadie por un cambio
-  /// de plan que baje el límite — sólo bloquea reclamos *nuevos*.
+  /// si se liberó desde otro lado, o se borró la cuenta entera, mientras
+  /// esta app estaba cerrada). Si ya no está, cierra la sesión local sin
+  /// tocar el documento (no es "este" dispositivo el que hay que sacar). No
+  /// expulsa a nadie por un cambio de plan que baje el límite — sólo
+  /// bloquea reclamos *nuevos*. Si sigue vigente, deja además arrancada la
+  /// escucha en vivo ([_watchDeviceSlot]) para el resto de la sesión.
   Future<bool> revalidateThisDevice() async {
     final pending = _pendingClaim;
     if (pending != null) {
@@ -236,9 +314,10 @@ class AuthService {
     final snap = await _devices.doc(uid).get();
     final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
     if (!devices.containsKey(_thisDeviceId)) {
-      await _auth.signOut();
+      await _forceSignOutLocally();
       return false;
     }
+    _watchDeviceSlot(uid);
     return true;
   }
 
@@ -255,13 +334,22 @@ class AuthService {
   ///
   /// El documento de Firestore se borra *antes* que el usuario de Auth (no
   /// después): las reglas de seguridad exigen seguir autenticado como esa
-  /// cuenta para poder borrar su propio documento.
+  /// cuenta para poder borrar su propio documento. Al desaparecer ese
+  /// documento, cualquier otro dispositivo con la sesión abierta en esta
+  /// misma cuenta lo nota en el momento por su propia escucha en vivo
+  /// ([_watchDeviceSlot]) y cierra sesión ahí también, sin esperar a que se
+  /// reabra la app — no hace falta avisarles por separado desde acá.
   Future<void> deleteAccount({required String password}) async {
     final user = _auth.currentUser;
     if (user == null || user.email == null) return;
     await user.reauthenticateWithCredential(
       EmailAuthProvider.credential(email: user.email!, password: password),
     );
+    // Se corta la escucha propia antes de borrar el documento: si no, este
+    // mismo dispositivo reacciona a su propia escucha en vivo y compite con
+    // el resto de este método por cerrar la sesión de un `user` que está a
+    // punto de borrarse de todos modos.
+    _stopWatchingDeviceSlot();
     await _devices.doc(user.uid).delete();
     if (isRevenueCatSupported) {
       try {

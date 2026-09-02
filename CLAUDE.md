@@ -90,8 +90,13 @@ mismo `deviceId` no cuenta contra el límite); si ya está lleno, deshacen el lo
 `DeviceConflictException` (rechaza el login nuevo, no desloguea a los que ya estaban adentro). `signOut`
 libera sólo la entrada de este `deviceId`. `revalidateThisDevice` (llamado desde `_AuthGate` en cada
 arranque) chequea que este dispositivo siga teniendo un lugar reservado por si se liberó desde otro lado;
-no expulsa a nadie por una baja de plan, sólo bloquea reclamos *nuevos*. El gate de `main.dart`
-(`_AuthGate`) muestra `LoginScreen` mientras no haya sesión, y si Firebase no está configurado
+no expulsa a nadie por una baja de plan, sólo bloquea reclamos *nuevos*. Además de esa revalidación puntual
+al arrancar, `_watchDeviceSlot` deja una escucha en vivo (`snapshots()`) de `account_devices/{uid}` prendida
+mientras dura la sesión (arrancada tanto desde `_claimDeviceSlot` como desde `revalidateThisDevice`): si el
+documento desaparece (cuenta eliminada desde otro dispositivo, ver `deleteAccount`) o el mapa `devices` deja
+de incluir a este `deviceId`, cierra la sesión local al toque sin esperar a que se reabra la app — es lo que
+hace que borrar la cuenta desde un dispositivo cierre sesión en el resto en tiempo real. El gate de
+`main.dart` (`_AuthGate`) muestra `LoginScreen` mientras no haya sesión, y si Firebase no está configurado
 (`firebase_options.dart` con placeholders) muestra una pantalla de aviso en vez de romper el arranque.
 Setup manual requerido (crear proyecto, activar Auth/Firestore, generar `firebase_options.dart` con
 `flutterfire configure`, reglas de seguridad): ver `SETUP_FIREBASE.md`.

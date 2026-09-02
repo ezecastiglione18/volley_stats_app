@@ -38,6 +38,16 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _privacyLinkRecognizer = TapGestureRecognizer()..onTap = _openPrivacyPolicy;
     _termsLinkRecognizer = TapGestureRecognizer()..onTap = _openTermsAndConditions;
+    // Si esta pantalla es la que aparece después de un `signOut` forzado por
+    // `DeviceConflictException` (ver `AuthService.lastLoginError`), mostrar
+    // ese mensaje: la instancia de `LoginScreen` que hizo el intento ya se
+    // desmontó para cuando el conflicto se detectó, así que no pudo
+    // mostrarlo ella misma.
+    final pendingError = AuthService.instance.lastLoginError.value;
+    if (pendingError != null) {
+      _error = pendingError;
+      AuthService.instance.lastLoginError.value = null;
+    }
   }
 
   @override
@@ -94,11 +104,15 @@ class _LoginScreenState extends State<LoginScreen> {
       // Si el login/registro sale bien, `authStateChanges` en `main.dart`
       // saca esta pantalla automáticamente.
     } on DeviceConflictException catch (e) {
-      setState(() => _error = e.toString());
+      // Normalmente esta pantalla ya se desmontó para cuando este catch se
+      // ejecuta (ver `AuthService.lastLoginError`), así que este `setState`
+      // es sobre todo defensivo; el mensaje real se muestra vía
+      // `lastLoginError` en el `initState` de la próxima instancia.
+      if (mounted) setState(() => _error = e.toString());
     } on FirebaseAuthException catch (e) {
-      setState(() => _error = _friendlyAuthError(e));
+      if (mounted) setState(() => _error = _friendlyAuthError(e));
     } catch (e) {
-      setState(() => _error = 'No se pudo conectar. Revisá tu conexión a internet.\n($e)');
+      if (mounted) setState(() => _error = 'No se pudo conectar. Revisá tu conexión a internet.\n($e)');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
