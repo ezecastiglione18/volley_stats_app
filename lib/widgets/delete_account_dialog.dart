@@ -7,7 +7,8 @@ import '../services/subscription_management_launcher.dart';
 import '../state/subscription_controller.dart';
 import '../utils/platform_support.dart';
 
-/// Punto de entrada del botón "Eliminar cuenta" (home). Primero confirma
+/// Punto de entrada del botón "Eliminar cuenta" (pantalla de Configuración,
+/// ver `AccountSettingsScreen`). Primero confirma
 /// (con aviso de suscripción activa si corresponde — ver comentario más
 /// abajo) y, si el usuario sigue adelante, pide la contraseña para
 /// reautenticar y llama a `AuthService.deleteAccount`. El cierre de sesión

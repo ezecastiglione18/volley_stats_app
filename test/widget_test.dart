@@ -10,12 +10,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
-import 'package:rally_stats/main.dart';
+import 'package:rally_stats/screens/home_screen.dart';
 import 'package:rally_stats/services/storage_service.dart';
 import 'package:rally_stats/state/app_data_controller.dart';
 import 'package:rally_stats/state/subscription_controller.dart';
 import 'package:rally_stats/state/theme_controller.dart';
+import 'package:rally_stats/utils/theme.dart';
 
 void main() {
   // path_provider (usado por Hive para guardar los datos) necesita un
@@ -40,15 +42,31 @@ void main() {
     await StorageService.instance.init();
   });
 
-  // Construye la app con controladores recién creados (sin llamar a
+  // Monta HomeScreen directamente (con los mismos providers que arma
+  // RallyStatsApp en main.dart), en vez de la app completa: la app real
+  // pasa primero por el gate de login (_AuthGate), que necesita una sesión
+  // de Firebase Auth real y no se puede simular acá sin un backend de
+  // verdad. Estos tests son sobre la UI de HomeScreen en sí, no sobre el
+  // login, así que directamente se saltea el gate.
+  //
+  // Construye con controladores recién creados (sin llamar a
   // loadAll()/load()), que es exactamente el estado con el que abre un
   // usuario nuevo: sin equipos ni partidos guardados, tema claro.
   Widget buildApp(AppDataController appData, ThemeController themeController) {
-    return RallyStatsApp(
-      appData: appData,
-      themeController: themeController,
-      subscriptionController: SubscriptionController(),
-      firebaseReady: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: appData),
+        ChangeNotifierProvider.value(value: themeController),
+        ChangeNotifierProvider.value(value: SubscriptionController()),
+      ],
+      child: Consumer<ThemeController>(
+        builder: (context, theme, _) => MaterialApp(
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: theme.mode,
+          home: const HomeScreen(),
+        ),
+      ),
     );
   }
 
@@ -68,6 +86,11 @@ void main() {
     await tester.pumpWidget(buildApp(AppDataController(), ThemeController()));
     await tester.pumpAndSettle();
 
+    // El botón "Equipos" quedó más abajo en la lista de Inicio (hay un
+    // encabezado de marca arriba de todo), así que hace falta desplazarlo a
+    // la vista antes de poder tocarlo.
+    await tester.ensureVisible(find.text('Equipos'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Equipos'));
     await tester.pumpAndSettle();
 
