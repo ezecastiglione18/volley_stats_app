@@ -42,13 +42,17 @@ estadísticas exportable como reporte en PDF.
   hasta 3 partidos guardados y partidos al mejor de 3 sets, sin pizarra, sin estadísticas/reporte en PDF ni
   zona de destino, y se puede seguir usando así de forma indefinida sin suscribirse; premium quita esos
   límites y permite sumar hasta 3 dispositivos adicionales. Incluye restaurar compras y gestión/cancelación
-  desde Google Play (ver la sección 18 del manual de usuario para el detalle completo).
+  desde Google Play, y un link "Cómo cancelar sin problemas" con una guía completa sobre en qué orden dar
+  de baja los complementos (ver la sección 18 del manual de usuario para el detalle completo).
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
   dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +
   Firestore para controlar cuántos dispositivos pueden tener la cuenta abierta a la vez (1 por defecto,
   hasta 4 sumando complementos de dispositivo adicional — ver [`SETUP_FIREBASE.md`](SETUP_FIREBASE.md)),
-  así que necesita conexión a internet para validarse.
+  así que necesita conexión a internet para validarse. Si la cuenta baja de plan con más dispositivos
+  conectados de los que el nuevo límite permite, no se cierra ninguna sesión en el momento: se aplica
+  recién la próxima vez que cada dispositivo de más abre la app, empezando por el que se conectó más
+  recientemente.
 
 ## Requisitos
 

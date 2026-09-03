@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
+import '../../legal/subscription_management_text.dart';
 import '../../services/device_addon_service.dart';
 import '../../services/paywall_launcher.dart';
 import '../../services/purchase_service.dart';
 import '../../services/subscription_management_launcher.dart';
 import '../../services/subscription_tiers.dart';
 import '../../state/subscription_controller.dart';
+import '../../widgets/legal_document_dialog.dart';
 import '../../widgets/restore_purchases_button.dart';
 import '../../widgets/theme_toggle_switch.dart';
 
@@ -24,6 +26,16 @@ class SubscriptionScreen extends StatefulWidget {
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _buying = false;
+
+  Future<void> _openSubscriptionManagementGuide() {
+    return showLegalDocumentDialog(
+      context: context,
+      title: 'Cómo gestionar o cancelar tu suscripción',
+      subtitle: kSubscriptionManagementSubtitle,
+      sections: subscriptionManagementSections,
+      showAcceptButton: false,
+    );
+  }
 
   Future<void> _buyNextAddOn() async {
     setState(() => _buying = true);
@@ -62,7 +74,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: subscription.isPremium
-              ? _PremiumContent(deviceLimit: subscription.deviceLimit, buying: _buying, onBuy: _buyNextAddOn)
+              ? _PremiumContent(
+                  deviceLimit: subscription.deviceLimit,
+                  buying: _buying,
+                  onBuy: _buyNextAddOn,
+                  onOpenGuide: _openSubscriptionManagementGuide,
+                )
               : const _NotPremiumContent(),
         ),
       ),
@@ -110,8 +127,14 @@ class _PremiumContent extends StatelessWidget {
   final int deviceLimit;
   final bool buying;
   final VoidCallback onBuy;
+  final VoidCallback onOpenGuide;
 
-  const _PremiumContent({required this.deviceLimit, required this.buying, required this.onBuy});
+  const _PremiumContent({
+    required this.deviceLimit,
+    required this.buying,
+    required this.onBuy,
+    required this.onOpenGuide,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +173,13 @@ class _PremiumContent extends StatelessWidget {
           child: TextButton(
             onPressed: () => openSubscriptionManagement(context),
             child: const Text('Gestionar o cancelar suscripción'),
+          ),
+        ),
+        Center(
+          child: TextButton.icon(
+            onPressed: onOpenGuide,
+            icon: const Icon(Icons.help_outline, size: 18),
+            label: const Text('Cómo cancelar sin problemas (guía completa)'),
           ),
         ),
       ],

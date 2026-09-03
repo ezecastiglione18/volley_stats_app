@@ -141,6 +141,13 @@ class _AuthGateState extends State<_AuthGate> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       context.read<SubscriptionController>().refresh();
+      // No sólo en el arranque en frío: si este dispositivo quedó "de más"
+      // por una baja de plan mientras la app estaba en segundo plano (no
+      // cerrada del todo), esto lo detecta acá también (ver
+      // `AuthService.revalidateThisDevice`). Si termina cerrando la sesión
+      // local, `authStateChanges` lo refleja solo, sin necesidad de
+      // reaccionar a este Future acá.
+      AuthService.instance.revalidateThisDevice();
     }
   }
 

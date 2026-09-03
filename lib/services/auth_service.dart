@@ -252,14 +252,28 @@ class AuthService {
 
   /// Cantidad de dispositivos que permite el plan activo de esta cuenta.
   /// Cualquier error (offline, RevenueCat inalcanzable) o Windows cae en 1
-  /// — nunca confía en un número más alto sin poder verificarlo.
-  Future<int> _computeDeviceLimit() async {
-    if (!isRevenueCatSupported) return 1;
+  /// — nunca confía en un número más alto sin poder verificarlo. Usado para
+  /// *bloquear* un reclamo nuevo ([_claimDeviceSlot]): ahí caer a 1 por las
+  /// dudas es lo seguro.
+  Future<int> _computeDeviceLimit() async => await _computeConfirmedDeviceLimit() ?? 1;
+
+  /// Como [_computeDeviceLimit], pero devuelve `null` en vez de 1 cuando no
+  /// se puede confirmar el límite real (offline, RevenueCat inalcanzable, o
+  /// esta build no consulta RevenueCat en absoluto porque no es Android).
+  /// Se usa sólo para decidir si *autoexpulsar* un dispositivo por sobrar
+  /// respecto del límite ([_evictSelfIfOverLimit]): ahí sí importa no
+  /// actuar sobre una duda, al revés que al bloquear un login nuevo. Por
+  /// eso, a diferencia de [_computeDeviceLimit], esto NO cae a 1 en
+  /// Windows: como ese valor ahí nunca refleja los complementos reales de
+  /// la cuenta (Windows no consulta RevenueCat), usarlo para autoexpulsar
+  /// podría sacar dispositivos que en realidad sí tienen lugar.
+  Future<int?> _computeConfirmedDeviceLimit() async {
+    if (!isRevenueCatSupported) return null;
     try {
       final info = await Purchases.getCustomerInfo();
       return deviceLimitFromActiveSubscriptions(info.activeSubscriptions);
     } catch (_) {
-      return 1;
+      return null;
     }
   }
 
@@ -296,10 +310,16 @@ class AuthService {
   /// Revalida que este dispositivo siga teniendo un lugar reservado (por
   /// si se liberó desde otro lado, o se borró la cuenta entera, mientras
   /// esta app estaba cerrada). Si ya no está, cierra la sesión local sin
-  /// tocar el documento (no es "este" dispositivo el que hay que sacar). No
-  /// expulsa a nadie por un cambio de plan que baje el límite — sólo
-  /// bloquea reclamos *nuevos*. Si sigue vigente, deja además arrancada la
-  /// escucha en vivo ([_watchDeviceSlot]) para el resto de la sesión.
+  /// tocar el documento (no es "este" dispositivo el que hay que sacar).
+  /// Tampoco expulsa a nadie *en el momento* de un cambio de plan que baje
+  /// el límite —sigue sin haber ningún mecanismo instantáneo para eso—,
+  /// pero si sigue vigente, además de dejar arrancada la escucha en vivo
+  /// ([_watchDeviceSlot]) para el resto de la sesión, chequea si la cuenta
+  /// quedó con más dispositivos conectados de los que su límite actual
+  /// permite y, si a este dispositivo le toca quedar afuera, se
+  /// autoexpulsa acá mismo (ver [_evictSelfIfOverLimit]) — así el ajuste se
+  /// termina de aplicar la próxima vez que cada dispositivo sobrante abra
+  /// la app, en vez de quedar "sobregirado" para siempre.
   Future<bool> revalidateThisDevice() async {
     final pending = _pendingClaim;
     if (pending != null) {
@@ -317,8 +337,49 @@ class AuthService {
       await _forceSignOutLocally();
       return false;
     }
+    if (await _evictSelfIfOverLimit(uid, devices)) {
+      return false;
+    }
     _watchDeviceSlot(uid);
     return true;
+  }
+
+  /// Si la cuenta bajó de plan y hoy tiene más dispositivos con sesión
+  /// abierta de los que su límite actual permite, decide si a *este*
+  /// dispositivo le toca quedar afuera y, si es así, libera su lugar y
+  /// cierra la sesión local. Criterio: sobreviven los [limit] dispositivos
+  /// con `loggedInAt` más antiguo — el resto, los conectados más
+  /// recientemente, pierden el lugar primero.
+  ///
+  /// Sólo actúa cuando puede confirmar el límite real contra RevenueCat
+  /// ([_computeConfirmedDeviceLimit]): si no puede (offline, o esta build
+  /// no usa RevenueCat), no expulsa a nadie por las dudas — se vuelve a
+  /// intentar la próxima vez que este dispositivo abra la app. Es por eso
+  /// "eventual" y no instantáneo: no hay forma de enterarse en el momento
+  /// exacto en que se cancela algo en Play Store (no hay backend
+  /// escuchando webhooks de RevenueCat), así que esto sólo se termina de
+  /// aplicar cuando cada dispositivo de más vuelve a abrir la app.
+  Future<bool> _evictSelfIfOverLimit(String uid, Map<String, dynamic> devices) async {
+    final limit = await _computeConfirmedDeviceLimit();
+    if (limit == null || devices.length <= limit) return false;
+
+    final ranked = devices.entries.toList()
+      ..sort((a, b) => _loggedInAtMillis(a.value).compareTo(_loggedInAtMillis(b.value)));
+    final keptIds = ranked.take(limit).map((e) => e.key).toSet();
+    if (keptIds.contains(_thisDeviceId)) return false;
+
+    lastLoginError.value =
+        'Tu cuenta bajó la cantidad de dispositivos habilitados y este ya no entra dentro del '
+        'límite actual, así que se cerró la sesión acá. Volvé a iniciar sesión en un dispositivo '
+        'con lugar disponible, o sumá un complemento de dispositivo adicional para recuperarlo.';
+    await _devices.doc(uid).update({'devices.$_thisDeviceId': FieldValue.delete()});
+    await _forceSignOutLocally();
+    return true;
+  }
+
+  int _loggedInAtMillis(dynamic deviceEntry) {
+    final value = (deviceEntry as Map?)?['loggedInAt'];
+    return value is Timestamp ? value.millisecondsSinceEpoch : 0;
   }
 
   /// Elimina la cuenta actual de forma permanente: el usuario de Firebase

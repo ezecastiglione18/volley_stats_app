@@ -89,9 +89,20 @@ consultar, cae siempre a 1 — nunca confía en un número más alto sin poder v
 mismo `deviceId` no cuenta contra el límite); si ya está lleno, deshacen el login y lanzan
 `DeviceConflictException` (rechaza el login nuevo, no desloguea a los que ya estaban adentro). `signOut`
 libera sólo la entrada de este `deviceId`. `revalidateThisDevice` (llamado desde `_AuthGate` en cada
-arranque) chequea que este dispositivo siga teniendo un lugar reservado por si se liberó desde otro lado;
-no expulsa a nadie por una baja de plan, sólo bloquea reclamos *nuevos*. Además de esa revalidación puntual
-al arrancar, `_watchDeviceSlot` deja una escucha en vivo (`snapshots()`) de `account_devices/{uid}` prendida
+arranque, y también desde `main.dart` cada vez que la app vuelve a primer plano) chequea que este
+dispositivo siga teniendo un lugar reservado por si se liberó desde otro lado. Además, si la cuenta bajó de
+plan (se canceló un complemento) y eso dejó más dispositivos conectados de los que el límite actual
+permite, `_evictSelfIfOverLimit` decide si a *este* dispositivo le toca quedar afuera (sobreviven los
+`deviceLimit` con `loggedInAt` más antiguo; el resto, empezando por el más reciente, se autoexpulsa) y, si
+es así, libera su propio lugar y cierra la sesión local ahí mismo, mostrando el motivo en el próximo
+`LoginScreen` vía `lastLoginError`. No hay ningún mecanismo instantáneo para esto (no hay backend
+escuchando webhooks de RevenueCat): es "eventual" — recién se aplica la próxima vez que cada dispositivo de
+más abre o retoma la app — y sólo actúa cuando `_computeConfirmedDeviceLimit()` puede confirmar el límite
+real contra RevenueCat (a diferencia de `_computeDeviceLimit()`, usado para *bloquear* un reclamo nuevo,
+este otro devuelve `null` en vez de caer a 1 ante cualquier duda — incluida Windows, que nunca consulta
+RevenueCat — para no autoexpulsar a nadie con un límite que podría estar mal). Además de esa revalidación
+puntual al arrancar/volver a primer plano, `_watchDeviceSlot` deja una escucha en vivo (`snapshots()`) de
+`account_devices/{uid}` prendida
 mientras dura la sesión (arrancada tanto desde `_claimDeviceSlot` como desde `revalidateThisDevice`): si el
 documento desaparece (cuenta eliminada desde otro dispositivo, ver `deleteAccount`) o el mapa `devices` deja
 de incluir a este `deviceId`, cierra la sesión local al toque sin esperar a que se reabra la app — es lo que
@@ -113,9 +124,15 @@ restricciones puntuales (pizarra, estadísticas, zona de destino, tope de 3 part
 3 sets) se resuelven todas contra `isPremium` directamente, cada una en su propia pantalla/callback — no
 hay un único gate central para esto (a diferencia del login). El plan base habilita 1 dispositivo; hasta 3
 complementos de "dispositivo adicional" (`kDeviceAddOnProductIds`, se compran de a uno y en ese orden)
-suman hasta 4. Restaurar compras y gestionar/cancelar (enlace a Play Store) están en `SubscriptionScreen`.
-Para que las compras funcionen de verdad hace falta, del lado de Play Console/RevenueCat, que existan los
-product ids de `subscription_tiers.dart` (ver README).
+suman hasta 4; cancelarlos, en cambio, no está restringido a ningún orden desde Play Store, así que
+`SubscriptionScreen` incluye un link ("Cómo cancelar sin problemas") que abre, con el mismo
+`showLegalDocumentDialog` que la política de privacidad/términos (ahora con `showAcceptButton: false` para
+este caso puramente informativo, sin consentimiento que pedir), la guía de
+`lib/legal/subscription_management_text.dart`: explica cancelar en orden inverso al de compra para que
+`nextDeviceAddOnProductId` no termine ofreciendo un complemento que ya está activo. Restaurar compras y
+gestionar/cancelar (enlace a Play Store) están en `SubscriptionScreen`. Para que las compras funcionen de
+verdad hace falta, del lado de Play Console/RevenueCat, que existan los product ids de
+`subscription_tiers.dart` (ver README).
 
 **Pizarra táctica (`lib/screens/whiteboard/`)**: cancha dibujable a mano (`WhiteboardPainter`, un
 `CustomPainter`) sobre la que se registran trazos (`PlayStroke`: color, flecha opcional, puntos

@@ -73,11 +73,12 @@ const _pExportarPdf = 16;
 const _pGlosario = 16;
 const _pSuscripcionPremium = 18;
 const _pQueIncluyePremium = 18;
-const _pComoSuscribirse = 18;
+const _pComoSuscribirse = 19;
 const _pDispositivosAdicionales = 19;
 const _pRestaurarCompras = 19;
 const _pGestionarCancelar = 19;
-const _pFaq = 19;
+const _pDarDeBajaDispositivo = 19;
+const _pFaq = 20;
 const _pContacto = 22;
 
 Future<void> main() async {
@@ -524,6 +525,7 @@ List<pw.Widget> _indexContent() {
     entry('Dispositivos adicionales', _pDispositivosAdicionales, sub: true),
     entry('Restaurar compras', _pRestaurarCompras, sub: true),
     entry('Gestionar o cancelar la suscripción', _pGestionarCancelar, sub: true),
+    entry('Dar de baja un dispositivo adicional', _pDarDeBajaDispositivo, sub: true),
     entry('Preguntas frecuentes', _pFaq),
     entry('Contacto', _pContacto),
   ];
@@ -603,7 +605,11 @@ List<pw.Widget> _section2CuentaLogin() => [
         'La cantidad de dispositivos que pueden tener la cuenta abierta a la vez depende del plan: 1 sin '
         'la suscripción premium, hasta 4 sumando complementos de dispositivo adicional (sección 18.3). Si '
         'se intenta iniciar sesión superando ese límite, el login nuevo se rechaza con un aviso, sin '
-        'afectar a los dispositivos que ya estaban adentro.',
+        'afectar a los dispositivos que ya estaban adentro. Si en cambio la cuenta baja de plan (se '
+        'cancela un complemento, sección 18.6) y eso deja más dispositivos conectados de los que el nuevo '
+        'límite permite, no se cierra ninguna sesión en el momento: recién la próxima vez que cada '
+        'dispositivo de más abra la app se cierra sesión ahí automáticamente, empezando siempre por el que '
+        'se conectó más recientemente.',
       ),
       _p(
         'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: el '
@@ -1490,6 +1496,27 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         'medio de pago. RallyStats no tiene su propio botón de cancelación: toda suscripción de Google Play '
         'se cancela desde ahí.',
       ),
+      _subHeading('18.6 Dar de baja un dispositivo adicional'),
+      _p(
+        'Cada complemento de dispositivo adicional (sección 18.3) es una suscripción de Google Play '
+        'independiente del plan base: se cancela por separado, y hoy no hay un botón directo en "Mi '
+        'suscripción" para cancelar uno en particular. Para hacerlo, hay que ir a Play Store > foto de '
+        'perfil > Pagos y suscripciones > Suscripciones, donde el plan base y cada complemento aparecen '
+        'como líneas separadas.',
+        bottom: 6,
+      ),
+      _infoBox(
+        'Si hay más de un complemento activo y se quiere dar de baja alguno, conviene cancelar siempre el '
+        'último que se compró, nunca uno del medio dejando uno más nuevo activo. Los complementos se '
+        'habilitan en orden (primero, segundo, tercero); cancelar fuera de ese orden puede hacer que "Mi '
+        'suscripción" ofrezca para comprar un complemento que en los hechos ya está activo.',
+      ),
+      _p(
+        'El link "Cómo cancelar sin problemas" en "Mi suscripción" abre, dentro de la misma app, una guía '
+        'completa con este procedimiento paso a paso, la demora entre cancelar y que se refleje el cambio, '
+        'y qué pasa con los dispositivos que ya tenían la sesión abierta cuando la cuenta baja de plan '
+        '(sección 2).',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1534,7 +1561,9 @@ List<pw.Widget> _section19Faq() => [
         '¿Puedo usar la misma cuenta en dos dispositivos a la vez?',
         'Depende del plan (sección 2): sin premium, en 1 solo; con premium y complementos de dispositivo '
             'adicional (sección 18.3), hasta en 4 a la vez. Al superar ese límite, el login nuevo se '
-            'rechaza; hay que cerrar sesión en alguno de los otros, o sumar un complemento, para entrar.',
+            'rechaza; hay que cerrar sesión en alguno de los otros, o sumar un complemento, para entrar. Si '
+            'la cuenta baja de plan con más dispositivos ya conectados de los que el nuevo límite permite, '
+            'ver la sección 18.6.',
       ),
       _faqCard(
         '¿Qué pasa si la aplicación deja de funcionar mientras estoy anotando? ¿Pierdo el progreso?',

@@ -7,11 +7,17 @@ import '../legal/legal_section.dart';
 /// "Aceptar". Devuelve `true` solo si se tocó "Aceptar" — el llamador debe
 /// usar eso para tildar el checkbox de consentimiento correspondiente;
 /// "Cerrar" (o cerrar el diálogo tocando afuera) no cambia nada.
+///
+/// [showAcceptButton] en `false` es para documentos puramente informativos
+/// (p. ej. la guía de "Cómo gestionar tu suscripción") que no piden ningún
+/// consentimiento: deja sólo un botón "Entendido", y el valor de retorno no
+/// tiene uso para ese caso.
 Future<bool> showLegalDocumentDialog({
   required BuildContext context,
   required String title,
   required String subtitle,
   required List<LegalSection> sections,
+  bool showAcceptButton = true,
 }) async {
   final accepted = await showDialog<bool>(
     context: context,
@@ -62,13 +68,15 @@ Future<bool> showLegalDocumentDialog({
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Cerrar'),
+                    child: Text(showAcceptButton ? 'Cerrar' : 'Entendido'),
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Aceptar'),
-                  ),
+                  if (showAcceptButton) ...[
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Aceptar'),
+                    ),
+                  ],
                 ],
               ),
             ),
