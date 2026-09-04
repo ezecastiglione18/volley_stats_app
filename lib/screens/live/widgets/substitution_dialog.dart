@@ -82,11 +82,10 @@ Future<void> showSubstitutionDialog({
                       if (liberoMode)
                         _LiberoPanel(controller: controller, setState: setState)
                       else
-                        _RegularPanel(
+                        _RegularWizard(
                           controller: controller,
                           playerOutId: playerOutId,
                           onPlayerOutSelected: (id) => setState(() => playerOutId = id),
-                          setState: setState,
                         ),
                     ],
                   ),
@@ -100,27 +99,57 @@ Future<void> showSubstitutionDialog({
   );
 }
 
-class _RegularPanel extends StatelessWidget {
+/// Wizard de "cambio regular", en el mismo espíritu que el de sanciones
+/// (`sanction_dialog.dart`): paso 1 elige quién sale, paso 2 quién entra,
+/// ambos desde un desplegable en vez de una grilla de fichas (con hasta 16
+/// jugadores en el plantel, una grilla no siempre entra en el alto visible
+/// del bottom sheet). Al elegir a quién entra se pide confirmación antes de
+/// aplicar el cambio.
+class _RegularWizard extends StatefulWidget {
   final MatchController controller;
   final String? playerOutId;
   final ValueChanged<String?> onPlayerOutSelected;
-  final StateSetter setState;
 
-  const _RegularPanel({
+  const _RegularWizard({
     required this.controller,
     required this.playerOutId,
     required this.onPlayerOutSelected,
-    required this.setState,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final onCourt = controller.onCourtPlayers;
-    final playerOut = playerOutId == null ? null : controller.playerById(playerOutId!);
+  State<_RegularWizard> createState() => _RegularWizardState();
+}
 
+class _RegularWizardState extends State<_RegularWizard> {
+  int _step = 0;
+  // Cambia cada vez que se cancela una confirmación de cambio, para forzar
+  // el remonte del desplegable de "¿Quién entra?" (un DropdownButtonFormField
+  // no vuelve a leer `initialValue` solo porque el widget se reconstruya) y
+  // que vuelva a mostrarse sin selección.
+  int _inFieldGen = 0;
+
+  static const _stepTitles = ['¿Quién sale?', '¿Quién entra?'];
+
+  bool get _canAdvance => _step == 0 && widget.playerOutId != null;
+
+  void _next() => setState(() => _step = 1);
+  void _back() => setState(() => _step = 0);
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = widget.controller;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          children: [
+            const Text('Cambio regular', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text('Paso ${_step + 1} de 2', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        const SizedBox(height: 6),
         Text(
           'Cambios usados: ${controller.substitutionsUsedOwn} / '
           '${controller.match.config.hasUnlimitedSubstitutions ? 'Sin límite' : controller.match.config.maxSubstitutionsPerSet}',
@@ -132,64 +161,126 @@ class _RegularPanel extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 14),
-        const Text('¿Quién sale?', style: TextStyle(fontWeight: FontWeight.w600)),
+        Text(_stepTitles[_step], style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: onCourt.map((p) {
-            final canGo = controller.canSubOutRegular(p.id);
-            final isSel = playerOutId == p.id;
-            return ChoiceChip(
-              label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
-              selected: isSel,
-              onSelected: canGo ? (_) => onPlayerOutSelected(isSel ? null : p.id) : null,
-              backgroundColor: canGo ? null : Colors.grey.shade200,
-              labelStyle: canGo ? null : TextStyle(color: Colors.grey.shade500),
-            );
-          }).toList(),
-        ),
+        _step == 0 ? _buildOutStep(controller) : _buildInStep(controller),
         const SizedBox(height: 16),
-        const Text('¿Quién entra?', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        if (playerOut == null)
-          const Text('Elegí primero quién sale.', style: TextStyle(fontSize: 12, color: Colors.grey))
-        else
-          Builder(builder: (context) {
-            final bench = controller.eligibleRegularBenchFor(playerOut.id);
-            final blocked = !controller.canRegisterSubstitution;
-            if (bench.isEmpty) {
-              return const Text('No hay suplente disponible para este jugador.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey));
-            }
-            final scheme = Theme.of(context).colorScheme;
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: bench.map((p) {
-                // "Cambio sugerido": resalta a quienes juegan la misma
-                // posición que el titular que sale, como ayuda visual (no
-                // es una restricción, el resto del banco sigue habilitado).
-                final suggested = p.position == playerOut.position;
-                return ActionChip(
-                  avatar: suggested ? Icon(Icons.star, size: 16, color: scheme.secondary) : null,
-                  label: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
-                  backgroundColor: blocked
-                      ? Colors.grey.shade200
-                      : (suggested ? scheme.secondary.withValues(alpha: 0.18) : null),
-                  side: !blocked && suggested ? BorderSide(color: scheme.secondary, width: 1.5) : null,
-                  onPressed: blocked
-                      ? null
-                      : () {
-                          controller.substitutePlayer(playerOutId: playerOut.id, playerInId: p.id);
-                          Navigator.pop(context);
-                        },
-                );
-              }).toList(),
-            );
-          }),
+        Row(
+          children: [
+            if (_step > 0) TextButton(onPressed: _back, child: const Text('Atrás')),
+            const Spacer(),
+            if (_step == 0)
+              ElevatedButton(
+                onPressed: _canAdvance ? _next : null,
+                child: const Text('Siguiente'),
+              ),
+          ],
+        ),
       ],
     );
+  }
+
+  Widget _buildOutStep(MatchController controller) {
+    final eligible = controller.onCourtPlayers.where((p) => controller.canSubOutRegular(p.id)).toList();
+    if (eligible.isEmpty) {
+      return const Text(
+        'Ningún jugador en cancha puede salir por un cambio regular en este momento.',
+        style: TextStyle(fontSize: 12, color: Colors.grey),
+      );
+    }
+    final value = eligible.any((p) => p.id == widget.playerOutId) ? widget.playerOutId : null;
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: const InputDecoration(labelText: 'Jugador que sale', border: OutlineInputBorder()),
+      items: eligible
+          .map((p) => DropdownMenuItem(
+                value: p.id,
+                child: Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}'),
+              ))
+          .toList(),
+      onChanged: widget.onPlayerOutSelected,
+    );
+  }
+
+  Widget _buildInStep(MatchController controller) {
+    final playerOut = controller.playerById(widget.playerOutId!);
+    if (playerOut == null) return const SizedBox.shrink();
+    final bench = controller.eligibleRegularBenchFor(playerOut.id);
+    if (bench.isEmpty) {
+      return const Text('No hay suplente disponible para este jugador.',
+          style: TextStyle(fontSize: 12, color: Colors.grey));
+    }
+    final blocked = !controller.canRegisterSubstitution;
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (blocked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Ya se usaron todos los cambios disponibles en este set.',
+              style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+            ),
+          ),
+        DropdownButtonFormField<String>(
+          key: ValueKey('playerIn-$_inFieldGen'),
+          initialValue: null,
+          decoration: const InputDecoration(labelText: 'Jugador que entra', border: OutlineInputBorder()),
+          items: bench.map((p) {
+            // "Cambio sugerido": resalta a quienes juegan la misma posición
+            // que el titular que sale, como ayuda visual (no es una
+            // restricción, el resto del banco sigue habilitado).
+            final suggested = p.position == playerOut.position;
+            return DropdownMenuItem(
+              value: p.id,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (suggested) ...[
+                    Icon(Icons.star, size: 16, color: scheme.secondary),
+                    const SizedBox(width: 6),
+                  ],
+                  Text('#${p.number} ${p.lastName} · ${p.position.shortLabel}${suggested ? ' (sugerido)' : ''}'),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: blocked
+              ? null
+              : (playerInId) {
+                  if (playerInId == null) return;
+                  final playerIn = controller.playerById(playerInId);
+                  if (playerIn == null) return;
+                  _confirmAndSubstitute(controller, playerOut, playerIn);
+                },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmAndSubstitute(MatchController controller, Player playerOut, Player playerIn) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Confirmar cambio'),
+        content: Text(
+          'Sale #${playerOut.number} ${playerOut.lastName} · ${playerOut.position.shortLabel}\n'
+          'Entra #${playerIn.number} ${playerIn.lastName} · ${playerIn.position.shortLabel}',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed == true) {
+      controller.substitutePlayer(playerOutId: playerOut.id, playerInId: playerIn.id);
+      Navigator.pop(context);
+    } else {
+      setState(() => _inFieldGen++);
+    }
   }
 }
 

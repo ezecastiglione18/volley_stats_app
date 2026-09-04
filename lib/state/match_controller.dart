@@ -484,7 +484,7 @@ class MatchController extends ChangeNotifier {
 
   /// Jugadores del banco habilitados para entrar por [playerOutId] mediante
   /// un cambio regular (excluye líberos, que nunca entran por esta vía, y
-  /// jugadores ya atados como suplentes fijos de otro puesto).
+  /// jugadores ya atados como titulares o suplentes fijos de otro puesto).
   List<Player> eligibleRegularBenchFor(String playerOutId) {
     final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
     if (slot == -1) return [];
@@ -499,18 +499,17 @@ class MatchController extends ChangeNotifier {
       final s = _slotState(i);
       if (s.regularSubstituteId != null) lockedElsewhere.add(s.regularSubstituteId!);
     }
-    var candidates = benchPlayers
-        .where((p) => p.position != PlayerPosition.libero && !lockedElsewhere.contains(p.id));
-    // Un central solo se reemplaza por otro central que no haya sido
-    // titular en este set: un central que ya arrancó el set en otro puesto
-    // está atado a su propio suplente designado (o ya volvió a entrar por
-    // él), no puede entrar de nuevo a cubrir el puesto de un central
-    // distinto.
-    if (playerById(playerOutId)?.position == PlayerPosition.central) {
-      final startingIds = currentSet.startingOrderOwn.toSet();
-      candidates = candidates
-          .where((p) => p.position == PlayerPosition.central && !startingIds.contains(p.id));
-    }
+    // Un titular que ya arrancó el set en otro puesto y fue sustituido está
+    // atado a su propio suplente designado (o ya volvió a entrar por él): no
+    // puede entrar de nuevo a cubrir el puesto de un titular distinto. Esto
+    // aplica a cualquier posición, no solo a los centrales: no hay ninguna
+    // regla de la FIVB que exija que el reemplazo juegue el mismo puesto que
+    // quien sale.
+    final startingIds = currentSet.startingOrderOwn.toSet();
+    final candidates = benchPlayers.where((p) =>
+        p.position != PlayerPosition.libero &&
+        !lockedElsewhere.contains(p.id) &&
+        !startingIds.contains(p.id));
     return candidates.toList();
   }
 

@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 22;
+const _coverTotalPages = 23;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -50,34 +50,34 @@ const _pConfigPartido = 7;
 const _pPlanilla = 8;
 const _pSeleccionJugadores = 8;
 const _pFormacionInicial = 8;
-const _pRolesLibero = 8;
-const _pPantallaVivo = 9;
-const _pMarcador = 9;
-const _pCancha = 9;
-const _pBotonesAccion = 9;
-const _pZonaDestino = 10;
+const _pRolesLibero = 9;
+const _pPantallaVivo = 10;
+const _pMarcador = 10;
+const _pCancha = 10;
+const _pBotonesAccion = 10;
+const _pZonaDestino = 11;
 const _pCambiosJugador = 11;
 const _pCambioRegular = 11;
-const _pCambioLibero = 11;
+const _pCambioLibero = 12;
 const _pDeshacerCambio = 12;
-const _pSancionesTarjetas = 12;
-const _pComoCargarSancion = 12;
-const _pEscalaSanciones = 13;
+const _pSancionesTarjetas = 13;
+const _pComoCargarSancion = 13;
+const _pEscalaSanciones = 14;
 const _pHerramientas = 14;
-const _pFinSet = 14;
+const _pFinSet = 15;
 const _pArchivo = 15;
-const _pExportarPartido = 15;
-const _pImportarPartido = 15;
-const _pResumen = 15;
-const _pExportarPdf = 16;
-const _pGlosario = 16;
+const _pExportarPartido = 16;
+const _pImportarPartido = 16;
+const _pResumen = 16;
+const _pExportarPdf = 17;
+const _pGlosario = 17;
 const _pSuscripcionPremium = 18;
-const _pQueIncluyePremium = 18;
+const _pQueIncluyePremium = 19;
 const _pComoSuscribirse = 19;
 const _pDispositivosAdicionales = 19;
 const _pRestaurarCompras = 19;
 const _pGestionarCancelar = 19;
-const _pDarDeBajaDispositivo = 19;
+const _pDarDeBajaDispositivo = 20;
 const _pFaq = 20;
 const _pContacto = 22;
 
@@ -846,51 +846,67 @@ List<pw.Widget> _section8FormacionInicial() => [
               '(tie-break) no sugiere nada, porque el reglamento indica un nuevo sorteo.')
         ],
         [
-          _b('La formación '),
-          _t('de las 6 posiciones en cancha, asignando un jugador a cada una: fila delantera (4-3-2) y '
-              'fila trasera (5-6-1, donde el puesto 1 es el que saca). El líbero nunca ocupa una de estas 6 '
-              'posiciones: se asigna aparte, más abajo, y entra en cancha durante el set mediante el cambio '
-              'de líbero (ver sección 10.2). A partir del segundo set del partido, las 6 posiciones aparecen '
+          _b('El sexteto en cancha: '),
+          _t('un jugador para cada una de las 6 posiciones, mostradas como tarjetas: fila delantera '
+              '(4-3-2) y fila trasera (5-6-1, donde el puesto 1 es el que saca). Tocar una tarjeta abre un '
+              'buscador (por número o apellido, con filtro por puesto) para elegir quién va ahí. Si se '
+              'elige a alguien que ya está en otra posición, la app intercambia a los dos en el mismo '
+              'toque, sin necesidad de vaciar una primero (en el buscador, ese jugador aparece marcado '
+              'como "Ya está en Pos N · tocá para mover"). Mantener presionada una posición ya asignada '
+              'pide confirmación para dejarla libre otra vez; el jugador no se borra de ningún lado, sigue '
+              'disponible en el plantel para asignarlo a cualquier otra posición. Con las 6 posiciones '
+              'asignadas aparece el botón "Rotar", que gira todo el sexteto un puesto (como una rotación '
+              'real de vóley); mientras falten posiciones aparece en su lugar "Autocompletar por rol", que '
+              'completa de una las que estén vacías con jugadores del plantel según el puesto más habitual '
+              'para cada una (queda igual de editable después, tocando cualquier tarjeta). El líbero nunca '
+              'ocupa una de estas 6 posiciones (en el buscador aparece igual, pero bloqueado), porque '
+              'entra en cancha durante el set mediante el cambio de líbero (ver sección 10.2); se asigna '
+              'aparte, más abajo. A partir del segundo set del partido, las 6 posiciones aparecen '
               'precargadas con la misma formación titular del set anterior, para no tener que volver a '
-              'elegir jugador por jugador cuando el equipo repite sexteto; se puede cambiar libremente antes '
-              'de tocar Comenzar set.')
+              'elegir jugador por jugador cuando el equipo repite sexteto; se puede cambiar libremente '
+              'antes de tocar Comenzar set.')
         ],
         [
           _b('Roles de líbero '),
           _t('(opcional): si entre los jugadores habilitados hay uno o más líberos, aparece acá, debajo del '
-              'sexteto, la sección "Roles de líbero" (ver más abajo).')
+              'sexteto, la sección "Líberos" (ver más abajo).')
         ],
         [_b('Armador rival '), _t('(opcional): solo a modo informativo, en qué posición arranca.')],
         [
-          _b('Registrar zona de destino en saque y ataque '),
-          _t('(función premium, sección 18): si está activada, al calificar un saque o un ataque se va a '
-              'poder marcar (opcionalmente) a qué zona de la cancha rival fue dirigido. Esta opción se '
+          _b('Opciones de registro '),
+          _t('(función premium, sección 18): con "Zonas activadas", al calificar un saque o un ataque se '
+              'va a poder marcar (opcionalmente) a qué zona de la cancha rival fue dirigido. Esta opción se '
               'define una vez por set.')
         ],
       ]),
+      _p(
+        'El ícono de signo de pregunta del encabezado abre una ayuda con el detalle de todas estas reglas '
+        '(saque inicial, sexteto, roles de líbero, cambio automático por central y armador rival).',
+      ),
       _subHeading('8.1 Roles de líbero (por set)'),
       _p(
         'Si el equipo tiene uno o más líberos entre los jugadores habilitados para el partido, debajo del '
-        'sexteto inicial aparecen dos selectores opcionales: líbero defensor (el que entra cuando saca el '
-        'equipo propio) y líbero receptor (el que entra cuando saca el rival). Ambos roles pueden recaer en '
-        'el mismo jugador.',
+        'sexteto inicial aparece la sección "Líberos", con dos filas opcionales: líbero defensor (el que '
+        'entra cuando saca el equipo propio) y líbero receptor (el que entra cuando saca el rival). Tocar '
+        'cada fila abre el selector correspondiente. Ambos roles pueden recaer en el mismo jugador.',
       ),
       _p(
         'Esta elección se hace de nuevo antes de cada set, porque el equipo puede usar líberos distintos '
-        'set a set: a partir del segundo set los selectores aparecen precargados con lo elegido en el set '
+        'set a set: a partir del segundo set las filas aparecen precargadas con lo elegido en el set '
         'anterior, pero se pueden cambiar libremente. Definirlos habilita, durante ese set, la sugerencia '
         'automática de cambio de líbero cuando corresponde (ver sección 10.2).',
       ),
       _p(
-        'Debajo de los selectores de líbero aparece el checkbox "Líbero automático por central en el '
-        'fondo", tildado por defecto: si está activado, entra solo el líbero que corresponda por el '
-        'central que rota a la fila de fondo (el defensor cuando saca el equipo propio, salvo que sea ese '
-        'central quien va a sacar, o el receptor cuando saca el rival), sin necesitar el cambio manual. '
-        'Destildado, esos cambios se siguen sugiriendo pero hay que aplicarlos a mano desde el panel de '
-        'cambios (sección 10.2). También se elige de nuevo en cada set.',
+        'Debajo aparece el checkbox "Cambio automático por central", tildado por defecto: si está '
+        'activado, entra solo el líbero que corresponda por el central que rota a la fila de fondo (el '
+        'defensor cuando saca el equipo propio, salvo que sea ese central quien va a sacar, o el receptor '
+        'cuando saca el rival), sin necesitar el cambio manual. Destildado, esos cambios se siguen '
+        'sugiriendo pero hay que aplicarlos a mano desde el panel de cambios (sección 10.2). También se '
+        'elige de nuevo en cada set.',
       ),
-      _p('Con todas las posiciones asignadas, tocá Comenzar partido (o Comenzar set N si es un set siguiente '
-          'dentro de un partido ya en curso) para pasar a la pantalla de carga en vivo.'),
+      _p('Con las 6 posiciones asignadas, tocá Comenzar partido (o Comenzar set N si es un set siguiente '
+          'dentro de un partido ya en curso) para pasar a la pantalla de carga en vivo; el botón queda '
+          'deshabilitado mientras falte alguna.'),
       _p(
         'En el encabezado de esta pantalla hay además un ícono de Pizarra, para repasar una formación o '
         'jugada dibujada de antemano (sección 4) antes de arrancar el set, sin perder lo ya elegido acá.',
@@ -1008,20 +1024,23 @@ List<pw.Widget> _section10CambiosJugador() => [
       _bullets([
         [_t('Cada titular tiene, como máximo, un único suplente fijo: puede salir por él una vez y volver a entrar una vez más, siempre entre esos dos mismos jugadores.')],
         [_t('Un líbero nunca puede intervenir en un cambio regular.')],
-        [_t('Cada cambio regular consume un cupo del total configurado para el partido (por defecto, 6 por set); el contador de cambios usados se muestra arriba del panel.')],
-        [_t('Para hacerlo: elegí primero quién sale (solo se pueden elegir jugadores en cancha habilitados según la regla anterior) y después quién entra del banco.')],
+        [_t('Cada cambio regular consume un cupo del total configurado para el partido (por defecto, 6 por set); el contador de cambios usados se muestra arriba del panel, en los dos pasos del asistente.')],
         [
-          _t('Entre las opciones del banco, la app resalta con una estrella y un borde de color a quienes '
-              'juegan la misma posición que el titular que sale, como "cambio sugerido": es solo una '
-              'ayuda visual, no una restricción, se puede elegir cualquier otro jugador habilitado del '
-              'banco igual, con la excepción de los centrales (ver el punto siguiente).')
+          _t('Es un asistente de dos pasos: primero elegís de un desplegable quién sale (solo aparecen los '
+              'jugadores en cancha habilitados según la regla anterior) y, al tocar Siguiente, de otro '
+              'desplegable quién entra del banco.')
         ],
         [
-          _t('Si quien sale es un central, a diferencia del resto de los puestos la app sí restringe las '
-              'opciones de entrada: solo ofrece otros centrales del banco que no hayan sido titulares en '
-              'este set, para no romper el emparejamiento fijo de un central que ya arrancó el set en otro '
-              'puesto.')
+          _t('Entre las opciones del banco, la app resalta con una estrella a quienes juegan la misma '
+              'posición que el titular que sale, como "cambio sugerido": es solo una ayuda visual, no una '
+              'restricción, se puede elegir cualquier otro suplente habilitado del banco igual.')
         ],
+        [
+          _t('Un titular que ya arrancó el set en otro puesto y fue reemplazado por su propio suplente fijo '
+              'no aparece como opción de entrada para un puesto distinto (sigue atado a esa pareja fija); '
+              'esto vale para cualquier posición, no solo para los centrales.')
+        ],
+        [_t('Al elegir quién entra, la app pide confirmar el cambio (con el resumen de quién sale y quién entra) antes de aplicarlo.')],
       ]),
       _subHeading('10.2 Cambio de líbero'),
       _p('Solo está disponible si el equipo tiene al menos un líbero declarado en la formación de este set (sección 8.1). Reglas:', bottom: 6),
