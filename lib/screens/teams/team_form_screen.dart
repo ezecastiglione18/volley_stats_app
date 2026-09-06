@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/player.dart';
 import '../../models/team.dart';
+import '../../services/team_export_service.dart';
 import '../../state/app_data_controller.dart';
 import '../../utils/id_gen.dart';
 import '../../widgets/theme_toggle_switch.dart';
@@ -27,6 +28,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
   late TextEditingController _doctorCtrl;
   late TextEditingController _physicalTrainerCtrl;
   late Team _team;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -189,6 +191,24 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Exporta este equipo (nombre, jugadores, cuerpo técnico) junto con todos
+  /// los partidos que ya tiene jugados (para llevarse también la estadística
+  /// acumulada contra cada rival, ver [TeamExportService]).
+  Future<void> _exportTeam() async {
+    final matches = context.read<AppDataController>().matches;
+    setState(() => _busy = true);
+    try {
+      await TeamExportService.exportTeam(_team, matches);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('No se pudo exportar: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _deleteTeam() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -217,7 +237,21 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
         actions: [
           const ThemeToggleSwitch(),
           if (!widget.isNew)
-            IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteTeam),
+            IconButton(
+              icon: _busy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.ios_share),
+              tooltip: 'Exportar equipo',
+              onPressed: _busy ? null : _exportTeam,
+            ),
+          if (!widget.isNew)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy ? null : _deleteTeam,
+            ),
         ],
       ),
       body: SafeArea(

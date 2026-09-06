@@ -1,4 +1,4 @@
-// Genera manual_usuario_rallystats.pdf en la raíz del repo.
+﻿// Genera manual_usuario_rallystats.pdf en la raíz del repo.
 //
 // No existe ningún archivo fuente "editable" del manual (se armó en algún
 // momento con una herramienta externa y solo quedó commiteado el PDF final),
@@ -32,54 +32,57 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 23;
+const _coverTotalPages = 24;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
 const _pIntroduccion = 4;
-const _pCuentaLogin = 4;
+const _pCuentaLogin = 5;
 const _pPantallaPrincipal = 5;
-const _pPizarra = 5;
+const _pPizarra = 6;
 const _pGestionEquipos = 6;
 const _pCrearEquipo = 6;
-const _pAgregarJugadores = 6;
+const _pAgregarJugadores = 7;
 const _pEquipoEjemplo = 7;
-const _pCrearPartido = 7;
-const _pDatosRival = 7;
-const _pConfigPartido = 7;
+const _pExportarEquipo = 7;
+const _pImportarEquipo = 7;
+const _pCrearPartido = 8;
+const _pDatosRival = 8;
+const _pConfigPartido = 8;
 const _pPlanilla = 8;
-const _pSeleccionJugadores = 8;
-const _pFormacionInicial = 8;
+const _pSeleccionJugadores = 9;
+const _pFormacionInicial = 9;
 const _pRolesLibero = 9;
 const _pPantallaVivo = 10;
 const _pMarcador = 10;
 const _pCancha = 10;
 const _pBotonesAccion = 10;
 const _pZonaDestino = 11;
-const _pCambiosJugador = 11;
-const _pCambioRegular = 11;
+const _pCambiosJugador = 12;
+const _pCambioRegular = 12;
 const _pCambioLibero = 12;
-const _pDeshacerCambio = 12;
+const _pDeshacerCambio = 13;
 const _pSancionesTarjetas = 13;
 const _pComoCargarSancion = 13;
 const _pEscalaSanciones = 14;
-const _pHerramientas = 14;
+const _pHerramientas = 15;
 const _pFinSet = 15;
-const _pArchivo = 15;
+const _pArchivo = 16;
 const _pExportarPartido = 16;
 const _pImportarPartido = 16;
-const _pResumen = 16;
-const _pExportarPdf = 17;
-const _pGlosario = 17;
-const _pSuscripcionPremium = 18;
-const _pQueIncluyePremium = 19;
-const _pComoSuscribirse = 19;
-const _pDispositivosAdicionales = 19;
-const _pRestaurarCompras = 19;
-const _pGestionarCancelar = 19;
-const _pDarDeBajaDispositivo = 20;
-const _pFaq = 20;
-const _pContacto = 22;
+const _pRivalScouting = 16;
+const _pResumen = 17;
+const _pExportarPdf = 18;
+const _pGlosario = 18;
+const _pSuscripcionPremium = 19;
+const _pQueIncluyePremium = 20;
+const _pComoSuscribirse = 20;
+const _pDispositivosAdicionales = 20;
+const _pRestaurarCompras = 20;
+const _pGestionarCancelar = 20;
+const _pDarDeBajaDispositivo = 21;
+const _pFaq = 21;
+const _pContacto = 24;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -224,12 +227,13 @@ pw.MultiPage _bodyPages(pw.MemoryImage logo) {
       ..._section12Herramientas(),
       ..._section13FinSet(),
       ..._section14Archivo(),
-      ..._section15Resumen(),
-      ..._section16ExportarPdf(),
-      ..._section17Glosario(),
-      ..._section18SuscripcionPremium(),
-      ..._section19Faq(),
-      ..._section20Contacto(),
+      ..._section15RivalScouting(),
+      ..._section16Resumen(),
+      ..._section17ExportarPdf(),
+      ..._section18Glosario(),
+      ..._section19SuscripcionPremium(),
+      ..._section20Faq(),
+      ..._section21Contacto(),
     ],
   );
 }
@@ -492,6 +496,8 @@ List<pw.Widget> _indexContent() {
     entry('Crear un equipo', _pCrearEquipo, sub: true),
     entry('Agregar y editar jugadores', _pAgregarJugadores, sub: true),
     entry('Equipo de ejemplo', _pEquipoEjemplo, sub: true),
+    entry('Exportar un equipo', _pExportarEquipo, sub: true),
+    entry('Importar un equipo', _pImportarEquipo, sub: true),
     entry('Crear un partido nuevo', _pCrearPartido),
     entry('Datos del rival y del partido', _pDatosRival, sub: true),
     entry('Configuración del partido', _pConfigPartido, sub: true),
@@ -516,6 +522,7 @@ List<pw.Widget> _indexContent() {
     entry('Archivo de partidos', _pArchivo),
     entry('Exportar un partido', _pExportarPartido, sub: true),
     entry('Importar un partido', _pImportarPartido, sub: true),
+    entry('Scouting de rivales', _pRivalScouting),
     entry('Resumen del partido y estadísticas', _pResumen),
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
@@ -560,10 +567,15 @@ List<pw.Widget> _section1Introduccion() => [
               'cancha correspondiente aplicados solos.')
         ],
         [_t('Ver la estadística del partido completo o de un set en particular.')],
+        [_t('Ver el scouting acumulado de cada rival ya enfrentado: récord, con qué error se lo suele vencer y con qué toque suele ganar el punto (sección 15).')],
         [_t('Exportar y compartir un reporte en PDF con el resultado, la estadística por jugador, la del rival y las zonas de destino de saque, ataque y contraataque.')],
         [
           _t('Exportar un partido guardado como archivo (no el PDF) para pasarlo a otro dispositivo '
               'e importarlo ahí, conservando todos sus datos.')
+        ],
+        [
+          _t('Exportar un equipo guardado (plantel, cuerpo técnico y estadística acumulada) para '
+              'pasarlo a otro dispositivo e importarlo ahí.')
         ],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
         [_t('Guardar el archivo histórico de partidos jugados.')],
@@ -576,7 +588,7 @@ List<pw.Widget> _section1Introduccion() => [
       _infoBox(
         'Nota: los equipos, jugadores, partidos y jugadas de pizarra se guardan únicamente en el '
         'dispositivo donde se usa la app; no se suben a internet ni se sincronizan solos entre '
-        'dispositivos, así que conviene exportar (sección 14.1) o generar el PDF (sección 16) de los '
+        'dispositivos, así que conviene exportar (sección 14.1) o generar el PDF (sección 17) de los '
         'partidos importantes para conservarlos, pasarlos a otro dispositivo o compartirlos con el cuerpo '
         'técnico. La cuenta con la que se inicia sesión (sección 2) es la única excepción: necesita '
         'internet para validarse y sí se controla desde un servidor, para que la misma cuenta no se pueda '
@@ -585,7 +597,7 @@ List<pw.Widget> _section1Introduccion() => [
       _p(
         'Algunas de estas funciones (pizarra, estadísticas, zona de destino, y guardar más de 3 partidos o '
         'jugar al mejor de 5 sets) requieren la suscripción premium: ver el detalle completo en la '
-        'sección 18.',
+        'sección 19.',
       ),
     ];
 
@@ -603,10 +615,10 @@ List<pw.Widget> _section2CuentaLogin() => [
       ),
       _infoBox(
         'La cantidad de dispositivos que pueden tener la cuenta abierta a la vez depende del plan: 1 sin '
-        'la suscripción premium, hasta 4 sumando complementos de dispositivo adicional (sección 18.3). Si '
+        'la suscripción premium, hasta 4 sumando complementos de dispositivo adicional (sección 19.3). Si '
         'se intenta iniciar sesión superando ese límite, el login nuevo se rechaza con un aviso, sin '
         'afectar a los dispositivos que ya estaban adentro. Si en cambio la cuenta baja de plan (se '
-        'cancela un complemento, sección 18.6) y eso deja más dispositivos conectados de los que el nuevo '
+        'cancela un complemento, sección 19.6) y eso deja más dispositivos conectados de los que el nuevo '
         'límite permite, no se cierra ninguna sesión en el momento: recién la próxima vez que cada '
         'dispositivo de más abra la app se cierra sesión ahí automáticamente, empezando siempre por el que '
         'se conectó más recientemente.',
@@ -632,16 +644,18 @@ List<pw.Widget> _section3PantallaPrincipal() => [
       _sectionTitle(3, 'Pantalla principal'),
       _p(
         'Antes de llegar a la pantalla principal hay que iniciar sesión (ver sección 2). Una vez adentro, '
-        'aparecen cinco accesos; los primeros cuatro son también el orden natural en el que se usa la app '
-        'para armar y jugar un partido:',
+        'aparecen seis accesos; los primeros cuatro (Nuevo Partido, Archivo de Partidos, Scouting de '
+        'rivales y Pizarra) son también el orden natural en el que se usa la app para armar, jugar y '
+        'repasar un partido:',
         bottom: 6,
       ),
       _numbered([
         [_b('Nuevo Partido: '), _t('inicia el asistente para configurar y arrancar un partido nuevo.')],
         [_b('Archivo de Partidos: '), _t('lista todos los partidos guardados, terminados o en curso.')],
-        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (función premium, ver sección 4 y sección 18).')],
+        [_b('Scouting de rivales: '), _t('arma la estadística acumulada de cada rival ya enfrentado, agrupada por equipo propio (sección 15).')],
+        [_b('Pizarra: '), _t('abre la pizarra táctica para dibujar formaciones y jugadas (función premium, ver sección 4 y sección 19).')],
         [_b('Equipos: '), _t('administra los equipos propios y sus planteles de jugadores.')],
-        [_b('Mi suscripción: '), _t('muestra el estado de la suscripción premium y permite suscribirse, sumar dispositivos adicionales, restaurar compras o gestionar/cancelar (ver sección 18).')],
+        [_b('Mi suscripción: '), _t('muestra el estado de la suscripción premium y permite suscribirse, sumar dispositivos adicionales, restaurar compras o gestionar/cancelar (ver sección 19).')],
       ]),
       _p(
         'En la parte superior derecha de casi todas las pantallas hay un interruptor de modo claro / modo '
@@ -662,7 +676,7 @@ List<pw.Widget> _section4Pizarra() => [
       _p(
         'La Pizarra es una cancha en blanco para dibujar formaciones y jugadas a mano (saques, rotaciones, '
         'sistemas de ataque o de defensa), pensada para explicar una jugada al equipo antes de ponerla en '
-        'práctica. Es una función premium (sección 18).',
+        'práctica. Es una función premium (sección 19).',
         bottom: 6,
       ),
       _p('Se puede abrir desde tres lugares:', bottom: 6),
@@ -767,6 +781,28 @@ List<pw.Widget> _section5GestionEquipos() => [
         'No trae fotos cargadas (son opcionales y no hay ninguna foto real para asignarles a jugadores de '
         'ejemplo). Es útil para probar la app rápidamente sin tener que escribir un plantel entero a mano.',
       ),
+      _subHeading('5.4 Exportar un equipo'),
+      _p(
+        'El ícono de compartir, en el encabezado de la pantalla de un equipo ya guardado ("Editar '
+        'equipo"), genera un archivo con el nombre del equipo, su plantel completo, el cuerpo técnico y '
+        'todos los partidos ya jugados por ese equipo, para llevarse también la estadística acumulada '
+        'contra cada rival (sección 15). Se abre la hoja para compartir de siempre (WhatsApp, correo, '
+        'Drive, etc.) para elegir a dónde mandar el archivo.',
+      ),
+      _subHeading('5.5 Importar un equipo'),
+      _p(
+        'El ícono de subir archivo, en el encabezado de la pantalla "Equipos", abre un selector para '
+        'elegir un archivo de equipo exportado antes (sección 5.4) y agregarlo a este dispositivo, junto '
+        'con todos sus partidos. Si el equipo o alguno de sus partidos ya existe en este dispositivo (por '
+        'ejemplo, si el mismo archivo se importa dos veces), se guarda como una copia nueva y aparte, sin '
+        'pisar lo que ya estaba. Sin la suscripción premium, los partidos del equipo importado que no '
+        'entren en el tope de 3 partidos guardados quedan afuera (sección 19.1).',
+      ),
+      _infoBox(
+        'Si el archivo elegido para importar no es un equipo exportado por RallyStats (por ejemplo, se '
+        'eligió por error el archivo de un partido exportado, sección 14.1), la importación se cancela y '
+        'aparece un aviso de error, sin modificar nada de lo que ya había en este dispositivo.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -802,7 +838,7 @@ List<pw.Widget> _section6CrearPartido() => [
           [
             'Cantidad máxima de sets',
             '5 (3 sin premium)',
-            'Sets totales que se juegan como máximo (mejor de 5 con la suscripción premium; hasta 3 en la versión gratuita, sección 18.1).'
+            'Sets totales que se juegan como máximo (mejor de 5 con la suscripción premium; hasta 3 en la versión gratuita, sección 19.1).'
           ],
           ['Puntos para ganar un set (1° al 4°)', '25', 'Puntos necesarios para ganar los sets regulares.'],
           ['Diferencia mínima (sets 1° al 4°)', '2', 'Ventaja mínima de puntos para cerrar esos sets.'],
@@ -874,7 +910,7 @@ List<pw.Widget> _section8FormacionInicial() => [
         [_b('Armador rival '), _t('(opcional): solo a modo informativo, en qué posición arranca.')],
         [
           _b('Opciones de registro '),
-          _t('(función premium, sección 18): con "Zonas activadas", al calificar un saque o un ataque se '
+          _t('(función premium, sección 19): con "Zonas activadas", al calificar un saque o un ataque se '
               'va a poder marcar (opcionalmente) a qué zona de la cancha rival fue dirigido. Esta opción se '
               'define una vez por set.')
         ],
@@ -999,7 +1035,7 @@ List<pw.Widget> _section9PantallaVivo() => [
         'Si en la formación del set se activó "Registrar zona de destino", al calificar un saque o un '
         'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival, numeradas de frente '
         'para quien anota (2-3-4 junto a la red, 1-6-5 en el fondo) para marcar, de forma opcional, hacia '
-        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 16).',
+        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 17).',
       ),
       _p(
         'Al usar la app en una ventana ancha (por ejemplo, en una computadora), los ocho botones de acción '
@@ -1199,7 +1235,7 @@ List<pw.Widget> _section11SancionesTarjetas() => [
       pw.SizedBox(height: 10),
       _p(
         'Las tarjetas mostradas y la cantidad de amarillas/rojas recibidas por cada jugador quedan '
-        'reflejadas en la tabla de estadísticas (sección 15) y en el reporte en PDF (sección 16).',
+        'reflejadas en la tabla de estadísticas (sección 16) y en el reporte en PDF (sección 17).',
       ),
     ];
 
@@ -1216,7 +1252,7 @@ List<pw.Widget> _section12Herramientas() => [
         pillFirstColumn: true,
         rows: [
           ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 13).'],
-          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 15).'],
+          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 16).'],
           ['Cambio de jugador', 'Abre el panel de cambios (ver sección 10), que también permite deshacer el último cambio (sección 10.3).'],
           ['Pizarra', 'Abre la pizarra táctica (sección 4) para dibujar una jugada sin salir de la carga en vivo.'],
           ['Confirmar fin de set', 'Solo aparece cuando el set en curso llegó a su puntaje de cierre y todavía no fue confirmado. Ver sección 13.'],
@@ -1247,7 +1283,7 @@ List<pw.Widget> _section13FinSet() => [
       _p(
         'Cuando un equipo llega a los puntos necesarios con la diferencia mínima configurada, el set '
         'termina y aparece un aviso con el resultado del set y el resultado en sets del partido, con dos '
-        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 15) o Cerrar '
+        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 16) o Cerrar '
         '(vuelve a la pantalla en vivo sin decidir nada todavía).',
         bottom: 6,
       ),
@@ -1267,7 +1303,7 @@ List<pw.Widget> _section13FinSet() => [
         [
           _t('Si el partido queda definido con ese set (un equipo alcanza los sets necesarios para ganar), la '
               'app guarda el partido automáticamente en el archivo y pasa directo a la pantalla de resumen '
-              '(sección 15), donde aparece un botón Volver al inicio para salir directo a la pantalla '
+              '(sección 16), donde aparece un botón Volver al inicio para salir directo a la pantalla '
               'principal sin tener que retroceder pantalla por pantalla. El mismo botón Confirmar fin de set '
               'del encabezado se usa también para este último set: el partido no se da por terminado en '
               'forma automática, para dejarle al árbitro la misma posibilidad de revertir el punto final.')
@@ -1285,19 +1321,19 @@ List<pw.Widget> _section14Archivo() => [
         'Desde la pantalla principal, Archivo de Partidos lista todos los partidos guardados, con fecha, '
         'torneo, resultado en sets y un ícono que indica si están terminados (tilde, en verde) o todavía en '
         'curso (flecha de reproducir, en naranja). Sin la suscripción premium, se pueden guardar hasta 3 '
-        'partidos; con premium activo, no hay límite (sección 18.1).',
+        'partidos; con premium activo, no hay límite (sección 19.1).',
         bottom: 6,
       ),
       _bullets([
-        [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 15).')],
+        [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 16).')],
         [_t('Tocar un partido en curso retoma la carga en vivo exactamente donde había quedado, reconstruyendo el marcador, la rotación y los cambios ya realizados.')],
-        [_t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 12.1) o eliminar del archivo.')],
+        [_t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 14.1) o eliminar del archivo.')],
       ]),
       _subHeading('14.1 Exportar un partido'),
       _p(
         'La opción Exportar del menú de tres puntos de un partido genera un archivo con todos sus datos '
         '(equipos, marcador, jugada por jugada y cambios de jugador). A diferencia del reporte en PDF '
-        '(sección 16), que es solo para leer o imprimir, este archivo se puede volver a importar en '
+        '(sección 17), que es solo para leer o imprimir, este archivo se puede volver a importar en '
         'RallyStats en otro dispositivo (sección 14.2) para seguir teniéndolo disponible ahí, incluso si '
         'todavía estaba en curso.',
       ),
@@ -1315,13 +1351,58 @@ List<pw.Widget> _section14Archivo() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 15. Resumen del partido y estadísticas
+// 15. Scouting de rivales
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section15Resumen() => [
-      _sectionTitle(15, 'Resumen del partido y estadísticas'),
+List<pw.Widget> _section15RivalScouting() => [
+      _sectionTitle(15, 'Scouting de rivales'),
       _p(
-        'Es una función premium (sección 18). Esta pantalla se abre automáticamente al terminar un '
+        'Desde la pantalla principal, Scouting de rivales arma automáticamente, a partir de los partidos '
+        'ya guardados en el Archivo de Partidos (sección 14), un resumen de todo lo jugado contra cada '
+        'rival enfrentado, sin tener que revisar partido por partido.',
+        bottom: 6,
+      ),
+      _p(
+        'Como el scouting es siempre "un equipo propio contra tal rival", primero hay que elegir a cuál de '
+        'los equipos propios cargados en "Equipos" (sección 5) le querés ver el historial; de ahí se pasa '
+        'a la lista de rivales que ese equipo ya enfrentó, con la cantidad de partidos y el récord '
+        '(ganados/perdidos) contra cada uno. Solo cuentan los partidos donde ese equipo jugó como propio; '
+        'si un rival todavía no tiene ningún partido cargado contra ese equipo, no aparece en la lista.',
+        bottom: 6,
+      ),
+      _p('Al tocar un rival de la lista se abre su detalle, con:', bottom: 6),
+      _bullets([
+        [_t('Cantidad de partidos jugados, ganados y perdidos contra ese rival.')],
+        [
+          _t('"Para la próxima vez": con qué error se le suele ganar el punto al rival (saque, ataque, '
+              'contraataque o genérico) y con qué toque suele ganarnos el punto a nosotros (ataque o '
+              'contraataque), como guía rápida de qué reforzar antes de jugar de nuevo.')
+        ],
+        [
+          _t('El desglose completo de errores del rival y de puntos que ganó con su propio toque, sumado '
+              'en todos los partidos jugados contra él.')
+        ],
+        [
+          _t('El historial de esos partidos (fecha, resultado y torneo), con acceso directo al resumen de '
+              'estadísticas de cada uno que ya haya terminado (sección 16).')
+        ],
+      ]),
+      _infoBox(
+        'La estadística acumulada de un rival se recalcula siempre a partir de los partidos guardados: no '
+        'es un número aparte que se pueda perder o desincronizar. Por eso, si se exporta un equipo con su '
+        'historial de partidos (sección 5.4) y se importa en otro dispositivo (sección 5.5), un partido '
+        'nuevo que se juegue ahí contra ese mismo rival se suma solo a la acumulada.',
+      ),
+    ];
+
+// ---------------------------------------------------------------------------
+// 16. Resumen del partido y estadísticas
+// ---------------------------------------------------------------------------
+
+List<pw.Widget> _section16Resumen() => [
+      _sectionTitle(16, 'Resumen del partido y estadísticas'),
+      _p(
+        'Es una función premium (sección 19). Esta pantalla se abre automáticamente al terminar un '
         'partido, o desde el ícono de estadísticas durante la carga en vivo, o tocando un partido terminado '
         'en el archivo. Muestra:',
         bottom: 6,
@@ -1354,13 +1435,13 @@ List<pw.Widget> _section15Resumen() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 16. Exportar el reporte en PDF
+// 17. Exportar el reporte en PDF
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section16ExportarPdf() => [
-      _sectionTitle(16, 'Exportar el reporte en PDF'),
+List<pw.Widget> _section17ExportarPdf() => [
+      _sectionTitle(17, 'Exportar el reporte en PDF'),
       _p(
-        'Desde la pantalla de resumen del partido (sección 15), el ícono de PDF del encabezado genera y '
+        'Desde la pantalla de resumen del partido (sección 16), el ícono de PDF del encabezado genera y '
         'abre el diálogo para compartir o guardar un reporte completo en PDF, listo para enviar por '
         'WhatsApp o correo, o para imprimir.',
         bottom: 6,
@@ -1369,7 +1450,7 @@ List<pw.Widget> _section16ExportarPdf() => [
       _numbered([
         [_t('Encabezado con equipos, fecha, torneo, instancia, categoría y cancha.')],
         [_t('Resultado de cada set y el equipo ganador del partido.')],
-        [_t('La tabla de estadística completa por jugador (la misma información que en la sección 15), con una referencia al pie que explica cada abreviatura.')],
+        [_t('La tabla de estadística completa por jugador (la misma información que en la sección 16), con una referencia al pie que explica cada abreviatura.')],
         [_t('Una tabla con los errores del rival por tipo (saque, ataque, contra, genérico) y los puntos que ganó con su propio toque (ataque o contra).')],
         [_t('Si se registraron zonas de destino durante el partido: un desglose de saque, ataque y contraataque por separado, por zona de cancha (1 a 6), tanto a nivel equipo como por jugador.')],
         [_t('Si el partido tuvo más de un set: el detalle de estadística de cada set por separado.')],
@@ -1382,11 +1463,11 @@ List<pw.Widget> _section16ExportarPdf() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 17. Glosario
+// 18. Glosario
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section17Glosario() => [
-      _sectionTitle(17, 'Glosario de calificaciones y abreviaturas'),
+List<pw.Widget> _section18Glosario() => [
+      _sectionTitle(18, 'Glosario de calificaciones y abreviaturas'),
       _subHeading('Calificaciones de saque, ataque y contraataque'),
       _table(
         headers: ['', 'Significado'],
@@ -1440,17 +1521,17 @@ List<pw.Widget> _section17Glosario() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 18. Suscripción Premium
+// 19. Suscripción Premium
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section18SuscripcionPremium() => [
-      _sectionTitle(18, 'Suscripción Premium'),
+List<pw.Widget> _section19SuscripcionPremium() => [
+      _sectionTitle(19, 'Suscripción Premium'),
       _p(
         'RallyStats tiene una versión gratuita y una suscripción premium mensual, que se gestiona desde '
         '"Mi suscripción" (acceso disponible en la pantalla principal, sección 3, esté o no activa la '
         'suscripción).',
       ),
-      _subHeading('18.1 Qué incluye la versión gratuita y qué es premium'),
+      _subHeading('19.1 Qué incluye la versión gratuita y qué es premium'),
       _p(
         'Sin la suscripción premium activa, RallyStats se puede seguir usando siempre, de forma gratuita '
         'e indefinida, con estos límites:',
@@ -1464,15 +1545,15 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         [_t('Hasta 3 sets por partido (no se puede jugar al mejor de 5, sección 6.2).')],
         [_t('Sin acceso a la Pizarra táctica ni a su archivo de jugadas (sección 4).')],
         [
-          _t('Sin acceso al resumen de estadísticas de ningún partido (sección 15) ni, por lo tanto, al '
-              'reporte en PDF (sección 16).')
+          _t('Sin acceso al resumen de estadísticas de ningún partido (sección 16) ni, por lo tanto, al '
+              'reporte en PDF (sección 17).')
         ],
         [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
       ]),
       _p(
         'La suscripción premium desbloquea las cinco funciones de la lista de arriba (partidos y sets sin '
         'límite, pizarra, estadísticas y zona de destino) y permite además sumar dispositivos adicionales '
-        '(sección 18.3).',
+        '(sección 19.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
@@ -1481,7 +1562,7 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         'estadísticas de ningún partido, ni la Pizarra, ni guardar un partido nuevo si ya hay 3 o más '
         'guardados, hasta volver a suscribirse.',
       ),
-      _subHeading('18.2 Cómo suscribirse'),
+      _subHeading('19.2 Cómo suscribirse'),
       _numbered([
         [
           _t('Entrá a "Mi suscripción" desde la pantalla principal, o tocá cualquier función premium '
@@ -1491,33 +1572,33 @@ List<pw.Widget> _section18SuscripcionPremium() => [
         [_t('Confirmá la compra con el método de pago configurado en tu cuenta de Google Play.')],
       ]),
       _p(
-        'La suscripción se cobra mensualmente y se renueva sola hasta que se cancele (sección 18.5); el '
+        'La suscripción se cobra mensualmente y se renueva sola hasta que se cancele (sección 19.5); el '
         'pago y la renovación los administra Google Play, no RallyStats.',
       ),
-      _subHeading('18.3 Dispositivos adicionales'),
+      _subHeading('19.3 Dispositivos adicionales'),
       _p(
         'El plan premium base habilita 1 dispositivo. Desde "Mi suscripción", con la suscripción base ya '
         'activa, se puede sumar hasta un total de 4 dispositivos (3 complementos adicionales), cada uno '
         'como una suscripción mensual aparte que se suma a la base. Se habilitan de a uno: para comprar el '
         'segundo complemento hace falta tener activo el primero, y así con el tercero.',
       ),
-      _subHeading('18.4 Restaurar compras'),
+      _subHeading('19.4 Restaurar compras'),
       _p(
         'Si reinstalaste la app, cambiaste de dispositivo o iniciaste sesión en uno nuevo y la app no '
         'reconoce automáticamente una suscripción que ya tenías activa, el botón Restaurar compras (en '
         '"Mi suscripción") vuelve a consultar la compra contra la cuenta de Google Play y la aplica sin '
         'tener que pagar de nuevo.',
       ),
-      _subHeading('18.5 Gestionar o cancelar la suscripción'),
+      _subHeading('19.5 Gestionar o cancelar la suscripción'),
       _p(
         'Con la suscripción activa, "Mi suscripción" muestra el botón Gestionar o cancelar suscripción, que '
         'abre la pantalla de Google Play donde se puede cancelar la renovación automática o cambiar el '
         'medio de pago. RallyStats no tiene su propio botón de cancelación: toda suscripción de Google Play '
         'se cancela desde ahí.',
       ),
-      _subHeading('18.6 Dar de baja un dispositivo adicional'),
+      _subHeading('19.6 Dar de baja un dispositivo adicional'),
       _p(
-        'Cada complemento de dispositivo adicional (sección 18.3) es una suscripción de Google Play '
+        'Cada complemento de dispositivo adicional (sección 19.3) es una suscripción de Google Play '
         'independiente del plan base: se cancela por separado, y hoy no hay un botón directo en "Mi '
         'suscripción" para cancelar uno en particular. Para hacerlo, hay que ir a Play Store > foto de '
         'perfil > Pagos y suscripciones > Suscripciones, donde el plan base y cada complemento aparecen '
@@ -1539,11 +1620,11 @@ List<pw.Widget> _section18SuscripcionPremium() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 19. Preguntas frecuentes
+// 20. Preguntas frecuentes
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section19Faq() => [
-      _sectionTitle(19, 'Preguntas frecuentes'),
+List<pw.Widget> _section20Faq() => [
+      _sectionTitle(20, 'Preguntas frecuentes'),
       _faqCard(
         '¿Dónde se guardan los datos de la app?',
         'Todo se guarda de forma local en el dispositivo (equipos, jugadores y partidos). Desinstalar la '
@@ -1553,13 +1634,13 @@ List<pw.Widget> _section19Faq() => [
       _faqCard(
         '¿Cuántos partidos puedo cargar en el Archivo de Partidos?',
         'Sin la suscripción premium, hasta 3 partidos guardados; con premium activo, no hay ningún tope '
-            '(sección 18.1). En la práctica, con premium el único límite es el espacio libre en el '
+            '(sección 19.1). En la práctica, con premium el único límite es el espacio libre en el '
             'dispositivo, y como cada partido ocupa muy poco, se pueden acumular miles sin problema.',
       ),
       _faqCard(
         '¿Qué pasa si se vence o cancelo la suscripción premium? ¿Pierdo los partidos ya guardados?',
         'No: cancelar o dejar vencer la suscripción no borra ningún dato. Vuelven a aplicarse los límites '
-            'de la versión gratuita (sección 18.1): no se puede abrir el resumen/estadísticas de ningún '
+            'de la versión gratuita (sección 19.1): no se puede abrir el resumen/estadísticas de ningún '
             'partido, ni la Pizarra, ni guardar uno nuevo si ya hay 3 o más guardados. Pero los partidos, '
             'jugadores y jugadas de pizarra siguen ahí, disponibles apenas se vuelve a suscribir.',
       ),
@@ -1574,15 +1655,15 @@ List<pw.Widget> _section19Faq() => [
             'la carga en vivo, las planillas de equipo y el cálculo de estadísticas se hacen enteramente en '
             'el dispositivo, sin necesitar conexión. También hace falta conexión para acciones puntuales '
             'que dependen del sistema operativo, como enviar el reporte en PDF por WhatsApp o correo '
-            '(sección 16).',
+            '(sección 17).',
       ),
       _faqCard(
         '¿Puedo usar la misma cuenta en dos dispositivos a la vez?',
         'Depende del plan (sección 2): sin premium, en 1 solo; con premium y complementos de dispositivo '
-            'adicional (sección 18.3), hasta en 4 a la vez. Al superar ese límite, el login nuevo se '
+            'adicional (sección 19.3), hasta en 4 a la vez. Al superar ese límite, el login nuevo se '
             'rechaza; hay que cerrar sesión en alguno de los otros, o sumar un complemento, para entrar. Si '
             'la cuenta baja de plan con más dispositivos ya conectados de los que el nuevo límite permite, '
-            'ver la sección 18.6.',
+            'ver la sección 19.6.',
       ),
       _faqCard(
         '¿Qué pasa si la aplicación deja de funcionar mientras estoy anotando? ¿Pierdo el progreso?',
@@ -1595,10 +1676,24 @@ List<pw.Widget> _section19Faq() => [
       _faqCard(
         '¿Puedo pasar un partido de un celular a otro, o verlo en dos dispositivos a la vez?',
         'Se puede pasar un partido a otro dispositivo exportándolo (sección 14.1) e importándolo ahí '
-            '(sección 14.2); a diferencia del reporte en PDF (sección 16), que es solo para leer, ese '
+            '(sección 14.2); a diferencia del reporte en PDF (sección 17), que es solo para leer, ese '
             'archivo se puede volver a abrir en la app, incluso si el partido todavía estaba en curso. Lo '
             'que no se puede hacer es cargar el mismo partido en vivo desde dos dispositivos a la vez: una '
             'vez importada, cada copia queda independiente y no se sincroniza sola con el original.',
+      ),
+      _faqCard(
+        '¿Puedo pasar un equipo (plantel, cuerpo técnico y estadística acumulada) a otro dispositivo?',
+        'Sí, exportando el equipo (sección 5.4) e importándolo ahí (sección 5.5): se lleva el plantel, el '
+            'cuerpo técnico y todos los partidos ya jugados por ese equipo, para que la estadística '
+            'acumulada de Scouting de rivales (sección 15) quede igual del otro lado. Si el archivo '
+            'elegido para importar no es un equipo exportado por RallyStats, aparece un aviso de error y '
+            'no se modifica nada de lo que ya había en el dispositivo.',
+      ),
+      _faqCard(
+        '¿Por qué el Scouting de rivales no me muestra un partido que ya jugué?',
+        'Scouting de rivales (sección 15) separa primero por equipo propio: solo cuenta los partidos '
+            'donde el equipo elegido en el primer paso jugó como propio. Si un partido no aparece, '
+            'revisá que se haya elegido el mismo equipo con el que se cargó ese partido.',
       ),
       _faqCard(
         '¿Puedo cambiar los datos de un equipo ya creado?',
@@ -1639,7 +1734,7 @@ List<pw.Widget> _section19Faq() => [
       _faqCard(
         '¿Qué pasa si abandono un partido por error?',
         '"Abandonar partido" borra el partido por completo y no se puede deshacer. Si el partido ya tenía '
-            'un set terminado o estaba definido, se recomienda exportar el PDF (sección 16) antes de '
+            'un set terminado o estaba definido, se recomienda exportar el PDF (sección 17) antes de '
             'abandonarlo, por si se necesitan esos datos más adelante.',
       ),
       _faqCard(
@@ -1675,11 +1770,11 @@ List<pw.Widget> _section19Faq() => [
     ];
 
 // ---------------------------------------------------------------------------
-// 20. Contacto
+// 21. Contacto
 // ---------------------------------------------------------------------------
 
-List<pw.Widget> _section20Contacto() => [
-      _sectionTitle(20, 'Contacto'),
+List<pw.Widget> _section21Contacto() => [
+      _sectionTitle(21, 'Contacto'),
       _p(
         'Para consultas, reportar un problema o sugerir una mejora para RallyStats, podés escribir a:',
       ),

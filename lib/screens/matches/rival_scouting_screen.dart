@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/team.dart';
 import '../../models/volley_match.dart';
 import '../../services/scouting_engine.dart';
 import '../../state/app_data_controller.dart';
@@ -9,22 +10,80 @@ import '../../utils/theme.dart';
 import '../../widgets/theme_toggle_switch.dart';
 import 'match_summary_screen.dart';
 
-/// Lista de rivales ya enfrentados (con al menos un partido cargado), como
-/// puerta de entrada al scouting agregado de cada uno (ver
-/// [RivalScoutingDetailScreen]). Se arma solo con los partidos que ya están
-/// en el archivo (sección "Archivo de Partidos"), sin depender de nada
-/// externo.
-class RivalScoutingScreen extends StatelessWidget {
-  const RivalScoutingScreen({super.key});
+/// Punto de entrada al scouting de rivales: primero hay que elegir a cuál de
+/// los equipos propios cargados le queremos ver el historial (el scouting es
+/// siempre "mi equipo contra tal rival"), y de ahí se navega a
+/// [RivalScoutingScreen] con los rivales de ese equipo.
+class RivalScoutingTeamPickerScreen extends StatelessWidget {
+  const RivalScoutingTeamPickerScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final matches = context.watch<AppDataController>().matches;
-    final rivals = ScoutingEngine.rivalNames(matches);
+    final teams = context.watch<AppDataController>().teams;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scouting de rivales'),
+        actions: const [ThemeToggleSwitch()],
+      ),
+      body: SafeArea(
+        top: false,
+        child: teams.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Todavía no creaste ningún equipo. Creá uno desde la sección "Equipos" '
+                    'para poder ver su scouting de rivales.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: teams.length,
+                itemBuilder: (context, i) {
+                  final team = teams[i];
+                  return Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.groups)),
+                      title: Text(team.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => RivalScoutingScreen(team: team)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+}
+
+/// Lista de rivales ya enfrentados por [team] (con al menos un partido
+/// cargado con `ownTeamSourceId == team.id`), como puerta de entrada al
+/// scouting agregado de cada uno (ver [RivalScoutingDetailScreen]). Se arma
+/// solo con los partidos que ya están en el archivo (sección "Archivo de
+/// Partidos"), sin depender de nada externo.
+class RivalScoutingScreen extends StatelessWidget {
+  final Team team;
+  const RivalScoutingScreen({super.key, required this.team});
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = context
+        .watch<AppDataController>()
+        .matches
+        .where((m) => m.ownTeamSourceId == team.id)
+        .toList();
+    final rivals = ScoutingEngine.rivalNames(matches);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Rivales de ${team.name}'),
         actions: const [ThemeToggleSwitch()],
       ),
       body: SafeArea(
@@ -57,7 +116,8 @@ class RivalScoutingScreen extends StatelessWidget {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => RivalScoutingDetailScreen(rivalName: name)),
+                        MaterialPageRoute(
+                            builder: (_) => RivalScoutingDetailScreen(rivalName: name, team: team)),
                       ),
                     ),
                   );
@@ -73,11 +133,16 @@ class RivalScoutingScreen extends StatelessWidget {
 /// la defensa), más el historial de partidos jugados contra él.
 class RivalScoutingDetailScreen extends StatelessWidget {
   final String rivalName;
-  const RivalScoutingDetailScreen({super.key, required this.rivalName});
+  final Team team;
+  const RivalScoutingDetailScreen({super.key, required this.rivalName, required this.team});
 
   @override
   Widget build(BuildContext context) {
-    final matches = context.watch<AppDataController>().matches;
+    final matches = context
+        .watch<AppDataController>()
+        .matches
+        .where((m) => m.ownTeamSourceId == team.id)
+        .toList();
     final report = ScoutingEngine.buildReport(rivalName, matches);
     final df = DateFormat('dd/MM/yyyy');
 

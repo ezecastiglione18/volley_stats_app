@@ -73,7 +73,7 @@ class HomeScreen extends StatelessWidget {
                     color: warningColor(context),
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const RivalScoutingScreen()),
+                      MaterialPageRoute(builder: (_) => const RivalScoutingTeamPickerScreen()),
                     ),
                   ),
                   const SizedBox(height: 12),

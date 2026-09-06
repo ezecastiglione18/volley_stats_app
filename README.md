@@ -18,7 +18,9 @@ estadísticas exportable como reporte en PDF.
   Central, Punta/Receptor y Líbero), edad (a mano o calculada desde la fecha de nacimiento), datos
   físicos, alcances de bloqueo/ataque y foto, todos opcionales, y una planilla de hasta 16 habilitados por
   partido. Los equipos también admiten datos opcionales del cuerpo técnico (entrenador, asistente,
-  auxiliar, médico y preparador físico).
+  auxiliar, médico y preparador físico), y se pueden exportar (plantel, cuerpo técnico y todos sus
+  partidos ya jugados) para pasarlos a otro dispositivo e importarlos ahí, conservando la estadística
+  acumulada contra cada rival.
 - Cambios de jugador según el reglamento oficial de la FIVB (cambio regular y cambio de líbero), con los
   roles de líbero configurables set a set, entrada automática (opcional) del líbero defensor por un
   central que rota al fondo mientras el equipo propio saca, cambios por set ilimitados si se prefiere, y
@@ -33,6 +35,9 @@ estadísticas exportable como reporte en PDF.
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
+- Scouting de rivales: elegido un equipo propio, arma automáticamente la estadística acumulada contra
+  cada rival ya enfrentado (récord, errores más frecuentes del rival y con qué toque suele ganar el
+  punto), a partir de los partidos ya guardados en el archivo, sin tener que revisarlos uno por uno.
 - Pizarra táctica: cancha dibujable a mano (formaciones, rotaciones, sistemas de ataque/defensa), con
   colores, modo flecha, fichines arrastrables para representar jugadores por puesto (armador, punta/
   receptor, central, opuesto, líbero) y archivo propio de jugadas guardadas, accesible desde la pantalla
