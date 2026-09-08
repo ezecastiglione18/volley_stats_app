@@ -1,7 +1,7 @@
 name: rally_stats
 description: "RallyStats — carga en vivo, planillas de equipo y reportes en PDF de estadísticas de vóley."
 publish_to: 'none'
-version: 1.0.0+9
+version: 1.0.1+10
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -19,6 +19,7 @@ dependencies:
   firebase_auth: ^5.3.3
   cloud_firestore: ^5.5.0
   path_provider: ^2.1.3
+  android_id: ^0.5.2
   pdf: ^3.10.8
   printing: ^5.12.0
   intl: 0.20.3

@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:android_id/android_id.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -23,6 +26,7 @@ class StorageService {
   late Box _matches;
   late Box _plays;
   late Box _settings;
+  late String _deviceId;
 
   static final StorageService instance = StorageService._();
   StorageService._();
@@ -36,6 +40,7 @@ class StorageService {
     _matches = await Hive.openBox(_matchesBox);
     _plays = await Hive.openBox(_playsBox);
     _settings = await Hive.openBox(_settingsBox);
+    _deviceId = await _resolveDeviceId();
     _ready = true;
   }
 
@@ -104,17 +109,41 @@ class StorageService {
     await _settings.put(_themeModeKey, mode == ThemeMode.dark ? 'dark' : 'light');
   }
 
-  /// Identificador de esta instalación (no del hardware): se genera una
-  /// sola vez y se guarda local. Sirve para que el backend de cuentas
-  /// (ver `AuthService`) sepa distinguir "el mismo dispositivo volviendo a
-  /// entrar" de "otro dispositivo tratando de usar la misma cuenta". Se
-  /// pierde si se desinstala la app o se borran los datos, igual que el
-  /// resto de lo guardado en Hive.
-  String loadOrCreateDeviceId() {
-    final existing = _settings.get(_deviceIdKey) as String?;
-    if (existing != null && existing.isNotEmpty) return existing;
+  /// Identificador de este dispositivo para `AuthService` (distinguir "el
+  /// mismo dispositivo volviendo a entrar" de "otro dispositivo tratando de
+  /// usar la misma cuenta"). Resuelto una vez en [init] y cacheado en
+  /// memoria; ver [_resolveDeviceId] para de dónde sale.
+  String loadOrCreateDeviceId() => _deviceId;
+
+  /// En Android usa `Settings.Secure.ANDROID_ID` (vía el plugin `android_id`):
+  /// a diferencia de un id guardado solo en Hive, sobrevive a desinstalar y
+  /// reinstalar la app en el mismo equipo (aunque no a un reset de fábrica),
+  /// que es justo el caso que antes generaba un "dispositivo fantasma" en
+  /// `account_devices` — la reinstalación creaba un id nuevo sin liberar el
+  /// lugar del anterior, y con el límite de 1 dispositivo del plan gratis
+  /// eso dejaba al usuario sin poder volver a entrar a su propia cuenta. Se
+  /// sigue cacheando en `_settings` para no depender del plugin en cada
+  /// arranque y como respaldo si `getId()` no devuelve nada (algunos ROMs) o
+  /// tira excepción; ahí, y en cualquier plataforma que no sea Android
+  /// (donde no existe un equivalente a ANDROID_ID), se mantiene el esquema
+  /// anterior: un id random generado una sola vez y persistido en Hive (por
+  /// lo tanto sí se pierde si se desinstala, como antes).
+  Future<String> _resolveDeviceId() async {
+    final cached = _settings.get(_deviceIdKey) as String?;
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final androidId = await const AndroidId().getId();
+        if (androidId != null && androidId.isNotEmpty) {
+          if (androidId != cached) await _settings.put(_deviceIdKey, androidId);
+          return androidId;
+        }
+      } catch (_) {
+        // Defensivo: si el plugin falla, cae al esquema de respaldo abajo.
+      }
+    }
+    if (cached != null && cached.isNotEmpty) return cached;
     final generated = generateId('device_');
-    _settings.put(_deviceIdKey, generated);
+    await _settings.put(_deviceIdKey, generated);
     return generated;
   }
 
