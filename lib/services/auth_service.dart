@@ -90,6 +90,13 @@ class AuthService {
 
   String get _thisDeviceId => StorageService.instance.loadOrCreateDeviceId();
 
+  /// Id que tenía este mismo dispositivo antes de migrar a `ANDROID_ID`
+  /// (ver `StorageService._resolveDeviceId`), si corresponde. Se usa para
+  /// reconocer, en [revalidateThisDevice] y [_claimDeviceSlot], un lugar ya
+  /// reclamado con el esquema viejo en vez de tratarlo como un dispositivo
+  /// distinto.
+  String? get _legacyDeviceId => StorageService.instance.loadLegacyDeviceId();
+
   String get _thisDeviceLabel {
     try {
       return '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
@@ -176,6 +183,7 @@ class AuthService {
     }
     final deviceLimit = await _computeDeviceLimit();
     final docRef = _devices.doc(uid);
+    final legacyId = _legacyDeviceId;
 
     await _db.runTransaction((tx) async {
       final snap = await tx.get(docRef);
@@ -183,6 +191,10 @@ class AuthService {
       // Volver a entrar desde el mismo dispositivo no debe contar contra
       // el límite: se saca (si estaba) y se vuelve a agregar más abajo.
       devices.remove(_thisDeviceId);
+      // Si este dispositivo viene del esquema de id anterior, el lugar que
+      // ya tenía reclamado con el id viejo también es este mismo
+      // dispositivo, no uno más: se libera junto con el de arriba.
+      if (legacyId != null) devices.remove(legacyId);
       if (devices.length >= deviceLimit) {
         throw DeviceConflictException(deviceLimit);
       }
@@ -197,8 +209,13 @@ class AuthService {
             },
           },
         },
+        // Sin merge, este set pisaría el documento entero y borraría
+        // firstName/lastName/consent (quedan en el mismo doc, ver
+        // `register`) cada vez que alguien se loguea.
+        SetOptions(merge: true),
       );
     });
+    if (legacyId != null) await StorageService.instance.clearLegacyDeviceId();
     _watchDeviceSlot(uid);
   }
 
@@ -332,16 +349,53 @@ class AuthService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return true;
     final snap = await _devices.doc(uid).get();
-    final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
+    var devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
     if (!devices.containsKey(_thisDeviceId)) {
-      await _forceSignOutLocally();
-      return false;
+      final legacyId = _legacyDeviceId;
+      final migrated = legacyId == null
+          ? null
+          : await _migrateLegacyDeviceSlot(uid, legacyId, devices);
+      if (migrated == null) {
+        await _forceSignOutLocally();
+        return false;
+      }
+      devices = migrated;
+      await StorageService.instance.clearLegacyDeviceId();
     }
     if (await _evictSelfIfOverLimit(uid, devices)) {
       return false;
     }
     _watchDeviceSlot(uid);
     return true;
+  }
+
+  /// Migra a este dispositivo el lugar que estaba reclamado con
+  /// [legacyId] (ver [StorageService.loadLegacyDeviceId]): reemplaza esa
+  /// entrada del mapa `devices` por [_thisDeviceId] en una transacción, en
+  /// vez de que [revalidateThisDevice] trate al dispositivo migrado como
+  /// uno nuevo y lo desloguee contra un lugar que, en rigor, ya era suyo.
+  /// [devicesSnapshot] es la lectura previa (fuera de transacción) que
+  /// disparó el intento, solo para descartar rápido el caso común en el que
+  /// ni siquiera está el legacy; la migración misma vuelve a leer adentro
+  /// de la transacción antes de escribir. Devuelve el mapa `devices` ya
+  /// migrado, o `null` si no había nada para migrar (el legacy tampoco
+  /// estaba — otro dispositivo lo liberó o lo migró primero).
+  Future<Map<String, dynamic>?> _migrateLegacyDeviceSlot(
+    String uid,
+    String legacyId,
+    Map<String, dynamic> devicesSnapshot,
+  ) async {
+    if (!devicesSnapshot.containsKey(legacyId)) return null;
+    final docRef = _devices.doc(uid);
+    return _db.runTransaction<Map<String, dynamic>?>((tx) async {
+      final snap = await tx.get(docRef);
+      final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
+      final entry = devices.remove(legacyId);
+      if (entry == null) return null;
+      devices[_thisDeviceId] = entry;
+      tx.update(docRef, {'devices': devices});
+      return devices;
+    });
   }
 
   /// Si la cuenta bajó de plan y hoy tiene más dispositivos con sesión

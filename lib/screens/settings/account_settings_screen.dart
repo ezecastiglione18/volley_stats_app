@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../legal/privacy_policy_text.dart';
+import '../../legal/terms_conditions_text.dart';
 import '../../services/auth_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/delete_account_dialog.dart';
+import '../../widgets/legal_document_dialog.dart';
 import '../../widgets/sign_out_confirmation.dart';
 
 /// Configuración de la cuenta: cerrar sesión y eliminar cuenta. Antes eran
@@ -47,6 +50,37 @@ class AccountSettingsScreen extends StatelessWidget {
                 title: Text('Eliminar cuenta', style: TextStyle(color: errorColor(context))),
                 subtitle: const Text('Borra la cuenta de forma permanente'),
                 onTap: () => confirmAndDeleteAccount(context),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('Política de Privacidad'),
+                    onTap: () => showLegalDocumentDialog(
+                      context: context,
+                      title: 'Política de Privacidad',
+                      subtitle:
+                          'Vigente desde $kPrivacyPolicyEffectiveDate · Versión $kPrivacyPolicyVersion',
+                      sections: privacyPolicySections,
+                      showAcceptButton: false,
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text('Términos y Condiciones'),
+                    onTap: () => showLegalDocumentDialog(
+                      context: context,
+                      title: 'Términos y Condiciones',
+                      subtitle: 'Vigente desde $kTermsEffectiveDate · Versión $kTermsVersion',
+                      sections: termsConditionsSections,
+                      showAcceptButton: false,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

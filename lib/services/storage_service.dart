@@ -20,6 +20,7 @@ class StorageService {
   static const _settingsBox = 'settings_box';
   static const _themeModeKey = 'theme_mode';
   static const _deviceIdKey = 'device_id';
+  static const _legacyDeviceIdKey = 'legacy_device_id';
   static const _subscriptionCacheKey = 'subscription_cache';
 
   late Box _teams;
@@ -115,6 +116,17 @@ class StorageService {
   /// memoria; ver [_resolveDeviceId] para de dónde sale.
   String loadOrCreateDeviceId() => _deviceId;
 
+  /// Id de dispositivo anterior a la migración a `ANDROID_ID` (ver
+  /// [_resolveDeviceId]), si esta cuenta venía de esa versión. Puede seguir
+  /// registrado en `account_devices` en Firestore a nombre de este mismo
+  /// dispositivo, así que `AuthService` lo usa para reconocerse y migrar el
+  /// lugar ya reclamado en vez de perderlo contra el límite del plan.
+  String? loadLegacyDeviceId() => _settings.get(_legacyDeviceIdKey) as String?;
+
+  /// Limpia el id legacy una vez que ya cumplió su función (se usó para
+  /// migrar o liberar el lugar que tenía reclamado).
+  Future<void> clearLegacyDeviceId() async => await _settings.delete(_legacyDeviceIdKey);
+
   /// En Android usa `Settings.Secure.ANDROID_ID` (vía el plugin `android_id`):
   /// a diferencia de un id guardado solo en Hive, sobrevive a desinstalar y
   /// reinstalar la app en el mismo equipo (aunque no a un reset de fábrica),
@@ -128,13 +140,27 @@ class StorageService {
   /// (donde no existe un equivalente a ANDROID_ID), se mantiene el esquema
   /// anterior: un id random generado una sola vez y persistido en Hive (por
   /// lo tanto sí se pierde si se desinstala, como antes).
+  ///
+  /// Cuentas que ya estaban logueadas con el esquema anterior (id random en
+  /// Hive) migran acá mismo: si el `ANDROID_ID` difiere del cacheado, el
+  /// cacheado viejo se guarda como [_legacyDeviceIdKey] *antes* de pisarlo
+  /// con el nuevo, para que `AuthService` pueda reconocer que este
+  /// dispositivo es el mismo que ya tenía un lugar reclamado con ese id
+  /// viejo — si no quedara persistido acá (solo en memoria), se perdería en
+  /// el primer arranque tras la migración y esa cuenta quedaría trabada
+  /// afuera contra el límite de dispositivos.
   Future<String> _resolveDeviceId() async {
     final cached = _settings.get(_deviceIdKey) as String?;
     if (!kIsWeb && Platform.isAndroid) {
       try {
         final androidId = await const AndroidId().getId();
         if (androidId != null && androidId.isNotEmpty) {
-          if (androidId != cached) await _settings.put(_deviceIdKey, androidId);
+          if (androidId != cached) {
+            if (cached != null && cached.isNotEmpty) {
+              await _settings.put(_legacyDeviceIdKey, cached);
+            }
+            await _settings.put(_deviceIdKey, androidId);
+          }
           return androidId;
         }
       } catch (_) {

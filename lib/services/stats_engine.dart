@@ -64,6 +64,13 @@ class StatsEngine {
       });
     }
 
+    // Precarga una fila por cada jugador del roster, así los que no
+    // tocaron ningún punto igual aparecen en la estadística (con todo en
+    // cero) en vez de quedar afuera.
+    for (final p in match.ownRoster) {
+      lineFor(p.id);
+    }
+
     final sets = setNumber == null
         ? match.sets
         : match.sets.where((s) => s.setNumber == setNumber).toList();

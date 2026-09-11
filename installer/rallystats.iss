@@ -10,7 +10,7 @@
 ; MyAppVersion se mantiene a mano en sync con la versión de pubspec.yaml (no se lee
 ; automáticamente): actualizarla acá cada vez que cambie la versión del paquete.
 #define MyAppName "RallyStats"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "RallyStats"
 #define MyAppExeName "volley_stats_app.exe"
 #define MyReleaseDir "..\build\windows\x64\runner\Release"
