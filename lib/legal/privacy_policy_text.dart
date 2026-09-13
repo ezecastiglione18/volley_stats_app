@@ -93,9 +93,9 @@ const List<LegalSection> privacyPolicySections = [
   LegalSection(
     '04. Suscripción y pagos (solo Android)',
     'En Windows, RallyStats no tiene restricciones de plan: todas las funciones están '
-        'disponibles sin cargo. En Android, algunas funciones (pizarra táctica, estadísticas, '
-        'zona de destino, y los topes de partidos y sets guardados) están limitadas en la '
-        'versión gratuita y se desbloquean con una suscripción mensual paga.\n\n'
+        'disponibles sin cargo. En Android, algunas funciones (pizarra táctica, zona de destino, '
+        'estadísticas más allá de un partido, y el tope de partidos guardados) están limitadas '
+        'en la versión gratuita y se desbloquean con una suscripción mensual paga.\n\n'
         'Esa suscripción se procesa enteramente a través de Google Play Billing y RevenueCat, '
         'un proveedor que administra el estado de las suscripciones. Cuando iniciás sesión, le '
         'informamos a RevenueCat tu uid de Firebase (para asociar tu suscripción a tu cuenta), '

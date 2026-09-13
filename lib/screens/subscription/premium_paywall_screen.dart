@@ -5,10 +5,9 @@ import '../../services/purchase_service.dart';
 import '../../services/subscription_tiers.dart';
 
 const _kFeatures = [
-  'Acceso a partidos de 5 sets',
   'Selección de zonas para el ataque, saque y contraataque',
   'Generación de reportes post-partido',
-  'Estadísticas post set',
+  'Estadísticas en todos tus partidos',
   'Pizarra virtual',
 ];
 

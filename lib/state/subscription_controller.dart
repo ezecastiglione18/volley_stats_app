@@ -10,9 +10,9 @@ import '../utils/platform_support.dart';
 /// cuántos dispositivos habilita.
 ///
 /// [isPremium] es el único eje: sin ella, la app sigue siendo usable siempre
-/// con las restricciones puntuales de la versión gratuita (pizarra,
-/// estadísticas, zona de destino, tope de partidos/sets) — no hay un bloqueo
-/// total de la app en ningún caso.
+/// con las restricciones puntuales de la versión gratuita (pizarra, zona de
+/// destino, estadística limitada a un partido, tope de partidos guardados)
+/// — no hay un bloqueo total de la app en ningún caso.
 class SubscriptionController extends ChangeNotifier {
   bool isLoading = true;
   bool isPremium = false;

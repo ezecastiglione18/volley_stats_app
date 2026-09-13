@@ -73,8 +73,8 @@ const _pImportarPartido = 16;
 const _pRivalScouting = 16;
 const _pResumen = 17;
 const _pExportarPdf = 18;
-const _pGlosario = 18;
-const _pSuscripcionPremium = 19;
+const _pGlosario = 19;
+const _pSuscripcionPremium = 20;
 const _pQueIncluyePremium = 20;
 const _pComoSuscribirse = 20;
 const _pDispositivosAdicionales = 20;
@@ -595,8 +595,8 @@ List<pw.Widget> _section1Introduccion() => [
         'usar en dos dispositivos a la vez.',
       ),
       _p(
-        'Algunas de estas funciones (pizarra, estadísticas, zona de destino, y guardar más de 3 partidos o '
-        'jugar al mejor de 5 sets) requieren la suscripción premium: ver el detalle completo en la '
+        'Algunas de estas funciones (pizarra, zona de destino, guardar más de 3 partidos, y estadísticas '
+        'más allá de un único partido) requieren la suscripción premium: ver el detalle completo en la '
         'sección 19.',
       ),
     ];
@@ -837,8 +837,8 @@ List<pw.Widget> _section6CrearPartido() => [
         rows: [
           [
             'Cantidad máxima de sets',
-            '5 (3 sin premium)',
-            'Sets totales que se juegan como máximo (mejor de 5 con la suscripción premium; hasta 3 en la versión gratuita, sección 19.1).'
+            '5',
+            'Sets totales que se juegan como máximo (mejor de 5), igual con o sin la suscripción premium.'
           ],
           ['Puntos para ganar un set (1° al 4°)', '25', 'Puntos necesarios para ganar los sets regulares.'],
           ['Diferencia mínima (sets 1° al 4°)', '2', 'Ventaja mínima de puntos para cerrar esos sets.'],
@@ -1252,7 +1252,7 @@ List<pw.Widget> _section12Herramientas() => [
         pillFirstColumn: true,
         rows: [
           ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 13).'],
-          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 16).'],
+          ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 16). Función premium: ver estadísticas de un partido en vivo, antes de guardarlo terminado en el archivo, no está disponible en la versión gratuita (sección 19.1).'],
           ['Cambio de jugador', 'Abre el panel de cambios (ver sección 10), que también permite deshacer el último cambio (sección 10.3).'],
           ['Pizarra', 'Abre la pizarra táctica (sección 4) para dibujar una jugada sin salir de la carga en vivo.'],
           ['Confirmar fin de set', 'Solo aparece cuando el set en curso llegó a su puntaje de cierre y todavía no fue confirmado. Ver sección 13.'],
@@ -1283,8 +1283,10 @@ List<pw.Widget> _section13FinSet() => [
       _p(
         'Cuando un equipo llega a los puntos necesarios con la diferencia mínima configurada, el set '
         'termina y aparece un aviso con el resultado del set y el resultado en sets del partido, con dos '
-        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 16) o Cerrar '
-        '(vuelve a la pantalla en vivo sin decidir nada todavía).',
+        'opciones: Ver estadísticas del set (abre el resumen de ese set en particular, sección 16; función '
+        'premium, igual que "Ver estadísticas" en la sección 12: la versión gratuita recién accede a '
+        'estadística una vez que el partido está guardado y terminado en el archivo) o Cerrar (vuelve a la '
+        'pantalla en vivo sin decidir nada todavía).',
         bottom: 6,
       ),
       _infoBox(
@@ -1402,9 +1404,9 @@ List<pw.Widget> _section15RivalScouting() => [
 List<pw.Widget> _section16Resumen() => [
       _sectionTitle(16, 'Resumen del partido y estadísticas'),
       _p(
-        'Es una función premium (sección 19). Esta pantalla se abre automáticamente al terminar un '
-        'partido, o desde el ícono de estadísticas durante la carga en vivo, o tocando un partido terminado '
-        'en el archivo. Muestra:',
+        'Esta pantalla se abre automáticamente al terminar un partido, o desde el ícono de estadísticas '
+        'o "Ver estadísticas del set" durante la carga en vivo (función premium, secciones 12 y 13), o '
+        'tocando un partido terminado en el Archivo de Partidos (sección 14). Muestra:',
         bottom: 6,
       ),
       _bullets([
@@ -1417,6 +1419,14 @@ List<pw.Widget> _section16Resumen() => [
               'genérico) y los puntos que ganó con su propio toque (ataque o contra).')
         ],
       ]),
+      _infoBox(
+        'Sin la suscripción premium, la primera vez que se entra a esta pantalla para un partido ya '
+        'guardado en el Archivo de Partidos aparece un paso de confirmación ("Usar acá mi estadística '
+        'gratis"), porque la versión gratuita solo genera la estadística de un único partido en toda la '
+        'cuenta (sección 19.1). Al confirmar, ese partido queda disponible para volver a consultarlo las '
+        'veces que hagan falta, pero no se puede generar la estadística de ningún otro partido hasta '
+        'suscribirse a premium, ni aunque el elegido se borre después del archivo.',
+      ),
       _p(
         'El selector Estadística permite elegir entre el partido completo o un set en particular (afecta '
         'también a la sección "Estadística del rival"); al abrirse justo después de terminar un set desde '
@@ -1542,25 +1552,30 @@ List<pw.Widget> _section19SuscripcionPremium() => [
           _t('Hasta 3 partidos guardados en el Archivo de Partidos (sección 14): al llegar al tope, hay '
               'que suscribirse para poder guardar uno nuevo.')
         ],
-        [_t('Hasta 3 sets por partido (no se puede jugar al mejor de 5, sección 6.2).')],
         [_t('Sin acceso a la Pizarra táctica ni a su archivo de jugadas (sección 4).')],
         [
-          _t('Sin acceso al resumen de estadísticas de ningún partido (sección 16) ni, por lo tanto, al '
-              'reporte en PDF (sección 17).')
+          _t('Estadística (sección 16) y reporte en PDF (sección 17) disponibles para un único partido '
+              'de toda la cuenta, a elección propia: la primera vez que se entra al resumen de un partido '
+              'ya guardado y terminado en el archivo, hay que confirmar que se va a usar ese cupo justo '
+              'ahí. Elegido, no se puede generar la estadística de ningún otro partido hasta suscribirse, '
+              'aunque el elegido se borre después del archivo. Tampoco hay acceso a estadística en vivo ni '
+              'entre sets (secciones 12 y 13): solo una vez que el partido está guardado y terminado.')
         ],
         [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
       ]),
       _p(
-        'La suscripción premium desbloquea las cinco funciones de la lista de arriba (partidos y sets sin '
-        'límite, pizarra, estadísticas y zona de destino) y permite además sumar dispositivos adicionales '
-        '(sección 19.3).',
+        'La suscripción premium desbloquea todo lo de la lista de arriba (partidos sin límite en el '
+        'archivo, pizarra, estadística ilimitada e incluida en vivo y entre sets, y zona de destino) y '
+        'permite además sumar dispositivos adicionales (sección 19.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
         'quedan intactos, y el Archivo de Partidos sigue mostrando todos los partidos guardados. Lo que '
-        'vuelve a quedar bloqueado son las funciones premium en sí: no se va a poder abrir el resumen de '
-        'estadísticas de ningún partido, ni la Pizarra, ni guardar un partido nuevo si ya hay 3 o más '
-        'guardados, hasta volver a suscribirse.',
+        'vuelve a quedar bloqueado son las funciones premium en sí: no se va a poder generar estadística '
+        'de partidos nuevos más allá del único cupo gratis (el mismo de antes de suscribirse, si ya se '
+        'había elegido uno; si no, se puede volver a elegir), ni abrir estadística en vivo o entre sets, '
+        'ni la Pizarra, ni guardar un partido nuevo si ya hay 3 o más guardados, hasta volver a '
+        'suscribirse.',
       ),
       _subHeading('19.2 Cómo suscribirse'),
       _numbered([
@@ -1640,8 +1655,9 @@ List<pw.Widget> _section20Faq() => [
       _faqCard(
         '¿Qué pasa si se vence o cancelo la suscripción premium? ¿Pierdo los partidos ya guardados?',
         'No: cancelar o dejar vencer la suscripción no borra ningún dato. Vuelven a aplicarse los límites '
-            'de la versión gratuita (sección 19.1): no se puede abrir el resumen/estadísticas de ningún '
-            'partido, ni la Pizarra, ni guardar uno nuevo si ya hay 3 o más guardados. Pero los partidos, '
+            'de la versión gratuita (sección 19.1): la estadística vuelve a quedar limitada a un único '
+            'partido (y solo una vez guardado y terminado, no en vivo ni entre sets), sin acceso a la '
+            'Pizarra, y sin poder guardar un partido nuevo si ya hay 3 o más guardados. Pero los partidos, '
             'jugadores y jugadas de pizarra siguen ahí, disponibles apenas se vuelve a suscribir.',
       ),
       _faqCard(

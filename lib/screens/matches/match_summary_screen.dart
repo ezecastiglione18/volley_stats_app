@@ -7,6 +7,7 @@ import '../../models/stat_line.dart';
 import '../../models/volley_match.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/stats_engine.dart';
+import '../../state/app_data_controller.dart';
 import '../../state/subscription_controller.dart';
 import '../../utils/theme.dart';
 import '../../widgets/premium_required_screen.dart';
@@ -48,8 +49,24 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!context.watch<SubscriptionController>().isPremium) {
-      return const PremiumRequiredScreen(feature: 'Estadísticas');
+    final isPremium = context.watch<SubscriptionController>().isPremium;
+    final appData = context.watch<AppDataController>();
+    final matchId = widget.match.id;
+
+    if (!isPremium && appData.freeStatsMatchId != matchId) {
+      if (appData.freeStatsMatchId != null) {
+        // El cupo ya lo gastó otro partido: bloqueado hasta premium.
+        return const PremiumRequiredScreen(
+          feature: 'Estadísticas',
+          message: 'Ya generaste la estadística gratuita de otro partido. Suscribite a premium '
+              'para generar estadísticas en todos los partidos.',
+        );
+      }
+      // Cupo libre: el usuario elige si lo gasta en este partido.
+      return _FreeStatsConfirmScreen(
+        matchLabel: '${widget.match.ownTeamName} vs ${widget.match.rivalTeamName}',
+        onConfirm: () => appData.registerFreeStatsUsage(matchId),
+      );
     }
 
     final match = widget.match;
@@ -376,4 +393,73 @@ class _C extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
         child: Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
       );
+}
+
+/// Paso de confirmación antes de gastar el único cupo de estadística free en
+/// un partido puntual. Se muestra en vez de la estadística mientras el cupo
+/// siga libre, para que la elección de qué partido lo usa sea explícita del
+/// usuario y no el resultado de haber entrado a mirar por curiosidad.
+class _FreeStatsConfirmScreen extends StatefulWidget {
+  final String matchLabel;
+  final Future<void> Function() onConfirm;
+  const _FreeStatsConfirmScreen({required this.matchLabel, required this.onConfirm});
+
+  @override
+  State<_FreeStatsConfirmScreen> createState() => _FreeStatsConfirmScreenState();
+}
+
+class _FreeStatsConfirmScreenState extends State<_FreeStatsConfirmScreen> {
+  bool _confirming = false;
+
+  Future<void> _confirm() async {
+    setState(() => _confirming = true);
+    await widget.onConfirm();
+    if (mounted) setState(() => _confirming = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Estadísticas')),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.query_stats, size: 48, color: Theme.of(context).colorScheme.secondary),
+                const SizedBox(height: 16),
+                const Text(
+                  'La versión free permite generar estadística en un único partido',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Vas a usar ese cupo en "${widget.matchLabel}". No vas a poder generar '
+                  'estadística para ningún otro partido hasta que te suscribas a premium.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _confirming ? null : _confirm,
+                  child: _confirming
+                      ? const SizedBox(
+                          width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Usar acá mi estadística gratis'),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: _confirming ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

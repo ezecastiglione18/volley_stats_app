@@ -23,11 +23,17 @@ class AppDataController extends ChangeNotifier {
   List<VolleyMatch> matches = [];
   List<Play> plays = [];
 
+  /// Id del partido que ya consumió el único cupo de estadística de la
+  /// versión free (ver [registerFreeStatsUsage]). `null` si todavía no se
+  /// generó ninguna.
+  String? freeStatsMatchId;
+
   Future<void> loadAll() async {
     await StorageService.instance.init();
     teams = StorageService.instance.loadTeams();
     matches = StorageService.instance.loadMatches();
     plays = StorageService.instance.loadPlays();
+    freeStatsMatchId = StorageService.instance.loadFreeStatsMatchId();
     notifyListeners();
   }
 
@@ -72,6 +78,19 @@ class AppDataController extends ChangeNotifier {
   Future<void> deleteMatch(String matchId) async {
     await StorageService.instance.deleteMatch(matchId);
     matches.removeWhere((m) => m.id == matchId);
+    notifyListeners();
+  }
+
+  /// Marca [matchId] como el partido que gastó el único cupo de estadística
+  /// free, tras la confirmación explícita del usuario (ver
+  /// `_FreeStatsConfirmScreen` en `MatchSummaryScreen` — no se llama por el
+  /// solo hecho de entrar a mirar). No-op si el cupo ya estaba gastado (con
+  /// este mismo partido o con otro). El registro persiste aunque el partido
+  /// se borre del archivo después.
+  Future<void> registerFreeStatsUsage(String matchId) async {
+    if (freeStatsMatchId != null) return;
+    freeStatsMatchId = matchId;
+    await StorageService.instance.saveFreeStatsMatchId(matchId);
     notifyListeners();
   }
 

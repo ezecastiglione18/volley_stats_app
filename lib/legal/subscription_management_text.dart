@@ -20,8 +20,9 @@ const List<LegalSection> subscriptionManagementSections = [
   ),
   LegalSection(
     '1. Cancelar el plan completo',
-    'Si querés dejar de tener premium por completo (perdés pizarra táctica, estadísticas, zona '
-        'de destino, y vuelven a aplicarse los topes de partidos y sets guardados), tocá '
+    'Si querés dejar de tener premium por completo (perdés pizarra táctica, zona de destino, '
+        'estadísticas más allá de un partido, y vuelve a aplicarse el tope de partidos '
+        'guardados), tocá '
         '"Gestionar o cancelar suscripción" en la pantalla de "Mi suscripción": te lleva directo '
         'a Google Play, a la gestión de tu plan base. Ahí confirmás la cancelación con los '
         'controles de Google.\n\n'

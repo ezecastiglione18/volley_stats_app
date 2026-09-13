@@ -60,9 +60,15 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
           IconButton(
             icon: const Icon(Icons.bar_chart),
             tooltip: 'Ver estadísticas',
-            onPressed: () => Navigator.push(
+            // Estadísticas en vivo (mid-partido) son premium: la versión free
+            // sólo accede a estadística de un partido ya guardado en el
+            // archivo (ver MatchSummaryScreen.justFinished y el archivo).
+            onPressed: () => runIfPremium(
               context,
-              MaterialPageRoute(builder: (_) => MatchSummaryScreen(match: match)),
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => MatchSummaryScreen(match: match)),
+              ),
             ),
           ),
           IconButton(
@@ -300,10 +306,15 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.push(
+                // Mismo motivo que el ícono del appbar: estadística entre
+                // sets es premium, free recién accede una vez guardado.
+                runIfPremium(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => MatchSummaryScreen(match: match, initialSet: set.setNumber),
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MatchSummaryScreen(match: match, initialSet: set.setNumber),
+                    ),
                   ),
                 );
               },

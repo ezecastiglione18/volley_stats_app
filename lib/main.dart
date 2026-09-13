@@ -184,9 +184,9 @@ class _AuthGateState extends State<_AuthGate> with WidgetsBindingObserver {
 
 /// Revalida la suscripción al entrar (cubre arranque + login recién hecho)
 /// contra RevenueCat antes de mostrar [HomeScreen], para que las
-/// restricciones puntuales de la versión gratuita (pizarra, estadísticas,
-/// zona de destino, tope de partidos/sets) usen un [isPremium] fresco y no
-/// sólo el último valor cacheado.
+/// restricciones puntuales de la versión gratuita (pizarra, zona de destino,
+/// estadística limitada a un partido, tope de partidos guardados) usen un
+/// [isPremium] fresco y no sólo el último valor cacheado.
 class _SubscriptionGate extends StatefulWidget {
   const _SubscriptionGate();
 

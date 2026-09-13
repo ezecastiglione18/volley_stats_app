@@ -105,8 +105,8 @@ class _NotPremiumContent extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Suscribite para desbloquear estadísticas, pizarra, archivo ilimitado de partidos y '
-            'la posibilidad de sumar dispositivos adicionales.',
+            'Suscribite para desbloquear estadísticas en todos tus partidos, pizarra, archivo '
+            'ilimitado de partidos y la posibilidad de sumar dispositivos adicionales.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey),
           ),

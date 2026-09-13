@@ -22,6 +22,7 @@ class StorageService {
   static const _deviceIdKey = 'device_id';
   static const _legacyDeviceIdKey = 'legacy_device_id';
   static const _subscriptionCacheKey = 'subscription_cache';
+  static const _freeStatsMatchIdKey = 'free_stats_match_id';
 
   late Box _teams;
   late Box _matches;
@@ -185,5 +186,15 @@ class StorageService {
 
   Future<void> saveSubscriptionCache(Map<String, dynamic> json) async {
     await _settings.put(_subscriptionCacheKey, jsonEncode(json));
+  }
+
+  /// Id del único partido para el que una cuenta free ya generó estadística
+  /// (ver `AppDataController.registerFreeStatsUsage`). `null` si todavía no
+  /// gastó ese cupo. Se mantiene aunque el partido se borre del archivo,
+  /// para que borrar y crear uno nuevo no lo esquive.
+  String? loadFreeStatsMatchId() => _settings.get(_freeStatsMatchIdKey) as String?;
+
+  Future<void> saveFreeStatsMatchId(String matchId) async {
+    await _settings.put(_freeStatsMatchIdKey, matchId);
   }
 }

@@ -7,7 +7,12 @@ import '../services/paywall_launcher.dart';
 class PremiumRequiredScreen extends StatelessWidget {
   final String feature;
 
-  const PremiumRequiredScreen({super.key, required this.feature});
+  /// Texto de abajo del título. Por defecto explica que [feature] es
+  /// premium; se puede pisar para un caso más específico (ej. cupo free ya
+  /// usado en otro partido).
+  final String? message;
+
+  const PremiumRequiredScreen({super.key, required this.feature, this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +33,11 @@ class PremiumRequiredScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Suscribite para desbloquearla junto con el resto de las funciones premium.',
+                Text(
+                  message ??
+                      'Suscribite para desbloquearla junto con el resto de las funciones premium.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+                  style: const TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
