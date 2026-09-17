@@ -51,6 +51,10 @@ estadísticas exportable como reporte en PDF.
   dispositivos adicionales. Incluye restaurar compras y gestión/cancelación desde Google Play, y un link
   "Cómo cancelar sin problemas" con una guía completa sobre en qué orden dar de baja los complementos (ver
   la sección 19 del manual de usuario para el detalle completo).
+- "Tengo un código" (Configuración de la cuenta): canjear un código promocional para activar premium sin
+  pasar por Google Play Billing — pensado para dar acceso gratuito puntual (ej. a una federación) sin
+  otorgarlo a mano por cuenta. Depende del backend en `volley_stats_app_backend` (ver esa sección más
+  abajo); todavía no salió en ninguna versión publicada en Play Store.
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
   dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +
@@ -95,9 +99,9 @@ lib/
   state/      # MatchController (reglas del juego y estado en vivo), AppDataController, ThemeController,
               # SubscriptionController (estado de la suscripción premium)
   screens/    # pantallas: home, auth, equipos, armado de partido, carga en vivo, resumen, archivo, pizarra,
-              # suscripción/paywall
+              # suscripción/paywall, canje de código promocional, configuración de cuenta
   services/   # persistencia local (Hive), estadísticas, reportes en PDF, exportar/importar partidos,
-              # auth (Firebase), compras (RevenueCat)
+              # auth (Firebase), compras (RevenueCat), canje de código (Cloud Functions)
 ```
 
 ## Login / control de dispositivo único (Firebase)
@@ -123,6 +127,23 @@ La versión de Windows queda deliberadamente fuera de este esquema por ahora (no
 de Android): `isRevenueCatSupported` en
 [`lib/utils/platform_support.dart`](lib/utils/platform_support.dart) desactiva ahí toda la lógica de
 RevenueCat y fuerza `isPremium = true`.
+
+## Códigos promocionales (backend aparte)
+
+"Tengo un código" (`lib/screens/subscription/redeem_code_screen.dart` +
+`lib/services/redeem_code_service.dart`) le pega a una Cloud Function (`redeemPromoCode`) del repo
+[`volley_stats_app_backend`](https://github.com/ezecastiglione18/volley_stats_app_backend) — un repo
+separado, sobre el mismo proyecto de Firebase. Ahí está toda la lógica de validación, el modelo de datos y
+cómo generar códigos nuevos. De este lado, dos cosas no obvias si se vuelve a tocar este flujo:
+
+- La función vive en la región `southamerica-east1`, no en la región por defecto de `cloud_functions`
+  (`us-central1`) — hay que instanciar `FirebaseFunctions.instanceFor(region: 'southamerica-east1')`, si no
+  el llamado no la encuentra.
+- Después de un canje exitoso hay que llamar a `Purchases.invalidateCustomerInfoCache()` antes de refrescar
+  `SubscriptionController` — el otorgamiento lo hizo la Cloud Function directo contra la API de RevenueCat
+  (server-to-server), y a diferencia de una compra hecha con el propio SDK, éste no se entera solo y
+  devuelve el `CustomerInfo` viejo en caché si no se invalida a mano primero (comportamiento documentado de
+  RevenueCat, no un bug de acá).
 
 ## Manual de usuario
 

@@ -134,6 +134,31 @@ gestionar/cancelar (enlace a Play Store) están en `SubscriptionScreen`. Para qu
 verdad hace falta, del lado de Play Console/RevenueCat, que existan los product ids de
 `subscription_tiers.dart` (ver README).
 
+**Códigos promocionales ("Tengo un código", `lib/services/redeem_code_service.dart` +
+`lib/screens/subscription/redeem_code_screen.dart`, accesible desde `AccountSettingsScreen`)**: otorga
+premium sin pasar nunca por Google Play Billing — la pantalla manda el código a una Cloud Function
+(`redeemPromoCode`) del repo aparte `volley_stats_app_backend` (mismo proyecto de Firebase, repo distinto;
+ver su propio CLAUDE.md para la lógica del servidor), que valida el código contra Firestore y, si es válido,
+le pega directo a la API de RevenueCat para otorgar el entitlement `rallystats_pro` por la cantidad de días
+que indique ese código — de ahí que no dependa de que la ficha de Play Console esté publicada, en revisión,
+ni de ninguna versión particular del APK. Dos detalles no obvios si se vuelve a tocar este flujo:
+
+- La función vive en `southamerica-east1`, no en la región por defecto de `cloud_functions`
+  (`us-central1`) — `redeem_code_service.dart` instancia
+  `FirebaseFunctions.instanceFor(region: 'southamerica-east1')` a propósito; usar `FirebaseFunctions.instance`
+  a secas no la encuentra.
+- Tras un canje exitoso, antes de `SubscriptionController.refresh()` hace falta
+  `await Purchases.invalidateCustomerInfoCache()`. El otorgamiento es server-to-server (la Cloud Function
+  llamando directo a la API de RevenueCat), no una compra hecha con el propio SDK — así que, a diferencia de
+  `purchaseProductById`/`restorePurchases` (que sí actualizan el `CustomerInfo` solos porque el SDK fue
+  quien hizo la operación), acá el SDK del cliente no tiene forma de enterarse y devuelve `CustomerInfo` en
+  caché si no se invalida a mano primero. Es comportamiento documentado de RevenueCat, no algo para
+  "arreglar" del lado del SDK.
+
+Todavía no salió en ninguna versión publicada (no hay `cloud_functions` en ningún release de Play Store
+hasta ahora) — se implementó y probó de punta a punta contra el backend real, pero falta sumarlo al proceso
+de release de más abajo el día que se decida publicarlo como versión nueva.
+
 **Pizarra táctica (`lib/screens/whiteboard/`)**: cancha dibujable a mano (`WhiteboardPainter`, un
 `CustomPainter`) sobre la que se registran trazos (`PlayStroke`: color, flecha opcional, puntos
 normalizados 0.0–1.0 para independizarse del tamaño de pantalla). Se guarda como `Play` igual que

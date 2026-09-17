@@ -7,6 +7,7 @@ import '../../utils/theme.dart';
 import '../../widgets/delete_account_dialog.dart';
 import '../../widgets/legal_document_dialog.dart';
 import '../../widgets/sign_out_confirmation.dart';
+import '../subscription/redeem_code_screen.dart';
 
 /// Configuración de la cuenta: cerrar sesión y eliminar cuenta. Antes eran
 /// dos íconos sueltos en el encabezado de Inicio; se juntaron acá para no
@@ -35,6 +36,17 @@ class AccountSettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
             ],
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.redeem_outlined),
+                title: const Text('Tengo un código'),
+                subtitle: const Text('Canjeá un código promocional para activar premium'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const RedeemCodeScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Card(
               child: ListTile(
                 leading: const Icon(Icons.logout),
