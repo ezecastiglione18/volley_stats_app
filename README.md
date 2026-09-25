@@ -10,7 +10,13 @@ estadísticas exportable como reporte en PDF.
 ## Funcionalidades
 
 - Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional
-  (saque, ataque y contraataque).
+  (saque, ataque y contraataque), en 6 zonas o en 9 (suma la franja media 7-8-9, elegible set a set).
+- Edición de la formación ya comenzada: mientras el set no tenga ninguna acción cargada, "Editar
+  formación" vuelve a la pantalla de formación con todo precargado para corregir sexteto, saque, líberos
+  u opciones de registro sin tener que cargar el partido de nuevo.
+- Rotación manual opcional (se habilita en la configuración del partido): gira al equipo propio un puesto
+  hacia adelante o hacia atrás entre punto y punto, para corregir la rotación, y se deshace como cualquier
+  otra acción.
 - Confirmación explícita de fin de set: al llegar al puntaje de cierre, el set queda pendiente (se puede
   seguir deshaciendo si el árbitro revierte el último punto) hasta confirmarlo con un botón dedicado del
   encabezado, incluido el set decisivo que cierra el partido.
@@ -24,11 +30,14 @@ estadísticas exportable como reporte en PDF.
 - Cambios de jugador según el reglamento oficial de la FIVB (cambio regular y cambio de líbero), con los
   roles de líbero configurables set a set, entrada automática (opcional) del líbero defensor por un
   central que rota al fondo mientras el equipo propio saca, cambios por set ilimitados si se prefiere, y
-  opción de deshacer el último cambio o la última jugada cargada por error.
+  opción de deshacer el último cambio o la última jugada cargada por error. Cualquier líbero de la
+  planilla puede entrar o intercambiarse con el que está en cancha aunque no tenga un rol asignado en el
+  set (Regla 19.3.2 de la FIVB: cambios de líbero ilimitados, con un punto jugado entre dos cambios).
 - Carga de sanciones y tarjetas del árbitro (amonestación, tarjeta amarilla, roja, expulsión y
   descalificación) según el reglamento oficial de la FIVB, con el punto o la salida de cancha
   correspondiente aplicados automáticamente y la sustitución obligatoria cuando corresponde.
-- Formato de partido configurable (cantidad de sets, puntos por set, cambios permitidos por set).
+- Formato de partido configurable (cantidad de sets, puntos por set, cambios permitidos por set, rotación
+  manual).
 - Estadísticas del partido completo o por set (propias y del rival), con porcentajes de efectividad de
   saque, ataque, contraataque y recepción, y reporte en PDF listo para compartir (incluye desglose por
   jugador, sanciones y zonas de destino de saque, ataque y contraataque).
@@ -76,6 +85,7 @@ estadísticas exportable como reporte en PDF.
 ```bash
 flutter pub get
 flutter run
+flutter test      # tests de widgets y de las reglas de juego de MatchController
 ```
 
 Para generar el APK de Android:
@@ -95,7 +105,8 @@ flutter build windows --release
 
 ```
 lib/
-  models/     # Team, Player, VolleyMatch, MatchSet, RallyEvent, SubstitutionEvent, MatchConfig, Play
+  models/     # Team, Player, VolleyMatch, MatchSet, RallyEvent, SubstitutionEvent, ManualRotationEvent,
+              # MatchConfig, Play
   state/      # MatchController (reglas del juego y estado en vivo), AppDataController, ThemeController,
               # SubscriptionController (estado de la suscripción premium)
   screens/    # pantallas: home, auth, equipos, armado de partido, carga en vivo, resumen, archivo, pizarra,

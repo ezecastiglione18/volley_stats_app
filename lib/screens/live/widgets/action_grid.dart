@@ -46,6 +46,7 @@ class ActionGrid extends StatelessWidget {
       fixedPlayerId: serverId,
       grades: serveAttackGrades,
       trackZone: controller.currentSet.trackHitZones,
+      nineZones: controller.currentSet.nineHitZones,
       onConfirm: (playerId, grade, zone) => controller.logServe(playerId, grade, targetZone: zone),
     );
   }
@@ -67,6 +68,7 @@ class ActionGrid extends StatelessWidget {
       players: controller.onCourtAttackersAndBlockers,
       grades: attackCounterGrades,
       trackZone: controller.currentSet.trackHitZones,
+      nineZones: controller.currentSet.nineHitZones,
       onConfirm: (playerId, grade, zone) => controller.logAttack(playerId, grade, targetZone: zone),
     );
   }
@@ -78,6 +80,7 @@ class ActionGrid extends StatelessWidget {
       players: controller.onCourtAttackersAndBlockers,
       grades: attackCounterGrades,
       trackZone: controller.currentSet.trackHitZones,
+      nineZones: controller.currentSet.nineHitZones,
       onConfirm: (playerId, grade, zone) => controller.logCounter(playerId, grade, targetZone: zone),
     );
   }

@@ -10,6 +10,11 @@ class MatchConfig {
   int tieBreakWinMargin; // minimum margin for the deciding set. Default 2.
   int maxSubstitutionsPerSet; // cambios de jugador permitidos por set (1-10, o [unlimited]). Default 6.
 
+  /// Si está activado, la pantalla en vivo ofrece rotar al equipo propio a
+  /// mano (sin que haya un side-out), p. ej. para corregir una rotación mal
+  /// cargada o marcada por el árbitro. Por defecto desactivado.
+  bool allowManualRotation;
+
   MatchConfig({
     this.maxSets = 5,
     this.setPoints = 25,
@@ -17,6 +22,7 @@ class MatchConfig {
     this.tieBreakPoints = 15,
     this.tieBreakWinMargin = 2,
     this.maxSubstitutionsPerSet = 6,
+    this.allowManualRotation = false,
   });
 
   bool get hasUnlimitedSubstitutions => maxSubstitutionsPerSet < 0;
@@ -38,6 +44,7 @@ class MatchConfig {
         'tieBreakPoints': tieBreakPoints,
         'tieBreakWinMargin': tieBreakWinMargin,
         'maxSubstitutionsPerSet': maxSubstitutionsPerSet,
+        'allowManualRotation': allowManualRotation,
       };
 
   factory MatchConfig.fromJson(Map<dynamic, dynamic> json) => MatchConfig(
@@ -47,6 +54,7 @@ class MatchConfig {
         tieBreakPoints: (json['tieBreakPoints'] as num?)?.toInt() ?? 15,
         tieBreakWinMargin: (json['tieBreakWinMargin'] as num?)?.toInt() ?? 2,
         maxSubstitutionsPerSet: (json['maxSubstitutionsPerSet'] as num?)?.toInt() ?? 6,
+        allowManualRotation: json['allowManualRotation'] as bool? ?? false,
       );
 
   MatchConfig copy() => MatchConfig(
@@ -56,5 +64,6 @@ class MatchConfig {
         tieBreakPoints: tieBreakPoints,
         tieBreakWinMargin: tieBreakWinMargin,
         maxSubstitutionsPerSet: maxSubstitutionsPerSet,
+        allowManualRotation: allowManualRotation,
       );
 }

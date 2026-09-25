@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../../utils/theme.dart';
 
-/// Cuadrado dividido en 6 partes iguales para elegir la zona de cancha
-/// (1-6) a la que fue dirigido un saque o un ataque. Numeración pensada para
-/// verse "de frente" desde el punto de vista de quien anota: fila cercana a
-/// la red = 2-3-4, fila de fondo = 1-6-5.
+/// Cuadrado dividido en 6 partes iguales (o 9, con [nineZones]) para elegir
+/// la zona de cancha rival a la que fue dirigido un saque o un ataque.
+/// Numeración pensada para verse "de frente" desde el punto de vista de
+/// quien anota: fila cercana a la red = 2-3-4, fila de fondo = 1-6-5 y, con
+/// 9 zonas, la franja media = 9-8-7 (el 7 queda entre el 4 y el 5 del rival,
+/// el 9 entre su 2 y su 1, como en la numeración de DataVolley).
 class HitZonePicker extends StatelessWidget {
   final int? selectedZone;
   final ValueChanged<int?> onChanged;
+  final bool nineZones;
 
-  const HitZonePicker({super.key, required this.selectedZone, required this.onChanged});
+  const HitZonePicker({
+    super.key,
+    required this.selectedZone,
+    required this.onChanged,
+    this.nineZones = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +63,7 @@ class HitZonePicker extends StatelessWidget {
               textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
         ),
         Row(children: [cell(1), cell(6), cell(5)]),
+        if (nineZones) Row(children: [cell(9), cell(8), cell(7)]),
         Row(children: [cell(2), cell(3), cell(4)]),
         SizedBox(
           width: double.infinity,

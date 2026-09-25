@@ -233,6 +233,19 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
                           min: 1,
                           max: 10,
                         ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: _config.allowManualRotation,
+                        title: const Text('Permitir rotar el equipo manualmente'),
+                        subtitle: const Text(
+                          'Durante el partido, entre punto y punto, vas a poder girar tu equipo un '
+                          'puesto sin que haya side-out (p. ej. para corregir la rotación). Se puede '
+                          'deshacer como cualquier otra acción.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onChanged: (v) => setState(() => _config.allowManualRotation = v ?? false),
+                      ),
                     ],
                   ),
                 ),

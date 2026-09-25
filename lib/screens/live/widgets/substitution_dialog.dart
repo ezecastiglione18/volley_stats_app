@@ -292,10 +292,13 @@ class _LiberoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final liberoIds = controller.declaredLiberoIds;
+    // Cualquier líbero de la planilla puede entrar o intercambiarse con el
+    // que está en cancha (Regla 19.3.2.2), tenga o no un rol asignado en
+    // este set: los roles solo deciden los cambios automáticos.
+    final liberoIds = controller.rosterLiberoIds;
     if (liberoIds.isEmpty) {
       return const Text(
-        'No hay líberos configurados para este partido (se eligen al armar la planilla de 16).',
+        'No hay líberos en la planilla de este partido (se eligen al armar la planilla de 16).',
         style: TextStyle(fontSize: 12, color: Colors.grey),
       );
     }
@@ -304,7 +307,7 @@ class _LiberoPanel extends StatelessWidget {
     final rows = <Widget>[];
 
     // Líbero(s) actualmente en cancha: se pueden sacar (vuelve el jugador
-    // reemplazado) o cambiar por el otro líbero declarado.
+    // reemplazado) o cambiar por otro líbero de la planilla.
     for (var slot = 0; slot < 6; slot++) {
       // Buscamos si hay un líbero en este puesto consultando quién ocupa el
       // slot y si su posición es líbero.
@@ -312,6 +315,7 @@ class _LiberoPanel extends StatelessWidget {
       final player = controller.playerById(playerId);
       if (player?.position != PlayerPosition.libero) continue;
       final canOut = controller.canSendLiberoOut(slot);
+      final others = controller.otherLiberosFor(slot);
       rows.add(Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Column(
@@ -331,18 +335,28 @@ class _LiberoPanel extends StatelessWidget {
                       : null,
                   child: const Text('Sacar'),
                 ),
-                if (liberoIds.length > 1)
-                  TextButton(
-                    onPressed: canOut
-                        ? () {
-                            controller.swapLiberoToOther(slot);
-                            setState(() {});
-                          }
-                        : null,
-                    child: const Text('Cambiar por el otro líbero'),
-                  ),
               ],
             ),
+            if (others.isNotEmpty)
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [
+                  const Text('Cambiar por:'),
+                  ...others.map((liberoId) {
+                    final libero = controller.playerById(liberoId);
+                    return ActionChip(
+                      label: Text('#${libero?.number} ${libero?.lastName} · LIB'),
+                      onPressed: canOut
+                          ? () {
+                              controller.swapLiberoToOther(slot, toLiberoId: liberoId);
+                              setState(() {});
+                            }
+                          : null,
+                    );
+                  }),
+                ],
+              ),
             if (!canOut)
               const Padding(
                 padding: EdgeInsets.only(left: 4),
@@ -369,9 +383,7 @@ class _LiberoPanel extends StatelessWidget {
         continue; // está a punto de sacar: debe quedarse.
       }
       suggestedFor.add(p.id);
-      final recommendedId = controller.servingTeam == TeamSide.own
-          ? controller.currentSet.defensiveLiberoId
-          : controller.currentSet.receptionLiberoId;
+      final recommendedId = controller.liberoForCurrentServe();
       final canSuggest = recommendedId != null && controller.canBringLiberoIn(recommendedId, p.id);
       final recommended = recommendedId == null ? null : controller.playerById(recommendedId);
       final roleLabel = controller.servingTeam == TeamSide.own ? 'defensor' : 'receptor';
@@ -403,8 +415,9 @@ class _LiberoPanel extends StatelessWidget {
       children: [
         const Text(
           'El líbero solo puede entrar en un puesto de fila trasera y solo puede '
-          'salir por el mismo jugador al que reemplazó. Solo puede haber un líbero '
-          'en cancha a la vez.',
+          'salir por el mismo jugador al que reemplazó o por el otro líbero. Solo '
+          'puede haber un líbero en cancha a la vez. Los cambios de líbero son '
+          'ilimitados, con al menos un punto jugado entre dos cambios.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 12),

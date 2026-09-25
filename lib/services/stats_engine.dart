@@ -250,14 +250,15 @@ class StatsEngine {
     target.bloq += src.bloq;
   }
 
-  /// Calcula la estadística de saque y ataque por zona de destino (1-6),
-  /// para todo el partido o, si [setNumber] se especifica, solo ese set.
-  /// Solo cuenta toques propios que tienen zona registrada (el registro de
-  /// zona es opcional y puede estar desactivado en algún set).
+  /// Calcula la estadística de saque y ataque por zona de destino (1-9: las
+  /// zonas 7-9 solo aparecen en sets cargados con "9 zonas"), para todo el
+  /// partido o, si [setNumber] se especifica, solo ese set. Solo cuenta
+  /// toques propios que tienen zona registrada (el registro de zona es
+  /// opcional y puede estar desactivado en algún set).
   static ZoneStats computeZones(VolleyMatch match, {int? setNumber}) {
-    final serveByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
-    final attackByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
-    final counterByZone = {for (var z = 1; z <= 6; z++) z: TouchStats()};
+    final serveByZone = {for (var z = 1; z <= 9; z++) z: TouchStats()};
+    final attackByZone = {for (var z = 1; z <= 9; z++) z: TouchStats()};
+    final counterByZone = {for (var z = 1; z <= 9; z++) z: TouchStats()};
     final serveByZoneByPlayer = <String, Map<int, TouchStats>>{};
     final attackByZoneByPlayer = <String, Map<int, TouchStats>>{};
     final counterByZoneByPlayer = <String, Map<int, TouchStats>>{};
@@ -266,7 +267,7 @@ class StatsEngine {
       Map<String, Map<int, TouchStats>> store,
       String playerId,
     ) =>
-        store.putIfAbsent(playerId, () => {for (var z = 1; z <= 6; z++) z: TouchStats()});
+        store.putIfAbsent(playerId, () => {for (var z = 1; z <= 9; z++) z: TouchStats()});
 
     final sets = setNumber == null
         ? match.sets
@@ -276,7 +277,7 @@ class StatsEngine {
       for (final ev in set.events) {
         if (ev.team != TeamSide.own || ev.targetZone == null) continue;
         final zone = ev.targetZone!;
-        if (zone < 1 || zone > 6) continue;
+        if (zone < 1 || zone > 9) continue;
         final playerId = _singlePlayer(ev);
         if (ev.phase == RallyPhase.serve) {
           _bumpTouch(serveByZone[zone]!, ev.grade);

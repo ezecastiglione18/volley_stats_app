@@ -146,6 +146,7 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
                 child: Column(
                   children: [
                     Scoreboard(controller: controller),
+                    if (controller.canEditCurrentSetLineup) _editLineupBanner(context, controller),
                     CourtView(controller: controller),
                     const Divider(height: 1),
                     ActionGrid(controller: controller),
@@ -156,12 +157,70 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
             return Column(
               children: [
                 Scoreboard(controller: controller),
+                if (controller.canEditCurrentSetLineup) _editLineupBanner(context, controller),
                 CourtView(controller: controller),
                 const Divider(height: 1),
                 Expanded(child: ActionGrid(controller: controller, compact: true)),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  /// Aviso que se muestra mientras el set en curso no tiene ninguna acción
+  /// cargada (ver `MatchController.canEditCurrentSetLineup`): permite volver
+  /// a la pantalla de formación, con todo precargado, para corregir el
+  /// sexteto, el saque, los líberos o las opciones de registro sin tener que
+  /// abandonar el partido y cargar todo de nuevo.
+  Widget _editLineupBanner(BuildContext context, MatchController controller) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+      padding: const EdgeInsets.only(left: 12),
+      decoration: BoxDecoration(
+        color: scheme.secondary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.secondary.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 18, color: scheme.secondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('Set ${controller.currentSet.setNumber} sin comenzar',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Editar formación'),
+            onPressed: () => _openLineupEditor(context, controller),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openLineupEditor(BuildContext context, MatchController controller) {
+    final match = controller.match;
+    return Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LineupScreen(
+          ownTeamName: match.ownTeamName,
+          ownTeamSourceId: match.ownTeamSourceId,
+          rivalTeamName: match.rivalTeamName,
+          rivalTeamSourceId: match.rivalTeamSourceId,
+          tournament: match.tournament,
+          round: match.round,
+          court: match.court,
+          category: match.category,
+          date: match.date,
+          config: match.config,
+          roster: match.ownRoster,
+          existingController: controller,
+          editCurrentSet: true,
         ),
       ),
     );

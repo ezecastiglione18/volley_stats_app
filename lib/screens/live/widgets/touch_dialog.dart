@@ -6,7 +6,8 @@ import 'grouped_ficha_row.dart';
 import 'hit_zone_picker.dart';
 
 /// Muestra un modal para elegir jugador (si corresponde), calificar el
-/// toque y, si [trackZone] está activo, elegir la zona de destino (opcional).
+/// toque y, si [trackZone] está activo, elegir la zona de destino (opcional;
+/// entre 9 zonas en vez de 6 si [nineZones] también está activo).
 Future<void> showTouchDialog({
   required BuildContext context,
   required String title,
@@ -14,6 +15,7 @@ Future<void> showTouchDialog({
   String? fixedPlayerId, // si no es null, no se pide elegir jugador
   required List<GradeOption> grades,
   bool trackZone = false,
+  bool nineZones = false,
   required void Function(String playerId, String grade, int? targetZone) onConfirm,
 }) async {
   String? selected = fixedPlayerId ?? (players.length == 1 ? players.first.id : null);
@@ -62,6 +64,7 @@ Future<void> showTouchDialog({
                       if (trackZone) ...[
                         HitZonePicker(
                           selectedZone: selectedZone,
+                          nineZones: nineZones,
                           onChanged: (z) => setState(() => selectedZone = z),
                         ),
                         const SizedBox(height: 18),

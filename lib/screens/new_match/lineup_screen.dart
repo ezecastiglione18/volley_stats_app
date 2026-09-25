@@ -37,6 +37,12 @@ class LineupScreen extends StatefulWidget {
   // siguiente set de un partido ya en curso en lugar de crear uno nuevo.
   final MatchController? existingController;
 
+  // Con [editCurrentSet] (requiere [existingController]), en vez de armar el
+  // set siguiente se corrige la formación del set en curso, que todavía no
+  // empezó (ver `MatchController.canEditCurrentSetLineup`): todo arranca
+  // precargado con lo elegido para ese set.
+  final bool editCurrentSet;
+
   const LineupScreen({
     super.key,
     required this.ownTeamName,
@@ -51,7 +57,8 @@ class LineupScreen extends StatefulWidget {
     required this.config,
     required this.roster,
     this.existingController,
-  });
+    this.editCurrentSet = false,
+  }) : assert(!editCurrentSet || existingController != null);
 
   @override
   State<LineupScreen> createState() => _LineupScreenState();
@@ -70,6 +77,11 @@ class _LineupScreenState extends State<LineupScreen> {
   int? _rivalSetterPos;
   bool _trackHitZones = true;
 
+  // Registro de zonas en 9 en vez de 6 (suma la franja media 7-8-9). En el
+  // primer set arranca desactivado; en los siguientes, con lo elegido en el
+  // set anterior.
+  bool _nineHitZones = false;
+
   // Roles de líbero de este set (opcionales): se eligen de nuevo en cada
   // set porque el equipo puede usar líberos distintos set a set. Si hay un
   // set anterior en el mismo partido, arrancan precargados con lo elegido
@@ -81,24 +93,35 @@ class _LineupScreenState extends State<LineupScreen> {
   // defecto activado). Si hay un set anterior, arranca con lo elegido ahí.
   bool _autoLiberoBackRowSwap = true;
 
-  bool get _isNextSet => widget.existingController != null;
+  bool get _isEditing => widget.editCurrentSet;
+  bool get _isNextSet => widget.existingController != null && !_isEditing;
+
+  /// Número del set que se está armando (o corrigiendo, con [_isEditing]).
+  int get _setNumber {
+    final sets = widget.existingController?.match.sets.length ?? 0;
+    return _isEditing ? sets : sets + 1;
+  }
 
   @override
   void initState() {
     super.initState();
+    if (_isEditing) {
+      _loadFromCurrentSet();
+      return;
+    }
     final previousSet = widget.existingController?.match.sets.isNotEmpty == true
         ? widget.existingController!.match.sets.last
         : null;
     _defensiveLiberoId = previousSet?.defensiveLiberoId;
     _receptionLiberoId = previousSet?.receptionLiberoId;
     _autoLiberoBackRowSwap = previousSet?.autoLiberoBackRowSwap ?? true;
+    _nineHitZones = previousSet?.nineHitZones ?? false;
 
     // El saque inicial se alterna set a set (regla FIVB), excepto en el
     // set decisivo (tie-break), donde se vuelve a sortear: ahí no se
     // sugiere nada y queda la elección manual del usuario.
     if (previousSet != null) {
-      final nextSetNumber = widget.existingController!.match.sets.length + 1;
-      if (!widget.config.isTieBreakSet(nextSetNumber)) {
+      if (!widget.config.isTieBreakSet(_setNumber)) {
         _startingServer =
             previousSet.startingServer == TeamSide.own ? TeamSide.rival : TeamSide.own;
       }
@@ -114,6 +137,22 @@ class _LineupScreenState extends State<LineupScreen> {
         _positions[i + 1] = previousOrder[i];
       }
     }
+  }
+
+  /// Modo edición: precarga exactamente lo que se eligió para el set en
+  /// curso (sin alternar el saque ni heredar nada de otro set).
+  void _loadFromCurrentSet() {
+    final set = widget.existingController!.currentSet;
+    for (var i = 0; i < 6 && i < set.startingOrderOwn.length; i++) {
+      _positions[i + 1] = set.startingOrderOwn[i];
+    }
+    _startingServer = set.startingServer;
+    _rivalSetterPos = set.rivalSetterStartPosition;
+    _trackHitZones = set.trackHitZones;
+    _nineHitZones = set.nineHitZones;
+    _defensiveLiberoId = set.defensiveLiberoId;
+    _receptionLiberoId = set.receptionLiberoId;
+    _autoLiberoBackRowSwap = set.autoLiberoBackRowSwap;
   }
 
   List<Player> get _liberos =>
@@ -368,10 +407,21 @@ class _LineupScreenState extends State<LineupScreen> {
               'través del cambio de líbero, en un puesto de fila trasera.',
         ),
         LegalSection(
+          '¿Y si me equivoqué después de comenzar?',
+          'Mientras no cargues ninguna acción en el set (jugada, cambio, sanción o rotación), en la '
+              'pantalla en vivo aparece "Editar formación": vuelve a esta pantalla con todo lo que '
+              'elegiste precargado, para corregir lo que haga falta sin volver a cargar nada. Si '
+              'ya cargaste algo, deshacelo con "Deshacer" hasta volver a cero y la opción vuelve a '
+              'aparecer.',
+        ),
+        LegalSection(
           'Roles de líbero',
           'Podés asignar un líbero para la defensa cuando saca tu equipo y otro para la recepción '
               'cuando saca el rival (también puede ser el mismo). Se elige para este set en '
-              'particular: en el próximo set lo vas a poder volver a definir.',
+              'particular: en el próximo set lo vas a poder volver a definir. Si en la planilla '
+              'hay otro líbero sin rol asignado, igual lo podés hacer entrar o intercambiar con el '
+              'que está en cancha desde el panel de cambios (los cambios de líbero son ilimitados, '
+              'con al menos un punto jugado entre dos cambios).',
         ),
         LegalSection(
           'Cambio automático por central',
@@ -387,7 +437,10 @@ class _LineupScreenState extends State<LineupScreen> {
         LegalSection(
           'Opciones de registro',
           'Con "Zonas activadas", al calificar un saque o un ataque vas a poder marcar (opcional) '
-              'a qué zona de la cancha fue dirigido. Es una función premium.',
+              'a qué zona de la cancha fue dirigido. Es una función premium. Con "9 zonas" se suma '
+              'la franja media de la cancha (7 izquierda, 8 centro, 9 derecha, entre la fila '
+              'delantera y la de fondo); se elige set a set y el set siguiente arranca con lo '
+              'elegido en el anterior.',
         ),
       ],
     );
@@ -399,14 +452,42 @@ class _LineupScreenState extends State<LineupScreen> {
 
     final isPremium = context.read<SubscriptionController>().isPremium;
 
-    if (_isNextSet) {
+    if (_isEditing) {
       final controller = widget.existingController!;
-      final setNumber = controller.match.sets.length + 1;
-      controller.startSet(
-        setNumber: setNumber,
+      if (!controller.canEditCurrentSetLineup) {
+        // No debería pasar (mientras esta pantalla está abierta no se puede
+        // cargar nada), pero si el set ya empezó no se pisa lo cargado.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('El set ya empezó: la formación no se puede editar.')));
+        Navigator.pop(context);
+        return;
+      }
+      controller.replaceCurrentSetLineup(
         startingOrderOwn: order,
         startingServer: _startingServer,
         trackHitZones: isPremium && _trackHitZones,
+        nineHitZones: _nineHitZones,
+        defensiveLiberoId: _defensiveLiberoId,
+        receptionLiberoId: _receptionLiberoId,
+        autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
+      );
+      controller.currentSet.rivalSetterStartPosition = _rivalSetterPos;
+      await context.read<AppDataController>().saveMatch(controller.match, isPremium: isPremium);
+      if (!mounted) return;
+      Navigator.pop(context); // vuelve a la pantalla en vivo, que ya observa este mismo controller
+      return;
+    }
+
+    if (_isNextSet) {
+      final controller = widget.existingController!;
+      controller.startSet(
+        setNumber: _setNumber,
+        startingOrderOwn: order,
+        startingServer: _startingServer,
+        trackHitZones: isPremium && _trackHitZones,
+        // Se guarda tal cual lo marcó el usuario (aunque las zonas estén
+        // desactivadas en este set), para que el set siguiente lo herede.
+        nineHitZones: _nineHitZones,
         defensiveLiberoId: _defensiveLiberoId,
         receptionLiberoId: _receptionLiberoId,
         autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
@@ -438,6 +519,7 @@ class _LineupScreenState extends State<LineupScreen> {
       startingOrderOwn: order,
       startingServer: _startingServer,
       trackHitZones: isPremium && _trackHitZones,
+      nineHitZones: _nineHitZones,
       defensiveLiberoId: _defensiveLiberoId,
       receptionLiberoId: _receptionLiberoId,
       autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
@@ -464,7 +546,9 @@ class _LineupScreenState extends State<LineupScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNextSet ? 'Formación — set siguiente' : 'Formación inicial'),
+        title: Text(_isEditing
+            ? 'Editar formación — set $_setNumber'
+            : (_isNextSet ? 'Formación — set siguiente' : 'Formación inicial')),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
@@ -596,12 +680,23 @@ class _LineupScreenState extends State<LineupScreen> {
             ),
             const Divider(height: 12),
             _registrationOptionsRow(isPremium),
+            if (isPremium && _trackHitZones)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                value: _nineHitZones,
+                title: const Text('Registrar en 9 zonas',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Suma la franja media: 7 · 8 · 9', style: TextStyle(fontSize: 11)),
+                onChanged: (v) => setState(() => _nineHitZones = v ?? false),
+              ),
             const SizedBox(height: 18),
             ElevatedButton(
               onPressed: _complete ? _start : null,
-              child: Text(_isNextSet
-                  ? 'Comenzar set ${(widget.existingController!.match.sets.length + 1)}'
-                  : 'Comenzar partido'),
+              child: Text(_isEditing
+                  ? 'Guardar formación'
+                  : (_isNextSet ? 'Comenzar set $_setNumber' : 'Comenzar partido')),
             ),
           ],
         ),
@@ -610,10 +705,10 @@ class _LineupScreenState extends State<LineupScreen> {
   }
 
   String? _serveHint() {
-    if (!_isNextSet) return null;
-    final nextSetNumber = widget.existingController!.match.sets.length + 1;
-    if (widget.config.isTieBreakSet(nextSetNumber)) return 'se vuelve a sortear';
-    return 'alterna con el set $nextSetNumber';
+    // Solo a partir del 2º set (también al editar la formación de uno).
+    if (widget.existingController == null || _setNumber < 2) return null;
+    if (widget.config.isTieBreakSet(_setNumber)) return 'se vuelve a sortear';
+    return 'alterna con el set $_setNumber';
   }
 
   Widget _sectionCaption(String text, {String? trailing}) {

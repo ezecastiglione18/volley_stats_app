@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 24;
+const _coverTotalPages = 27;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -41,48 +41,50 @@ const _pCuentaLogin = 5;
 const _pPantallaPrincipal = 5;
 const _pPizarra = 6;
 const _pGestionEquipos = 6;
-const _pCrearEquipo = 6;
+const _pCrearEquipo = 7;
 const _pAgregarJugadores = 7;
 const _pEquipoEjemplo = 7;
-const _pExportarEquipo = 7;
-const _pImportarEquipo = 7;
+const _pExportarEquipo = 8;
+const _pImportarEquipo = 8;
 const _pCrearPartido = 8;
 const _pDatosRival = 8;
 const _pConfigPartido = 8;
-const _pPlanilla = 8;
+const _pPlanilla = 9;
 const _pSeleccionJugadores = 9;
 const _pFormacionInicial = 9;
-const _pRolesLibero = 9;
-const _pPantallaVivo = 10;
-const _pMarcador = 10;
-const _pCancha = 10;
-const _pBotonesAccion = 10;
-const _pZonaDestino = 11;
-const _pCambiosJugador = 12;
-const _pCambioRegular = 12;
-const _pCambioLibero = 12;
-const _pDeshacerCambio = 13;
-const _pSancionesTarjetas = 13;
-const _pComoCargarSancion = 13;
-const _pEscalaSanciones = 14;
-const _pHerramientas = 15;
-const _pFinSet = 15;
-const _pArchivo = 16;
-const _pExportarPartido = 16;
-const _pImportarPartido = 16;
-const _pRivalScouting = 16;
-const _pResumen = 17;
-const _pExportarPdf = 18;
-const _pGlosario = 19;
-const _pSuscripcionPremium = 20;
-const _pQueIncluyePremium = 20;
-const _pComoSuscribirse = 20;
-const _pDispositivosAdicionales = 20;
-const _pRestaurarCompras = 20;
-const _pGestionarCancelar = 20;
-const _pDarDeBajaDispositivo = 21;
-const _pFaq = 21;
-const _pContacto = 24;
+const _pRolesLibero = 10;
+const _pEditarFormacion = 11;
+const _pPantallaVivo = 11;
+const _pMarcador = 11;
+const _pCancha = 11;
+const _pBotonesAccion = 11;
+const _pZonaDestino = 13;
+const _pRotacionManual = 13;
+const _pCambiosJugador = 13;
+const _pCambioRegular = 14;
+const _pCambioLibero = 14;
+const _pDeshacerCambio = 15;
+const _pSancionesTarjetas = 15;
+const _pComoCargarSancion = 15;
+const _pEscalaSanciones = 16;
+const _pHerramientas = 17;
+const _pFinSet = 17;
+const _pArchivo = 18;
+const _pExportarPartido = 18;
+const _pImportarPartido = 18;
+const _pRivalScouting = 18;
+const _pResumen = 19;
+const _pExportarPdf = 20;
+const _pGlosario = 20;
+const _pSuscripcionPremium = 22;
+const _pQueIncluyePremium = 22;
+const _pComoSuscribirse = 23;
+const _pDispositivosAdicionales = 23;
+const _pRestaurarCompras = 23;
+const _pGestionarCancelar = 23;
+const _pDarDeBajaDispositivo = 23;
+const _pFaq = 24;
+const _pContacto = 27;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -213,29 +215,55 @@ pw.MultiPage _bodyPages(pw.MemoryImage logo) {
     build: (context) => [
       ..._indexContent(),
       pw.NewPage(),
-      ..._section1Introduccion(),
-      ..._section2CuentaLogin(),
-      ..._section3PantallaPrincipal(),
-      ..._section4Pizarra(),
-      ..._section5GestionEquipos(),
-      ..._section6CrearPartido(),
-      ..._section7Planilla(),
-      ..._section8FormacionInicial(),
-      ..._section9PantallaVivo(),
-      ..._section10CambiosJugador(),
-      ..._section11SancionesTarjetas(),
-      ..._section12Herramientas(),
-      ..._section13FinSet(),
-      ..._section14Archivo(),
-      ..._section15RivalScouting(),
-      ..._section16Resumen(),
-      ..._section17ExportarPdf(),
-      ..._section18Glosario(),
-      ..._section19SuscripcionPremium(),
-      ..._section20Faq(),
-      ..._section21Contacto(),
+      ..._keepTitleWithNext(_section1Introduccion()),
+      ..._keepTitleWithNext(_section2CuentaLogin()),
+      ..._keepTitleWithNext(_section3PantallaPrincipal()),
+      ..._keepTitleWithNext(_section4Pizarra()),
+      ..._keepTitleWithNext(_section5GestionEquipos()),
+      ..._keepTitleWithNext(_section6CrearPartido()),
+      ..._keepTitleWithNext(_section7Planilla()),
+      ..._keepTitleWithNext(_section8FormacionInicial()),
+      ..._keepTitleWithNext(_section9PantallaVivo()),
+      ..._keepTitleWithNext(_section10CambiosJugador()),
+      ..._keepTitleWithNext(_section11SancionesTarjetas()),
+      ..._keepTitleWithNext(_section12Herramientas()),
+      ..._keepTitleWithNext(_section13FinSet()),
+      ..._keepTitleWithNext(_section14Archivo()),
+      ..._keepTitleWithNext(_section15RivalScouting()),
+      ..._keepTitleWithNext(_section16Resumen()),
+      ..._keepTitleWithNext(_section17ExportarPdf()),
+      ..._keepTitleWithNext(_section18Glosario()),
+      ..._keepTitleWithNext(_section19SuscripcionPremium()),
+      ..._keepTitleWithNext(_section20Faq()),
+      ..._keepTitleWithNext(_section21Contacto()),
     ],
   );
+}
+
+/// Une el título de una sección (el primer elemento) y cada subtítulo
+/// ([_SubHeading]) con el bloque que le sigue en un `pw.Inseparable`, para
+/// que un título nunca quede solo al pie de una página con todo su
+/// contenido recién en la siguiente (`package:pdf` no tiene un "keep with
+/// next"). El bloque que sigue a un título es siempre algo corto (un
+/// párrafo, una lista o tabla chica, una tarjeta), nunca más alto que una
+/// página.
+List<pw.Widget> _keepTitleWithNext(List<pw.Widget> section) {
+  final out = <pw.Widget>[];
+  for (var i = 0; i < section.length; i++) {
+    final isHeading = i == 0 || section[i] is _SubHeading;
+    if (isHeading && i + 1 < section.length) {
+      out.add(pw.Inseparable(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [section[i], section[i + 1]],
+        ),
+      ));
+      i++;
+    } else {
+      out.add(section[i]);
+    }
+  }
+  return out;
 }
 
 pw.Widget _pageHeader(pw.MemoryImage logo) {
@@ -305,10 +333,22 @@ pw.Widget _sectionTitle(int number, String title) {
   );
 }
 
-pw.Widget _subHeading(String text) => pw.Padding(
-      padding: const pw.EdgeInsets.only(top: 10, bottom: 6),
-      child: pw.Text(text, style: pw.TextStyle(color: _cyan, fontSize: 12.5, fontWeight: pw.FontWeight.bold)),
-    );
+pw.Widget _subHeading(String text) => _SubHeading(text);
+
+/// Subtítulo de sección (5.1, 9.4, ...). Es una clase propia, y no un
+/// `pw.Padding` suelto, para que [_keepTitleWithNext] lo pueda reconocer y
+/// no lo deje solo al pie de una página.
+class _SubHeading extends pw.StatelessWidget {
+  _SubHeading(this.text);
+
+  final String text;
+
+  @override
+  pw.Widget build(pw.Context context) => pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 10, bottom: 6),
+        child: pw.Text(text, style: pw.TextStyle(color: _cyan, fontSize: 12.5, fontWeight: pw.FontWeight.bold)),
+      );
+}
 
 pw.Widget _p(String text, {double fontSize = 10.2, PdfColor? color, double bottom = 8}) => pw.Padding(
       padding: pw.EdgeInsets.only(bottom: bottom),
@@ -386,18 +426,22 @@ pw.Widget _infoBox(String text) => pw.Container(
       child: pw.Text(text, style: pw.TextStyle(color: _textDark, fontSize: 9.6, lineSpacing: 2)),
     );
 
-pw.Widget _faqCard(String question, String answer) => pw.Container(
-      width: double.infinity,
-      margin: const pw.EdgeInsets.only(bottom: 8),
-      padding: const pw.EdgeInsets.all(11),
-      decoration: pw.BoxDecoration(color: _surfaceAlt, borderRadius: pw.BorderRadius.circular(8)),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(question, style: pw.TextStyle(color: _textDark, fontSize: 10, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 4),
-          pw.Text(answer, style: pw.TextStyle(color: _textDark, fontSize: 9.6, lineSpacing: 2)),
-        ],
+// Inseparable: sin esto, una tarjeta que cae al pie de una página se parte
+// y deja la pregunta sola abajo y la respuesta en la página siguiente.
+pw.Widget _faqCard(String question, String answer) => pw.Inseparable(
+      child: pw.Container(
+        width: double.infinity,
+        margin: const pw.EdgeInsets.only(bottom: 8),
+        padding: const pw.EdgeInsets.all(11),
+        decoration: pw.BoxDecoration(color: _surfaceAlt, borderRadius: pw.BorderRadius.circular(8)),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(question, style: pw.TextStyle(color: _textDark, fontSize: 10, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text(answer, style: pw.TextStyle(color: _textDark, fontSize: 9.6, lineSpacing: 2)),
+          ],
+        ),
       ),
     );
 
@@ -505,11 +549,13 @@ List<pw.Widget> _indexContent() {
     entry('Selección de jugadores', _pSeleccionJugadores, sub: true),
     entry('Formación inicial', _pFormacionInicial),
     entry('Roles de líbero (por set)', _pRolesLibero, sub: true),
+    entry('Editar la formación antes del primer punto', _pEditarFormacion, sub: true),
     entry('Pantalla de partido en vivo', _pPantallaVivo),
     entry('Marcador', _pMarcador, sub: true),
     entry('Cancha', _pCancha, sub: true),
     entry('Botones de acción y calificación', _pBotonesAccion, sub: true),
     entry('Zona de destino (opcional)', _pZonaDestino, sub: true),
+    entry('Rotación manual (opcional)', _pRotacionManual, sub: true),
     entry('Cambios de jugador', _pCambiosJugador),
     entry('Cambio regular', _pCambioRegular, sub: true),
     entry('Cambio de líbero', _pCambioLibero, sub: true),
@@ -560,7 +606,7 @@ List<pw.Widget> _section1Introduccion() => [
           _t('Registrar cambios de jugador respetando las reglas oficiales de la FIVB (cambio regular y '
               'cambio de líbero), eligiendo los roles de líbero de nuevo en cada set.')
         ],
-        [_t('Deshacer un toque, un cambio de jugador o una sanción cargada por error, sin perder el resto de lo anotado.')],
+        [_t('Deshacer un toque, un cambio de jugador, una sanción o una rotación manual cargada por error, sin perder el resto de lo anotado, y corregir la formación de un set mientras todavía no empezó.')],
         [
           _t('Registrar las sanciones/tarjetas del árbitro (amonestación, tarjeta amarilla, roja, expulsión '
               'y descalificación) según el reglamento oficial de la FIVB, con el punto o la salida de '
@@ -845,6 +891,12 @@ List<pw.Widget> _section6CrearPartido() => [
           ['Puntos para ganar el tie-break', '15', 'Puntos del set decisivo (el último posible).'],
           ['Diferencia mínima (tie-break)', '2', 'Ventaja mínima de puntos para cerrar el tie-break.'],
           ['Cambios permitidos por set', '6', 'Cambios regulares de jugador habilitados por set y por equipo. Se puede tildar "Sin límite" para no restringirlos.'],
+          [
+            'Permitir rotar el equipo manualmente',
+            'Desactivado',
+            'Si se tilda, en la pantalla en vivo aparecen los botones Rotar y Rotar atrás debajo de la '
+                'cancha, para girar al equipo propio un puesto sin side-out (sección 9.5).'
+          ],
         ],
       ),
       pw.SizedBox(height: 10),
@@ -912,7 +964,10 @@ List<pw.Widget> _section8FormacionInicial() => [
           _b('Opciones de registro '),
           _t('(función premium, sección 19): con "Zonas activadas", al calificar un saque o un ataque se '
               'va a poder marcar (opcionalmente) a qué zona de la cancha rival fue dirigido. Esta opción se '
-              'define una vez por set.')
+              'define una vez por set. Con las zonas activadas aparece además el checkbox "Registrar en 9 '
+              'zonas", que suma la franja media de la cancha (zonas 7, 8 y 9; ver sección 9.4): en el '
+              'primer set arranca destildado y en cada set siguiente arranca con lo elegido en el set '
+              'anterior.')
         ],
       ]),
       _p(
@@ -933,6 +988,11 @@ List<pw.Widget> _section8FormacionInicial() => [
         'automática de cambio de líbero cuando corresponde (ver sección 10.2).',
       ),
       _p(
+        'Los roles solo deciden qué líbero usan los cambios automáticos. Si en la planilla hay dos líberos '
+        'y se asigna uno solo (o el mismo para los dos roles), el otro igual se puede hacer entrar o '
+        'intercambiar a mano durante el set desde el panel de cambios (sección 10.2).',
+      ),
+      _p(
         'Debajo aparece el checkbox "Cambio automático por central", tildado por defecto: si está '
         'activado, entra solo el líbero que corresponda por el central que rota a la fila de fondo (el '
         'defensor cuando saca el equipo propio, salvo que sea ese central quien va a sacar, o el receptor '
@@ -946,6 +1006,26 @@ List<pw.Widget> _section8FormacionInicial() => [
       _p(
         'En el encabezado de esta pantalla hay además un ícono de Pizarra, para repasar una formación o '
         'jugada dibujada de antemano (sección 4) antes de arrancar el set, sin perder lo ya elegido acá.',
+      ),
+      _subHeading('8.2 Editar la formación antes del primer punto'),
+      _p(
+        'Si después de tocar Comenzar partido (o Comenzar set N) te das cuenta de que algo quedó mal, no '
+        'hace falta abandonar el partido ni volver a cargar todo: mientras el set no tenga ninguna acción '
+        'cargada (ninguna jugada, cambio manual, sanción ni rotación manual), la pantalla en vivo muestra '
+        'debajo del marcador el aviso "Set N sin comenzar" con el botón Editar formación.',
+      ),
+      _p(
+        'Ese botón vuelve a esta misma pantalla con todo lo elegido para el set ya precargado (sexteto, '
+        'saque inicial, líberos, cambio automático por central, armador rival y opciones de registro). Al '
+        'tocar Guardar formación se vuelve a la pantalla en vivo con la formación corregida; los cambios '
+        'automáticos del arranque (el líbero que entra solo por un central en el fondo) se recalculan con '
+        'la formación nueva. Sirve para cualquier set, no solo el primero, y no modifica los sets '
+        'anteriores.',
+      ),
+      _infoBox(
+        'Apenas se carga la primera acción del set, el aviso desaparece. Si ya cargaste algo y querés '
+        'corregir la formación igual, deshacé con el botón Deshacer del encabezado hasta volver a cero: el '
+        'aviso vuelve a aparecer.',
       ),
     ];
 
@@ -970,7 +1050,9 @@ List<pw.Widget> _section9PantallaVivo() => [
       _p(
         'Representa las 6 posiciones de la cancha propia (fila delantera 4-3-2 arriba, fila trasera 5-6-1 '
         'abajo) con el jugador que ocupa cada una en este momento. El puesto que saca (posición 1) se '
-        'resalta en color. La cancha se actualiza sola con cada rotación y con cada cambio de jugador.',
+        'resalta en color. La cancha se actualiza sola con cada rotación y con cada cambio de jugador. '
+        'Si el partido tiene habilitada la rotación manual, debajo aparecen los botones Rotar y Rotar '
+        'atrás (sección 9.5).',
       ),
       _subHeading('9.3 Botones de acción y calificación'),
       _p(
@@ -1038,9 +1120,37 @@ List<pw.Widget> _section9PantallaVivo() => [
         'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 17).',
       ),
       _p(
+        'Si además se tildó "Registrar en 9 zonas" (sección 8), el cuadro suma una fila en el medio con la '
+        'franja media de la cancha rival: 9-8-7 vista de frente, donde la zona 7 queda entre la 4 y la 5 '
+        'del rival, la 8 en el centro y la 9 entre su 2 y su 1 (la misma numeración de 9 zonas que usan las '
+        'pizarras de entrenador y DataVolley). En el reporte, las zonas 7 a 9 aparecen solo si se registró '
+        'algún toque en ellas.',
+      ),
+      _p(
         'Al usar la app en una ventana ancha (por ejemplo, en una computadora), los ocho botones de acción '
         'se acomodan solos en un formato más compacto para entrar siempre completos en pantalla, sin '
         'necesidad de hacer scroll para llegar a los de más abajo.',
+      ),
+      _subHeading('9.5 Rotación manual (opcional)'),
+      _p(
+        'Solo si al crear el partido se tildó "Permitir rotar el equipo manualmente" (sección 6.2): debajo '
+        'de la cancha aparecen los botones Rotar (gira al equipo propio un puesto hacia adelante, igual que '
+        'en un side-out: el de la posición 2 pasa a la 1, el de la 1 a la 6, etc.) y Rotar atrás (el '
+        'sentido contrario). Sirve para corregir una rotación que quedó corrida respecto de la cancha real, '
+        'por ejemplo si el árbitro marca un error de rotación. Solo funcionan entre punto y punto, no '
+        'mientras hay un punto en juego.',
+      ),
+      _p(
+        'Al rotar se aplican las mismas reglas de líbero que en una rotación normal: si el líbero queda en '
+        'la fila delantera (o en la posición 1 con saque propio), sale solo y vuelve el jugador al que '
+        'reemplazaba; y si un central queda en el fondo y está activado el cambio automático por central, '
+        'entra solo el líbero que corresponda. Como la rotación manual es una corrección y no una jugada, '
+        'ese reingreso del líbero no espera a que se juegue un punto.',
+      ),
+      _infoBox(
+        'Cada rotación manual queda registrada como una acción más del set: el botón Deshacer del '
+        'encabezado (sección 12) la revierte, junto con los cambios de líbero automáticos que haya '
+        'provocado, respetando el orden en que se cargó respecto de los puntos y los cambios.',
       ),
     ];
 
@@ -1079,20 +1189,31 @@ List<pw.Widget> _section10CambiosJugador() => [
         [_t('Al elegir quién entra, la app pide confirmar el cambio (con el resumen de quién sale y quién entra) antes de aplicarlo.')],
       ]),
       _subHeading('10.2 Cambio de líbero'),
-      _p('Solo está disponible si el equipo tiene al menos un líbero declarado en la formación de este set (sección 8.1). Reglas:', bottom: 6),
+      _p(
+        'Está disponible para cualquier líbero de la planilla del partido (sección 7), tenga o no un rol '
+        'asignado en la formación del set (sección 8.1): los roles solo deciden los cambios automáticos. '
+        'Reglas (Regla 19 de la FIVB):',
+        bottom: 6,
+      ),
       _bullets([
         [_t('El líbero solo puede entrar en un puesto de fila trasera (posiciones 1, 5 o 6), y no puede ocupar el puesto que está a punto de sacar.')],
-        [_t('Solo puede haber un líbero en cancha a la vez, aunque el equipo haya declarado dos.')],
-        [_t('El líbero en cancha solo puede salir por el mismo jugador al que reemplazó, o cambiarse directamente por el otro líbero declarado (si el equipo tiene dos).')],
-        [_t('El cambio de líbero no consume el cupo de cambios regulares del set, y es prácticamente ilimitado (con al menos una jugada de diferencia entre dos cambios seguidos en el mismo puesto).')],
+        [_t('Solo puede haber un líbero en cancha a la vez, aunque el equipo tenga dos.')],
+        [_t('El líbero en cancha solo puede salir por el mismo jugador al que reemplazó, o cambiarse directamente por el otro líbero de la planilla, con los botones "Cambiar por: #N Apellido" del panel. Eso vale aunque el otro líbero no tenga un rol asignado en este set.')],
+        [_t('El cambio de líbero no consume el cupo de cambios regulares del set y es ilimitado, con al menos un punto jugado entre dos cambios de líbero seguidos en el mismo puesto.')],
       ]),
+      _p(
+        'Si hay un solo líbero con rol asignado (o el mismo en los dos roles) y durante el set se hace '
+        'entrar a mano al otro, los cambios automáticos siguientes usan al que eligió el entrenador en vez '
+        'de volver a meter al configurado, hasta que se lo vuelva a cambiar a mano. Con dos líberos en '
+        'roles distintos (defensor y receptor), manda siempre el rol según quién saca.',
+      ),
       _p('La app además puede automatizar estas situaciones, sin necesitar acción manual:', bottom: 6),
       _bullets([
         [_b('Central que saca y pierde el punto: '), _t('si estaba configurado un líbero receptor, entra automáticamente por ese central en cuanto el punto pasa a manos del rival.')],
         [_b('Líbero que rota a la fila delantera: '), _t('sale automáticamente y vuelve el jugador al que había reemplazado, ya que un líbero nunca puede jugar adelante.')],
         [
           _b('Central que queda en el fondo (sacando nosotros o el rival): '),
-          _t('si está tildado el checkbox "Líbero automático por central en el fondo" de la formación de '
+          _t('si está tildado el checkbox "Cambio automático por central" de la formación de '
               'este set (sección 8.1), entra solo el líbero que corresponda por ese central: el defensor '
               'si el saque es nuestro (salvo que ese central sea quien va a sacar), o el receptor si saca '
               'el rival, incluso al arrancar el set si ya arranca sacando el rival. Destildado, la app lo '
@@ -1154,7 +1275,7 @@ List<pw.Widget> _section11SancionesTarjetas() => [
         [
           _b('Elegí la categoría '),
           _t('de la conducta que sancionó el árbitro: Conducta grosera, Conducta ofensiva, Agresión o '
-              'Demora/Advertencia (ver la escala completa en 9.2).')
+              'Demora/Advertencia (ver la escala completa en 11.2).')
         ],
         [
           _t('La app calcula sola qué sanción corresponde, según cuántas veces ya se sancionó a esa '
@@ -1166,7 +1287,7 @@ List<pw.Widget> _section11SancionesTarjetas() => [
       _p(
         'Si la sanción obliga a la persona a abandonar la cancha y estaba jugando, el mismo panel pide a '
         'continuación elegir el reemplazo: primero ofrece el suplente regular de ese puesto si todavía '
-        'tenía cupo de cambio; si no, cualquier otro jugador del banco (salvo los líberos declarados), '
+        'tenía cupo de cambio; si no, cualquier otro jugador del banco (salvo los líberos), '
         'sin que ese reemplazo cuente contra el límite de cambios del set. Si no hay ningún suplente '
         'disponible, la app avisa que el equipo queda incompleto en esa posición: es una situación '
         'excepcional que hay que resolver a criterio del cuerpo técnico y el árbitro, no algo que la app '
@@ -1251,7 +1372,7 @@ List<pw.Widget> _section12Herramientas() => [
         flex: [3, 7],
         pillFirstColumn: true,
         rows: [
-          ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador o sanción/tarjeta) y revierte el marcador y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 13).'],
+          ['Deshacer', 'Anula la última acción cargada (toque, punto, cambio de jugador, sanción/tarjeta o rotación manual) y revierte el marcador, la rotación y la etapa del punto si hacía falta. Útil para corregir una carga hecha por error. Deja de estar disponible una vez que se confirma el fin de un set (ver sección 13).'],
           ['Ver estadísticas', 'Abre el resumen de estadísticas del partido en curso (ver sección 16). Función premium: ver estadísticas de un partido en vivo, antes de guardarlo terminado en el archivo, no está disponible en la versión gratuita (sección 19.1).'],
           ['Cambio de jugador', 'Abre el panel de cambios (ver sección 10), que también permite deshacer el último cambio (sección 10.3).'],
           ['Pizarra', 'Abre la pizarra táctica (sección 4) para dibujar una jugada sin salir de la carga en vivo.'],
@@ -1462,7 +1583,7 @@ List<pw.Widget> _section17ExportarPdf() => [
         [_t('Resultado de cada set y el equipo ganador del partido.')],
         [_t('La tabla de estadística completa por jugador (la misma información que en la sección 16), con una referencia al pie que explica cada abreviatura.')],
         [_t('Una tabla con los errores del rival por tipo (saque, ataque, contra, genérico) y los puntos que ganó con su propio toque (ataque o contra).')],
-        [_t('Si se registraron zonas de destino durante el partido: un desglose de saque, ataque y contraataque por separado, por zona de cancha (1 a 6), tanto a nivel equipo como por jugador.')],
+        [_t('Si se registraron zonas de destino durante el partido: un desglose de saque, ataque y contraataque por separado, por zona de cancha (1 a 6, o 1 a 9 si se usó el registro en 9 zonas), tanto a nivel equipo como por jugador.')],
         [_t('Si el partido tuvo más de un set: el detalle de estadística de cada set por separado.')],
       ]),
       _infoBox(
@@ -1525,7 +1646,7 @@ List<pw.Widget> _section18Glosario() => [
             'ARM · OP · CEN · P/R · LIB · UNI',
             'Posiciones: Armador · Opuesto · Central · Punta/Receptor · Líbero · Universal.'
           ],
-          ['Z1 a Z6', 'Zonas de destino de la cancha rival, numeradas de frente para quien anota.'],
+          ['Z1 a Z9', 'Zonas de destino de la cancha rival, numeradas de frente para quien anota (Z7 a Z9: franja media, solo con el registro en 9 zonas).'],
         ],
       ),
     ];
@@ -1728,13 +1849,34 @@ List<pw.Widget> _section20Faq() => [
         'Me equivoqué al cargar un toque, ¿cómo lo corrijo?',
         'Usá el botón de Deshacer en el encabezado de la pantalla en vivo, tantas veces como haga falta; '
             'deshace de a una acción por vez, empezando por la última (sea un toque, un cambio de jugador '
-            'manual o una sanción/tarjeta), respetando siempre el orden en que se cargaron.',
+            'manual, una sanción/tarjeta o una rotación manual), respetando siempre el orden en que se '
+            'cargaron.',
       ),
       _faqCard(
         'Me equivoqué en un cambio de jugador, ¿cómo lo corrijo?',
         'Desde el panel de Cambio de jugador, tocá Deshacer último cambio (sección 10.3). Solo funciona '
             'para el cambio más reciente del set y, si era un cambio regular, no queda contado contra el '
             'cupo de cambios.',
+      ),
+      _faqCard(
+        'Toqué Comenzar y después me di cuenta de que la formación estaba mal, ¿tengo que cargar todo de nuevo?',
+        'No. Mientras no cargues ninguna acción en el set, tocá Editar formación en el aviso "Set N sin '
+            'comenzar" de la pantalla en vivo: vuelve a la formación con todo precargado para corregir lo '
+            'que haga falta (sección 8.2). Si ya cargaste algo, deshacelo hasta volver a cero y el aviso '
+            'reaparece.',
+      ),
+      _faqCard(
+        'La rotación de la app no coincide con la de la cancha, ¿cómo la corrijo?',
+        'Si al crear el partido tildaste "Permitir rotar el equipo manualmente" (sección 6.2), usá los '
+            'botones Rotar o Rotar atrás debajo de la cancha, entre punto y punto (sección 9.5). Si no la '
+            'tildaste, esa opción no se puede activar con el partido ya arrancado.',
+      ),
+      _faqCard(
+        'Tengo dos líberos en la planilla pero configuré uno solo, ¿puedo usar el otro?',
+        'Sí. Según el reglamento (Regla 19.3.2 de la FIVB), el jugador regular puede ser reemplazado por '
+            'cualquiera de los dos líberos, y los cambios de líbero son ilimitados siempre que se juegue al '
+            'menos un punto entre dos cambios. Desde el panel de Cambio de líbero podés hacer entrar al otro '
+            'o intercambiarlo con el que está en cancha (sección 10.2).',
       ),
       _faqCard(
         '¿Para qué sirve "Simular resto del set"?',

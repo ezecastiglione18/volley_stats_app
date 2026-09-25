@@ -64,6 +64,30 @@ class CourtView extends StatelessWidget {
         children: [
           Row(children: [cell(4), cell(3), cell(2)]),
           Row(children: [cell(5), cell(6), cell(1)]),
+          // Rotación manual: solo si el partido la tiene habilitada en su
+          // configuración, y solo entre punto y punto (ver
+          // MatchController.canRotateManually). Se deshace con "Deshacer
+          // última acción" como cualquier otra acción.
+          if (controller.match.config.allowManualRotation)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: controller.canRotateManually
+                      ? () => controller.rotateManually(backward: true)
+                      : null,
+                  icon: const Icon(Icons.rotate_left, size: 18),
+                  label: const Text('Rotar atrás'),
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 32)),
+                ),
+                TextButton.icon(
+                  onPressed: controller.canRotateManually ? () => controller.rotateManually() : null,
+                  icon: const Icon(Icons.rotate_right, size: 18),
+                  label: const Text('Rotar'),
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 32)),
+                ),
+              ],
+            ),
         ],
       ),
     );

@@ -21,7 +21,7 @@ incluye una versión de escritorio para Windows, pero por el momento no se está
 flutter pub get              # instalar dependencias
 flutter run                  # correr en un dispositivo/emulador conectado
 flutter analyze              # linter/analizador estático (usa analysis_options.yaml + flutter_lints)
-flutter test                 # correr todos los tests (test/widget_test.dart)
+flutter test                 # correr todos los tests (test/widget_test.dart y test/match_controller_test.dart)
 flutter test --plain-name "nombre del test"   # correr un solo testWidgets por su descripción
 flutter build apk --release      # generar el APK de Android (build/app/outputs/flutter-apk/)
 flutter build appbundle --release  # generar el .aab para subir a Play Console (build/app/outputs/bundle/release/)

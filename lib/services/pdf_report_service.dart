@@ -109,7 +109,8 @@ class PdfReportService {
                       style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 4),
                   pw.Text(
-                    'Zonas 1 a 6 de la cancha rival (numeración estándar). '
+                    'Zonas 1 a ${zones.displayZones.last} de la cancha rival (numeración estándar'
+                    '${zones.hasMiddleZoneData ? '; 7-8-9 = franja media' : ''}). '
                     'Solo se cuentan los toques con zona registrada.',
                     style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                   ),
@@ -117,11 +118,11 @@ class PdfReportService {
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(child: _zoneTable('Saque por zona', zones.serveByZone)),
+                      pw.Expanded(child: _zoneTable('Saque por zona', zones.serveByZone, zones.displayZones)),
                       pw.SizedBox(width: 12),
-                      pw.Expanded(child: _zoneTable('Ataque por zona', zones.attackByZone)),
+                      pw.Expanded(child: _zoneTable('Ataque por zona', zones.attackByZone, zones.displayZones)),
                       pw.SizedBox(width: 12),
-                      pw.Expanded(child: _zoneTable('Contraataque por zona', zones.counterByZone)),
+                      pw.Expanded(child: _zoneTable('Contraataque por zona', zones.counterByZone, zones.displayZones)),
                     ],
                   ),
                 ],
@@ -133,20 +134,20 @@ class PdfReportService {
               pw.SizedBox(height: 10),
               if (zones.serveByZoneByPlayer.isNotEmpty) ...[
                 pw.Inseparable(
-                  child: _zonePlayerTable('Saque por zona y jugador', zones.serveByZoneByPlayer, stats),
+                  child: _zonePlayerTable('Saque por zona y jugador', zones.serveByZoneByPlayer, stats, zones.displayZones),
                 ),
                 pw.SizedBox(height: 10),
               ],
               if (zones.attackByZoneByPlayer.isNotEmpty) ...[
                 pw.Inseparable(
-                  child: _zonePlayerTable('Ataque por zona y jugador', zones.attackByZoneByPlayer, stats),
+                  child: _zonePlayerTable('Ataque por zona y jugador', zones.attackByZoneByPlayer, stats, zones.displayZones),
                 ),
                 pw.SizedBox(height: 10),
               ],
               if (zones.counterByZoneByPlayer.isNotEmpty) ...[
                 pw.Inseparable(
                   child: _zonePlayerTable(
-                      'Contraataque por zona y jugador', zones.counterByZoneByPlayer, stats),
+                      'Contraataque por zona y jugador', zones.counterByZoneByPlayer, stats, zones.displayZones),
                 ),
               ],
             ],
@@ -480,6 +481,7 @@ class PdfReportService {
     String title,
     Map<String, Map<int, TouchStats>> byPlayerZone,
     MatchStats stats,
+    List<int> zones,
   ) {
     final rows = <List<String>>[];
     for (final r in stats.orderedRows) {
@@ -498,7 +500,7 @@ class PdfReportService {
       rows.add([
         r.playerId == unassignedId ? '-' : '${r.number}',
         _playerLabel(r),
-        for (var z = 1; z <= 6; z++) '${zoneMap[z]!.total}',
+        for (final z in zones) '${zoneMap[z]!.total}',
         '${totals.total}',
         '${(effPct * 100).toStringAsFixed(0)}%',
       ]);
@@ -512,19 +514,14 @@ class PdfReportService {
         pw.Text(title, style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 4),
         pw.Table.fromTextArray(
-          headers: const ['N°', 'Jugador', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Total', '% Efec'],
+          headers: ['N°', 'Jugador', for (final z in zones) 'Z$z', 'Total', '% Efec'],
           data: rows,
-          columnWidths: const {
-            0: pw.FlexColumnWidth(1),
-            1: pw.FlexColumnWidth(4.6),
-            2: pw.FlexColumnWidth(1),
-            3: pw.FlexColumnWidth(1),
-            4: pw.FlexColumnWidth(1),
-            5: pw.FlexColumnWidth(1),
-            6: pw.FlexColumnWidth(1),
-            7: pw.FlexColumnWidth(1),
-            8: pw.FlexColumnWidth(1.2),
-            9: pw.FlexColumnWidth(1.4),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(1),
+            1: const pw.FlexColumnWidth(4.6),
+            for (var i = 0; i < zones.length; i++) 2 + i: const pw.FlexColumnWidth(1),
+            2 + zones.length: const pw.FlexColumnWidth(1.2),
+            3 + zones.length: const pw.FlexColumnWidth(1.4),
           },
           headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
           cellStyle: const pw.TextStyle(fontSize: 8),
@@ -535,7 +532,7 @@ class PdfReportService {
         ),
         pw.SizedBox(height: 3),
         pw.Text(
-          'Referencias: Z1-Z6 zona de destino de cada toque (numeración estándar) · '
+          'Referencias: Z1-Z${zones.last} zona de destino de cada toque (numeración estándar) · '
           'Total toques con zona registrada · % Efec = (PP+P) / Total.  $_positionLegend',
           style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700),
         ),
@@ -646,12 +643,12 @@ class PdfReportService {
     return 'Jugador rival #${s.rivalNumber ?? '?'}';
   }
 
-  static pw.Widget _zoneTable(String title, Map<int, TouchStats> byZone) {
+  static pw.Widget _zoneTable(String title, Map<int, TouchStats> byZone, List<int> zones) {
     final includeBloq = byZone.values.any((s) => s.bloq > 0);
     final headers = ['Zona', 'Total', 'PP', 'P', 'N', if (includeBloq) 'BLOQ', 'NN'];
 
     final rows = [
-      for (var zone = 1; zone <= 6; zone++)
+      for (final zone in zones)
         [
           '$zone',
           '${byZone[zone]!.total}',

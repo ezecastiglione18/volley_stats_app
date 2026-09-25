@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/manual_rotation_event.dart';
 import '../models/match_set.dart';
 import '../models/player.dart';
 import '../models/rally_event.dart';
@@ -82,6 +83,11 @@ class MatchController extends ChangeNotifier {
         controller._rallyCounter++;
         controller._currentRallyServerId = null;
       }
+    }
+    // Las rotaciones manuales solo suman o restan puestos: como la rotación
+    // es una suma módulo 6, no importa en qué punto del set se hicieron.
+    for (final r in set.manualRotations) {
+      controller._rotationOffsetOwn = (controller._rotationOffsetOwn + r.steps) % 6;
     }
 
     if (set.finished) {
@@ -208,6 +214,7 @@ class MatchController extends ChangeNotifier {
     required List<String> startingOrderOwn,
     required TeamSide startingServer,
     bool trackHitZones = true,
+    bool nineHitZones = false,
     String? defensiveLiberoId,
     String? receptionLiberoId,
     bool autoLiberoBackRowSwap = true,
@@ -217,6 +224,7 @@ class MatchController extends ChangeNotifier {
       startingOrderOwn: startingOrderOwn,
       startingServer: startingServer,
       trackHitZones: trackHitZones,
+      nineHitZones: nineHitZones,
       defensiveLiberoId: defensiveLiberoId,
       receptionLiberoId: receptionLiberoId,
       autoLiberoBackRowSwap: autoLiberoBackRowSwap,
@@ -234,6 +242,48 @@ class MatchController extends ChangeNotifier {
     // el automatismo del líbero también acá.
     _maybeAutoSubLiberoForCentralInBackRow();
     notifyListeners();
+  }
+
+  /// true mientras el set en curso todavía no empezó de verdad: no hay
+  /// ninguna jugada, sanción, rotación manual ni cambio manual cargados (los
+  /// cambios automáticos del arranque —el líbero que entra solo por un
+  /// central en el fondo— son parte de la formación, no una acción). Si se
+  /// deshace todo lo cargado hasta volver a cero, vuelve a ser true.
+  bool get canEditCurrentSetLineup =>
+      match.sets.isNotEmpty &&
+      !currentSet.locked &&
+      currentSet.events.isEmpty &&
+      currentSet.sanctions.isEmpty &&
+      currentSet.manualRotations.isEmpty &&
+      currentSet.substitutions.every((s) => s.auto);
+
+  /// Reemplaza la formación del set en curso (que todavía no empezó, ver
+  /// [canEditCurrentSetLineup]) por una nueva: descarta el set actual y lo
+  /// vuelve a arrancar con el mismo número, así los automatismos del
+  /// arranque (líbero por central en el fondo) se recalculan con la
+  /// formación nueva en vez de arrastrar los de la anterior.
+  void replaceCurrentSetLineup({
+    required List<String> startingOrderOwn,
+    required TeamSide startingServer,
+    bool trackHitZones = true,
+    bool nineHitZones = false,
+    String? defensiveLiberoId,
+    String? receptionLiberoId,
+    bool autoLiberoBackRowSwap = true,
+  }) {
+    if (!canEditCurrentSetLineup) return;
+    final setNumber = currentSet.setNumber;
+    match.sets.removeLast();
+    startSet(
+      setNumber: setNumber,
+      startingOrderOwn: startingOrderOwn,
+      startingServer: startingServer,
+      trackHitZones: trackHitZones,
+      nineHitZones: nineHitZones,
+      defensiveLiberoId: defensiveLiberoId,
+      receptionLiberoId: receptionLiberoId,
+      autoLiberoBackRowSwap: autoLiberoBackRowSwap,
+    );
   }
 
   // Ninguna acción de carga queda habilitada una vez que el set llegó a su
@@ -392,8 +442,11 @@ class MatchController extends ChangeNotifier {
   //    ilimitado (con al menos una jugada entre dos cambios de líbero en el
   //    mismo puesto), solo puede entrar cuando ese puesto está en fila
   //    trasera (1, 5 o 6), y el líbero en cancha solo puede salir por el
-  //    jugador específico al que reemplazó (o por el otro líbero declarado,
-  //    si el equipo declaró dos).
+  //    jugador específico al que reemplazó (o por el otro líbero, si el
+  //    equipo tiene dos). Regla 19.3.2.2: el jugador regular puede
+  //    reemplazar y ser reemplazado por CUALQUIERA de los dos líberos, así
+  //    que el segundo líbero de la planilla se puede usar aunque no se le
+  //    haya asignado un rol (defensor/receptor) al armar la formación.
 
   /// Cambios regulares ya usados en el set (no cuenta cambios de líbero).
   int get substitutionsUsedOwn => currentSet.substitutionsUsedOwn;
@@ -408,12 +461,47 @@ class MatchController extends ChangeNotifier {
 
   bool get canRegisterSubstitution => substitutionsRemaining > 0;
 
-  /// Líberos declarados para el partido (hasta 2), sin duplicados.
+  /// Líberos con un rol asignado en este set (defensor y/o receptor), sin
+  /// duplicados. Solo decide los automatismos (qué líbero entra solo y el
+  /// intercambio automático según quién saca); para los cambios manuales
+  /// vale cualquier líbero de la planilla, ver [rosterLiberoIds].
   List<String> get declaredLiberoIds {
     final ids = <String>{};
     if (currentSet.defensiveLiberoId != null) ids.add(currentSet.defensiveLiberoId!);
     if (currentSet.receptionLiberoId != null) ids.add(currentSet.receptionLiberoId!);
     return ids.toList();
+  }
+
+  /// Líberos de la planilla del partido habilitados para jugar ahora mismo
+  /// (sin los que una sanción deja afuera), tengan o no un rol asignado en
+  /// este set: cualquiera de ellos puede entrar o intercambiarse con el
+  /// líbero en cancha (Regla 19.3.2.2).
+  List<String> get rosterLiberoIds => match.ownRoster
+      .where((p) => p.position == PlayerPosition.libero && !isBarredFromPlay(p.id))
+      .map((p) => p.id)
+      .toList();
+
+  /// Líbero que deberían usar los automatismos ahora, según quién saca: el
+  /// defensor si sacamos nosotros, el receptor si saca el rival. Si hay un
+  /// solo líbero con rol (o el mismo en los dos roles) y durante el set se
+  /// hizo entrar a mano a otro líbero de la planilla, ese pasa a ser el
+  /// líbero "titular" (Acting Libero) para los automatismos, hasta que se
+  /// vuelva a cambiar a mano — si no, cada entrada automática volvería a
+  /// meter al líbero configurado y pisaría la decisión del entrenador. Con
+  /// dos líberos en roles distintos manda siempre el rol configurado.
+  String? liberoForCurrentServe() {
+    final configured = _servingTeam == TeamSide.own
+        ? currentSet.defensiveLiberoId
+        : currentSet.receptionLiberoId;
+    if (configured == null) return null;
+    if (declaredLiberoIds.length >= 2) return configured;
+    final available = rosterLiberoIds;
+    for (final sub in currentSet.substitutions.reversed) {
+      if (sub.auto || !sub.isLiberoAction) continue;
+      if (playerById(sub.playerInId)?.position != PlayerPosition.libero) continue;
+      return available.contains(sub.playerInId) ? sub.playerInId : configured;
+    }
+    return configured;
   }
 
   /// Reconstruye, reproduciendo el historial de cambios de este set, el
@@ -529,9 +617,12 @@ class MatchController extends ChangeNotifier {
 
   // ---- Cambio de líbero ----
 
-  /// true si [liberoId] (declarado) puede entrar en lugar de [playerOutId].
-  bool canBringLiberoIn(String liberoId, String playerOutId) {
-    if (!declaredLiberoIds.contains(liberoId)) return false;
+  /// true si [liberoId] (líbero de la planilla) puede entrar en lugar de
+  /// [playerOutId]. [ignoreRallyRule] saltea la exigencia de un punto jugado
+  /// entre dos cambios de líbero en el mismo puesto: solo para los
+  /// automatismos que dispara una rotación manual (ver [rotateManually]).
+  bool canBringLiberoIn(String liberoId, String playerOutId, {bool ignoreRallyRule = false}) {
+    if (!rosterLiberoIds.contains(liberoId)) return false;
     final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
     if (slot == -1) return false;
     final st = _slotState(slot);
@@ -540,13 +631,14 @@ class MatchController extends ChangeNotifier {
     // El líbero no puede sacar: si este puesto está a punto de sacar (está
     // en posición 1 y el saque es nuestro), no se puede meter un líbero ahí.
     if (_courtPositionOfSlot(slot) == 1 && _servingTeam == TeamSide.own) return false;
-    if (st.lastLiberoActionRally == _rallyCounter) return false;
+    if (!ignoreRallyRule && st.lastLiberoActionRally == _rallyCounter) return false;
     if (_anyLiberoOnCourt) return false; // solo puede haber un líbero en cancha a la vez
     return true;
   }
 
-  void bringLiberoIn(String liberoId, String playerOutId, {bool auto = false}) {
-    if (!canBringLiberoIn(liberoId, playerOutId)) return;
+  void bringLiberoIn(String liberoId, String playerOutId,
+      {bool auto = false, bool ignoreRallyRule = false}) {
+    if (!canBringLiberoIn(liberoId, playerOutId, ignoreRallyRule: ignoreRallyRule)) return;
     final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
     _applySubstitution(
       slotIndex: slot,
@@ -558,7 +650,7 @@ class MatchController extends ChangeNotifier {
   }
 
   /// true si el líbero del puesto [slotIndex] puede salir ahora (por el
-  /// jugador que reemplazó, o intercambiarse por el otro líbero declarado).
+  /// jugador que reemplazó, o intercambiarse por otro líbero de la planilla).
   bool canSendLiberoOut(int slotIndex) {
     final st = _slotState(slotIndex);
     if (st.liberoOnCourtId == null) return false;
@@ -577,16 +669,27 @@ class MatchController extends ChangeNotifier {
     );
   }
 
-  /// Cambia el líbero en cancha en [slotIndex] por el otro líbero declarado
-  /// (sigue reemplazando, a todos los efectos, al mismo jugador original).
-  void swapLiberoToOther(int slotIndex, {bool auto = false}) {
+  /// Otros líberos de la planilla que pueden reemplazar al líbero que está
+  /// en cancha en [slotIndex] (vacío si ahí no hay un líbero).
+  List<String> otherLiberosFor(int slotIndex) {
+    final onCourt = _slotState(slotIndex).liberoOnCourtId;
+    if (onCourt == null) return [];
+    return rosterLiberoIds.where((id) => id != onCourt).toList();
+  }
+
+  /// Cambia el líbero en cancha en [slotIndex] por otro líbero de la
+  /// planilla ([toLiberoId], o el primero disponible si no se indica); sigue
+  /// reemplazando, a todos los efectos, al mismo jugador original. Es un
+  /// cambio de líbero más: ilimitado, pero con un punto jugado entre dos
+  /// cambios de líbero (Regla 19.3.2.1).
+  void swapLiberoToOther(int slotIndex, {String? toLiberoId, bool auto = false}) {
     if (!canSendLiberoOut(slotIndex)) return;
-    final st = _slotState(slotIndex);
-    final other = declaredLiberoIds.where((id) => id != st.liberoOnCourtId).toList();
+    final other = otherLiberosFor(slotIndex);
     if (other.isEmpty) return;
+    if (toLiberoId != null && !other.contains(toLiberoId)) return;
     _applySubstitution(
       slotIndex: slotIndex,
-      playerInId: other.first,
+      playerInId: toLiberoId ?? other.first,
       countsAgainstLimit: false,
       isLiberoAction: true,
       auto: auto,
@@ -616,7 +719,7 @@ class MatchController extends ChangeNotifier {
       countedAgainstLimit: countsAgainstLimit,
       isLiberoAction: isLiberoAction,
       auto: auto,
-      timestamp: DateTime.now(),
+      timestamp: _nextTimestamp(),
     ));
     notifyListeners();
     _persist();
@@ -660,7 +763,10 @@ class MatchController extends ChangeNotifier {
   /// automáticamente el líbero receptor en su lugar (cambio libre), siempre
   /// que esté configurado, en fila trasera y no esté ya en cancha.
   void _maybeAutoSubCentralForLibero(String serverId) {
-    final liberoId = currentSet.receptionLiberoId;
+    // Se llama después del side-out, con el saque ya del rival: el líbero
+    // que corresponde es el receptor (o el que lo reemplaza, ver
+    // [liberoForCurrentServe]).
+    final liberoId = liberoForCurrentServe();
     if (liberoId == null || liberoId == serverId) return;
     if (playerById(serverId)?.position != PlayerPosition.central) return;
     if (!canBringLiberoIn(liberoId, serverId)) return;
@@ -683,7 +789,7 @@ class MatchController extends ChangeNotifier {
       final st = _slotState(slot);
       if (st.liberoOnCourtId == null) continue;
       if (st.liberoOnCourtId != desiredId && canSendLiberoOut(slot)) {
-        swapLiberoToOther(slot, auto: true);
+        swapLiberoToOther(slot, toLiberoId: desiredId, auto: true);
       }
       return;
     }
@@ -691,11 +797,15 @@ class MatchController extends ChangeNotifier {
 
   /// Al rotar, un líbero no puede quedar en fila delantera: si su puesto
   /// pasa a posición 2, 3 o 4, sale obligatoriamente por el jugador que
-  /// había reemplazado (cambio libre y automático).
+  /// había reemplazado (cambio libre y automático). Tampoco puede quedar en
+  /// posición 1 si el saque es nuestro (el líbero no saca): eso solo puede
+  /// pasar con una rotación manual hacia atrás (6→1), nunca en un side-out.
   void _releaseLiberosRotatingToFrontRow() {
     for (var slot = 0; slot < 6; slot++) {
       final st = _slotState(slot);
-      if (st.liberoOnCourtId == null || _slotIsBackRow(slot)) continue;
+      if (st.liberoOnCourtId == null) continue;
+      final aboutToServe = _courtPositionOfSlot(slot) == 1 && _servingTeam == TeamSide.own;
+      if (_slotIsBackRow(slot) && !aboutToServe) continue;
       _applySubstitution(
         slotIndex: slot,
         playerInId: st.liberoReplacedPlayerId!,
@@ -714,19 +824,70 @@ class MatchController extends ChangeNotifier {
   /// cambio de líbero ("Central en el fondo"), pero aplicada sola.
   /// `canBringLiberoIn` ya se encarga de no meter al líbero en el puesto que
   /// está a punto de sacar (solo aplica cuando el saque es nuestro), así que
-  /// acá no hace falta repetir esa exclusión.
-  void _maybeAutoSubLiberoForCentralInBackRow() {
+  /// acá no hace falta repetir esa exclusión. Con [ignoreRallyRule] (solo
+  /// desde [rotateManually]) no se exige un punto jugado desde el último
+  /// cambio de líbero en ese puesto.
+  void _maybeAutoSubLiberoForCentralInBackRow({bool ignoreRallyRule = false}) {
     if (!currentSet.autoLiberoBackRowSwap) return;
-    final liberoId =
-        _servingTeam == TeamSide.own ? currentSet.defensiveLiberoId : currentSet.receptionLiberoId;
+    final liberoId = liberoForCurrentServe();
     if (liberoId == null) return;
     for (final p in onCourtPlayers.where((p) => p.position == PlayerPosition.central)) {
       final pos = courtPositionOf(p.id);
       if (pos == null || (pos != 1 && pos != 5 && pos != 6)) continue;
-      if (!canBringLiberoIn(liberoId, p.id)) continue;
-      bringLiberoIn(liberoId, p.id, auto: true);
+      if (!canBringLiberoIn(liberoId, p.id, ignoreRallyRule: ignoreRallyRule)) continue;
+      bringLiberoIn(liberoId, p.id, auto: true, ignoreRallyRule: ignoreRallyRule);
       return; // solo puede entrar un líbero a la vez.
     }
+  }
+
+  // ---------------- Rotación manual ----------------
+  //
+  // Solo si el partido la tiene habilitada (`MatchConfig.allowManualRotation`):
+  // gira al equipo propio un puesto sin que haya side-out, p. ej. para
+  // corregir una rotación que quedó mal o que marcó el árbitro. Se registra
+  // como un `ManualRotationEvent` en el set, así "Deshacer última acción" la
+  // revierte igual que un punto o un cambio, y `resume` la vuelve a aplicar.
+
+  /// true si ahora se puede rotar a mano: la opción está activada en el
+  /// partido y no hay un punto en juego (entre punto y punto).
+  bool get canRotateManually =>
+      match.config.allowManualRotation &&
+      !currentSet.finished &&
+      !currentSet.locked &&
+      (_stage == RallyStage.serveOwn || _stage == RallyStage.receiveOwn);
+
+  /// Rota al equipo propio un puesto hacia adelante (como en un side-out:
+  /// 2→1, 1→6, ...) o, con [backward], hacia atrás (1→2, 6→1, ...). Si la
+  /// rotación deja a un líbero en fila delantera (o en posición 1 con saque
+  /// propio) sale solo por el jugador que había reemplazado, y se evalúa el
+  /// cambio automático líbero/central igual que después de un side-out.
+  void rotateManually({bool backward = false}) {
+    if (!canRotateManually) return;
+    final steps = backward ? -1 : 1;
+    // El evento se registra ANTES de los cambios automáticos que dispara,
+    // para que tengan timestamp posterior y [undoLastAction] los revierta
+    // junto con la rotación (mismo criterio que con un punto).
+    currentSet.manualRotations.add(ManualRotationEvent(
+      id: generateId('rot_'),
+      setNumber: currentSet.setNumber,
+      rallyNumber: _rallyCounter,
+      steps: steps,
+      timestamp: _nextTimestamp(),
+    ));
+    _rotationOffsetOwn = (_rotationOffsetOwn + steps) % 6;
+    _releaseLiberosRotatingToFrontRow();
+    // La rotación manual es una corrección, no una jugada: no se juega
+    // ningún punto, así que si el líbero acaba de salir (p. ej. por rotar
+    // adelante y volver atrás), la regla de "un punto jugado entre dos
+    // cambios de líbero" le impediría volver a entrar por el central que
+    // regresó al fondo. Se saltea solo para este automatismo.
+    _maybeAutoSubLiberoForCentralInBackRow(ignoreRallyRule: true);
+    notifyListeners();
+    _persist();
+  }
+
+  void _revertManualRotation(ManualRotationEvent removed) {
+    _rotationOffsetOwn = (_rotationOffsetOwn - removed.steps) % 6;
   }
 
   // ---------------- Sanciones ----------------
@@ -845,7 +1006,7 @@ class MatchController extends ChangeNotifier {
       linkedRallyEventId: linkedRallyEventId,
       ownScoreAfter: currentSet.ownScore,
       rivalScoreAfter: currentSet.rivalScore,
-      timestamp: DateTime.now(),
+      timestamp: _nextTimestamp(),
     );
     currentSet.sanctions.add(sanction);
     notifyListeners();
@@ -856,15 +1017,14 @@ class MatchController extends ChangeNotifier {
   /// Suplentes elegibles para reemplazar a [playerOutId] (en cancha) por
   /// expulsión/descalificación (Regla 15.8): primero el suplente regular si
   /// todavía tiene cupo (sustitución legal normal); si no, cualquier
-  /// suplente del banco salvo los líberos declarados (sustitución
-  /// excepcional: no cuenta contra el límite, pero queda registrada).
+  /// suplente del banco salvo los líberos (sustitución excepcional: no
+  /// cuenta contra el límite, pero queda registrada).
   List<Player> eligibleReplacementsForSanction(String playerOutId) {
     if (canRegisterSubstitution && canSubOutRegular(playerOutId)) {
       final regular = eligibleRegularBenchFor(playerOutId);
       if (regular.isNotEmpty) return regular;
     }
-    final liberoIds = declaredLiberoIds.toSet();
-    return benchPlayers.where((p) => !liberoIds.contains(p.id)).toList();
+    return benchPlayers.where((p) => p.position != PlayerPosition.libero).toList();
   }
 
   /// true si reemplazar a [playerOutId] con [playerInId] es la sustitución
@@ -975,38 +1135,58 @@ class MatchController extends ChangeNotifier {
   }
 
   /// true si hay algo para deshacer con [undoLastAction]: una jugada, una
-  /// sanción, o un cambio manual (los automáticos no cuentan como acción
-  /// propia, siempre se deshacen junto con la jugada que los disparó).
+  /// sanción, una rotación manual o un cambio manual (los automáticos no
+  /// cuentan como acción propia, siempre se deshacen junto con la jugada o
+  /// la rotación que los disparó).
   bool get canUndoLastAction =>
       !currentSet.locked &&
       (currentSet.events.isNotEmpty ||
           (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto) ||
-          currentSet.sanctions.isNotEmpty);
+          currentSet.sanctions.isNotEmpty ||
+          currentSet.manualRotations.isNotEmpty);
 
   /// Deshace la última acción cargada en el set, sea una jugada (saque,
-  /// ataque, punto/error rival, etc.), una sanción/tarjeta, o un cambio de
-  /// jugador manual, lo que haya pasado más recientemente. Los cambios
-  /// automáticos que hayan quedado colgando al final del log de cambios se
-  /// revierten primero, pero solo si de verdad son lo más reciente que pasó
-  /// en el set (comparando contra el último evento y la última sanción): un
-  /// automático viejo, ya superado en el tiempo por una sanción o jugada
-  /// posterior, no se toca acá — deshacer esa jugada tiene que deshacer sus
-  /// propios automáticos, no los de un punto anterior que ya quedó resuelto.
+  /// ataque, punto/error rival, etc.), una sanción/tarjeta, una rotación
+  /// manual o un cambio de jugador manual, lo que haya pasado más
+  /// recientemente. Los cambios automáticos que hayan quedado colgando al
+  /// final del log de cambios se revierten primero, pero solo si de verdad
+  /// son lo más reciente que pasó en el set (comparando contra el último
+  /// evento, la última sanción y la última rotación manual): un automático
+  /// viejo, ya superado en el tiempo por una acción posterior, no se toca
+  /// acá — deshacer esa acción tiene que deshacer sus propios automáticos,
+  /// no los de un punto anterior que ya quedó resuelto.
   void undoLastAction() {
     while (true) {
       final lastSub = currentSet.substitutions.isNotEmpty ? currentSet.substitutions.last : null;
       if (lastSub == null || !lastSub.auto) break;
       final lastEvent = currentSet.events.isNotEmpty ? currentSet.events.last : null;
       final lastSanction = currentSet.sanctions.isNotEmpty ? currentSet.sanctions.last : null;
+      final lastRotation =
+          currentSet.manualRotations.isNotEmpty ? currentSet.manualRotations.last : null;
       final subIsMostRecent =
           (lastEvent == null || !lastEvent.timestamp.isAfter(lastSub.timestamp)) &&
-          (lastSanction == null || !lastSanction.timestamp.isAfter(lastSub.timestamp));
+          (lastSanction == null || !lastSanction.timestamp.isAfter(lastSub.timestamp)) &&
+          (lastRotation == null || !lastRotation.timestamp.isAfter(lastSub.timestamp));
       if (!subIsMostRecent) break;
       _revertSubstitution(currentSet.substitutions.removeLast());
     }
     final lastSanction = currentSet.sanctions.isNotEmpty ? currentSet.sanctions.last : null;
     final lastSub = currentSet.substitutions.isNotEmpty ? currentSet.substitutions.last : null;
     final lastEvent = currentSet.events.isNotEmpty ? currentSet.events.last : null;
+    final lastRotation =
+        currentSet.manualRotations.isNotEmpty ? currentSet.manualRotations.last : null;
+
+    final rotationIsLatest = lastRotation != null &&
+        (lastSub == null || !lastSub.timestamp.isAfter(lastRotation.timestamp)) &&
+        (lastEvent == null || !lastEvent.timestamp.isAfter(lastRotation.timestamp)) &&
+        (lastSanction == null || !lastSanction.timestamp.isAfter(lastRotation.timestamp));
+
+    if (rotationIsLatest) {
+      _revertManualRotation(currentSet.manualRotations.removeLast());
+      notifyListeners();
+      _persist();
+      return;
+    }
 
     // Si el último cambio es el reemplazo obligatorio de la última sanción
     // (Expulsión/Descalificación), se deshacen juntos como una sola acción:
@@ -1084,7 +1264,8 @@ class MatchController extends ChangeNotifier {
 
   String _randomRivalErrorType() => _rivalErrorTypePool[_rng.nextInt(_rivalErrorTypePool.length)];
 
-  int? _randomZone() => currentSet.trackHitZones ? 1 + _rng.nextInt(6) : null;
+  int? _randomZone() =>
+      currentSet.trackHitZones ? 1 + _rng.nextInt(currentSet.nineHitZones ? 9 : 6) : null;
 
   /// Juega un punto completo a partir del estado actual, eligiendo al azar
   /// jugador/calificación/resultado en cada toque, reutilizando los mismos
@@ -1161,13 +1342,11 @@ class MatchController extends ChangeNotifier {
       final playerIn = bench[_rng.nextInt(bench.length)];
       substitutePlayer(playerOutId: playerOut.id, playerInId: playerIn.id);
     } else if (roll < 0.16) {
-      // Cambio líbero por líbero (defensor <-> receptor), si hay dos
-      // declarados y uno de ellos está en cancha en este momento.
-      final liberos = declaredLiberoIds;
-      if (liberos.length < 2) return;
+      // Cambio líbero por líbero, si hay dos o más en la planilla y uno de
+      // ellos está en cancha en este momento.
+      if (rosterLiberoIds.length < 2) return;
       for (var slot = 0; slot < 6; slot++) {
-        final st = _slotState(slot);
-        if (st.liberoOnCourtId != null && liberos.contains(st.liberoOnCourtId)) {
+        if (_slotState(slot).liberoOnCourtId != null) {
           swapLiberoToOther(slot);
           return;
         }
@@ -1176,6 +1355,25 @@ class MatchController extends ChangeNotifier {
   }
 
   // ---------------- Internals ----------------
+
+  DateTime? _lastTimestamp;
+
+  /// Timestamp para un evento, cambio, sanción o rotación nuevos: la hora
+  /// actual, pero siempre estrictamente posterior al último que se entregó.
+  /// [undoLastAction] decide qué deshacer comparando timestamps entre logs
+  /// distintos, y dos acciones registradas en el mismo instante del reloj
+  /// (p. ej. un punto seguido de una rotación manual, o varias acciones en
+  /// una simulación) quedarían empatadas y se podrían deshacer en el orden
+  /// equivocado.
+  DateTime _nextTimestamp() {
+    var now = DateTime.now();
+    final last = _lastTimestamp;
+    if (last != null && !now.isAfter(last)) {
+      now = last.add(const Duration(microseconds: 1));
+    }
+    _lastTimestamp = now;
+    return now;
+  }
 
   void _addEvent({
     required RallyPhase phase,
@@ -1209,7 +1407,7 @@ class MatchController extends ChangeNotifier {
       servingTeamBefore: servingBefore,
       ownScoreAfter: set.ownScore,
       rivalScoreAfter: set.rivalScore,
-      timestamp: DateTime.now(),
+      timestamp: _nextTimestamp(),
       targetZone: set.trackHitZones ? targetZone : null,
       rivalActionType: rivalActionType,
     );

@@ -104,7 +104,8 @@ class RivalSanctionStats {
 }
 
 /// Estadística de saque, ataque y contraataque por zona de cancha de
-/// destino (1-6), solo con los toques que tienen zona registrada.
+/// destino (1-9; las zonas 7-9 solo tienen datos en sets cargados con
+/// "9 zonas"), solo con los toques que tienen zona registrada.
 class ZoneStats {
   final Map<int, TouchStats> serveByZone;
   final Map<int, TouchStats> attackByZone;
@@ -130,4 +131,21 @@ class ZoneStats {
       serveByZone.values.any((s) => s.total > 0) ||
       attackByZone.values.any((s) => s.total > 0) ||
       counterByZone.values.any((s) => s.total > 0);
+
+  /// true si algún toque se registró en las zonas 7-9 (franja media).
+  bool get hasMiddleZoneData {
+    for (var z = 7; z <= 9; z++) {
+      if ((serveByZone[z]?.total ?? 0) > 0 ||
+          (attackByZone[z]?.total ?? 0) > 0 ||
+          (counterByZone[z]?.total ?? 0) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Zonas a mostrar en los reportes: 1-6 siempre, y 7-9 solo si hay algún
+  /// toque registrado en ellas (para no sumar columnas vacías a los
+  /// partidos cargados con 6 zonas).
+  List<int> get displayZones => [for (var z = 1; z <= (hasMiddleZoneData ? 9 : 6); z++) z];
 }
