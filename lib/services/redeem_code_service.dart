@@ -5,12 +5,17 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../state/subscription_controller.dart';
 import 'auth_service.dart';
+import 'subscription_tiers.dart';
 
 /// Resultado de intentar canjear un código promocional (backend en
 /// volley_stats_app_backend, función `redeemPromoCode`).
 enum RedeemOutcome {
   /// Se otorgó el premium y ya se refleja en [SubscriptionController].
   success,
+
+  /// Se otorgó un complemento de dispositivo adicional y ya se refleja en
+  /// `SubscriptionController.deviceLimit`.
+  deviceAddOnGranted,
 
   /// El código no existe.
   invalidCode,
@@ -57,7 +62,11 @@ Future<RedeemOutcome> redeemPromoCode(BuildContext context, String code) async {
       if (context.mounted) {
         await context.read<SubscriptionController>().refresh();
       }
-      return RedeemOutcome.success;
+      // Sin `entitlementId` en la respuesta (backend anterior) el código era
+      // siempre de premium.
+      return kDeviceAddOnEntitlementIds.contains(data['entitlementId'])
+          ? RedeemOutcome.deviceAddOnGranted
+          : RedeemOutcome.success;
     }
     return _mapErrorCode(data['error'] as String?);
   } on FirebaseFunctionsException {

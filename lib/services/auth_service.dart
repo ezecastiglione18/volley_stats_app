@@ -288,7 +288,10 @@ class AuthService {
     if (!isRevenueCatSupported) return null;
     try {
       final info = await Purchases.getCustomerInfo();
-      return deviceLimitFromActiveSubscriptions(info.activeSubscriptions);
+      return deviceLimitFrom(
+        activeSubscriptions: info.activeSubscriptions,
+        activeEntitlementIds: info.entitlements.active.keys,
+      );
     } catch (_) {
       return null;
     }

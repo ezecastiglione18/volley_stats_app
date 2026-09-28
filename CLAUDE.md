@@ -82,7 +82,7 @@ Authentication (email/contraseña) + Firestore. Cada usuario tiene un documento 
 `account_devices` (id = uid) con un mapa `devices` (deviceId -> `{label, loggedInAt}`; `deviceId` es un id
 de instalación persistido en Hive vía `StorageService.loadOrCreateDeviceId()`, no un id de hardware). El
 límite de dispositivos simultáneos ya **no** es fijo en 1: `_computeDeviceLimit()` consulta RevenueCat
-(`deviceLimitFromActiveSubscriptions`, ver Suscripción premium más abajo) y permite hasta 4 según cuántos
+(`deviceLimitFrom`, ver Suscripción premium más abajo) y permite hasta 4 según cuántos
 complementos de "dispositivo adicional" tenga activos la cuenta (Windows, o cualquier error de red al
 consultar, cae siempre a 1 — nunca confía en un número más alto sin poder verificarlo). `signIn`/
 `register` reclaman un lugar en ese mapa dentro de una transacción de Firestore (volver a entrar desde el
@@ -141,7 +141,12 @@ premium sin pasar nunca por Google Play Billing — la pantalla manda el código
 ver su propio CLAUDE.md para la lógica del servidor), que valida el código contra Firestore y, si es válido,
 le pega directo a la API de RevenueCat para otorgar el entitlement `rallystats_pro` por la cantidad de días
 que indique ese código — de ahí que no dependa de que la ficha de Play Console esté publicada, en revisión,
-ni de ninguna versión particular del APK. Dos detalles no obvios si se vuelve a tocar este flujo:
+ni de ninguna versión particular del APK. Un código también puede otorgar, en vez de premium, un
+complemento de dispositivo adicional (entitlements `device_addon_1/2/3`, `kDeviceAddOnEntitlementIds` en
+`subscription_tiers.dart`): por eso `deviceLimitFrom` cuenta cada complemento como activo si está
+comprado (product id en `activeSubscriptions`) **o** regalado (entitlement en `entitlements.active`) — un
+otorgamiento promocional nunca aparece en `activeSubscriptions`. Cada posición cuenta una sola vez, así que
+el tope sigue siendo 4. Dos detalles no obvios si se vuelve a tocar este flujo:
 
 - La función vive en `southamerica-east1`, no en la región por defecto de `cloud_functions`
   (`us-central1`) — `redeem_code_service.dart` instancia

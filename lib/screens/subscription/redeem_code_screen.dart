@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../services/redeem_code_service.dart';
+import '../../state/subscription_controller.dart';
 
-/// "Tengo un código": canjea un código promocional para activar premium sin
-/// pasar por Play Billing (ver volley_stats_app_backend, función
+/// "Tengo un código": canjea un código promocional para activar premium o
+/// sumar un dispositivo adicional sin pasar por Play Billing (ver volley_stats_app_backend, función
 /// `redeemPromoCode`). Accesible desde Configuración de la cuenta.
 class RedeemCodeScreen extends StatefulWidget {
   const RedeemCodeScreen({super.key});
@@ -39,6 +41,14 @@ class _RedeemCodeScreenState extends State<RedeemCodeScreen> {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(const SnackBar(content: Text('¡Listo! Ya tenés premium activo.')));
+      case RedeemOutcome.deviceAddOnGranted:
+        final deviceLimit = context.read<SubscriptionController>().deviceLimit;
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(
+            content: Text('¡Listo! Tu cuenta ya se puede usar en $deviceLimit dispositivos.'),
+          ));
       case RedeemOutcome.invalidCode:
         _showError('Ese código no existe. Revisá que esté bien escrito.');
       case RedeemOutcome.expired:
@@ -72,7 +82,8 @@ class _RedeemCodeScreenState extends State<RedeemCodeScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Si tenés un código promocional, ingresalo acá para activar tu premium.',
+                  'Si tenés un código promocional, ingresalo acá para activar tu premium o '
+                  'sumar un dispositivo.',
                   style: TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 20),

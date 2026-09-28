@@ -77,7 +77,10 @@ class SubscriptionController extends ChangeNotifier {
 
   Future<void> _applyCustomerInfoAndCache(CustomerInfo info) async {
     isPremium = info.entitlements.active[kPremiumEntitlementId] != null;
-    deviceLimit = deviceLimitFromActiveSubscriptions(info.activeSubscriptions);
+    deviceLimit = deviceLimitFrom(
+      activeSubscriptions: info.activeSubscriptions,
+      activeEntitlementIds: info.entitlements.active.keys,
+    );
     await StorageService.instance.saveSubscriptionCache({
       'isPremium': isPremium,
       'deviceLimit': deviceLimit,

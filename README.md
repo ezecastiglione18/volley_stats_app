@@ -60,8 +60,8 @@ estadísticas exportable como reporte en PDF.
   dispositivos adicionales. Incluye restaurar compras y gestión/cancelación desde Google Play, y un link
   "Cómo cancelar sin problemas" con una guía completa sobre en qué orden dar de baja los complementos (ver
   la sección 19 del manual de usuario para el detalle completo).
-- "Tengo un código" (Configuración de la cuenta): canjear un código promocional para activar premium sin
-  pasar por Google Play Billing — pensado para dar acceso gratuito puntual (ej. a una federación) sin
+- "Tengo un código" (Configuración de la cuenta): canjear un código promocional para activar premium (o
+  sumar un dispositivo adicional) sin pasar por Google Play Billing — pensado para dar acceso gratuito puntual (ej. a una federación) sin
   otorgarlo a mano por cuenta. Depende del backend en `volley_stats_app_backend` (ver esa sección más
   abajo); todavía no salió en ninguna versión publicada en Play Store.
 - En Android, la app se usa solo en orientación vertical.

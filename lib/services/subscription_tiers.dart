@@ -24,14 +24,42 @@ const List<String> kDeviceAddOnProductIds = [
   'da_mensual_3:da-men-3', // Dispositivo Adicional 3
 ];
 
+/// Entitlements de RevenueCat equivalentes a cada complemento de
+/// [kDeviceAddOnProductIds] (mismo orden). Los otorgan los códigos
+/// promocionales (volley_stats_app_backend, `PROMO_ENTITLEMENT_IDS` en
+/// revenuecat.ts), que no pasan por Play Billing y por lo tanto nunca
+/// aparecen en `activeSubscriptions`. En el dashboard de RevenueCat cada
+/// producto de complemento tiene asociado **sólo su propio** entitlement
+/// (además de `rallystats_pro`): si se asociaran de forma acumulativa (ej.
+/// el complemento 2 activando también `device_addon_1`), quien cancele uno
+/// anterior fuera de orden tendría más dispositivos de los que paga.
+const List<String> kDeviceAddOnEntitlementIds = [
+  'device_addon_1',
+  'device_addon_2',
+  'device_addon_3',
+];
+
 /// Cantidad de dispositivos habilitados: 1 (plan base) + un dispositivo más
-/// por cada complemento de [kDeviceAddOnProductIds] presente en
-/// `activeSubscriptions`. Nunca pasa de 4 porque sólo hay 3 complementos
-/// definidos. Si [activeSubscriptions] no reconoce ningún complemento
-/// (incluida una lista vacía por error al consultar RevenueCat), devuelve 1
-/// — nunca confía en un número más alto sin verificarlo.
-int deviceLimitFromActiveSubscriptions(List<String> activeSubscriptions) =>
-    1 + activeSubscriptions.where(kDeviceAddOnProductIds.contains).length;
+/// por cada complemento activo, ya sea comprado (su product id de
+/// [kDeviceAddOnProductIds] en [activeSubscriptions]) o regalado por un
+/// código (su entitlement de [kDeviceAddOnEntitlementIds] en
+/// [activeEntitlementIds]). Cada posición cuenta una sola vez aunque esté
+/// activa por las dos vías, así que nunca pasa de 4. Si no reconoce ningún
+/// complemento (incluidas listas vacías por error al consultar RevenueCat),
+/// devuelve 1 — nunca confía en un número más alto sin verificarlo.
+int deviceLimitFrom({
+  required List<String> activeSubscriptions,
+  required Iterable<String> activeEntitlementIds,
+}) {
+  var addOns = 0;
+  for (var i = 0; i < kDeviceAddOnProductIds.length; i++) {
+    if (activeSubscriptions.contains(kDeviceAddOnProductIds[i]) ||
+        activeEntitlementIds.contains(kDeviceAddOnEntitlementIds[i])) {
+      addOns++;
+    }
+  }
+  return 1 + addOns;
+}
 
 /// Próximo complemento a ofrecer para comprar, dado el [deviceLimit] actual
 /// (se compran en orden: el complemento habilitado por comprar es siempre
