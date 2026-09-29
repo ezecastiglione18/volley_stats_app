@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup en Android 11 o anterior (en 12+ manda data_extraction_rules.xml).
+     Se respalda todo (equipos/partidos en Hive incluidos) salvo la sesión de
+     Firebase Auth: está cifrada con una clave del Android Keystore, que nunca
+     se respalda, así que restaurarla sin esa clave rompe el guardado de la
+     sesión en cada login (ver MainActivity.resetOrphanedFirebaseAuthKeyset).
+     El sufijo es FirebaseApp.getPersistenceKey() de la app [DEFAULT]: base64
+     de "[DEFAULT]" + "+" + base64 del appId de Android en google-services.json
+     (1:1082356934892:android:fdcf1c7d5871a765299dc9); si cambia el proyecto de
+     Firebase o el appId, hay que actualizarlo acá y en data_extraction_rules.xml. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="com.google.firebase.auth.api.crypto.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+    <exclude domain="sharedpref" path="com.google.firebase.auth.api.Store.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+</full-backup-content>

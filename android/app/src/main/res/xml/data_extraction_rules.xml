@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup / transferencia entre equipos en Android 12+. Mismo criterio
+     que backup_rules.xml (ver el comentario ahí): todo salvo la sesión de
+     Firebase Auth, cuya clave del Keystore no viaja ni en la nube ni al pasar
+     a un equipo nuevo. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="com.google.firebase.auth.api.crypto.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+        <exclude domain="sharedpref" path="com.google.firebase.auth.api.Store.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="com.google.firebase.auth.api.crypto.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+        <exclude domain="sharedpref" path="com.google.firebase.auth.api.Store.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+    </device-transfer>
+</data-extraction-rules>

@@ -112,6 +112,19 @@ hace que borrar la cuenta desde un dispositivo cierre sesión en el resto en tie
 Setup manual requerido (crear proyecto, activar Auth/Firestore, generar `firebase_options.dart` con
 `flutterfire configure`, reglas de seguridad): ver `SETUP_FIREBASE.md`.
 
+**Sesión persistida y Auto Backup de Android**: Firebase Auth guarda la sesión cifrada con un keyset (en
+SharedPreferences) protegido por una clave del Android Keystore. Auto Backup restaura las SharedPreferences
+pero nunca las claves del Keystore, así que tras reinstalar la app quedaba un keyset sin su clave: cada
+login fallaba al cifrar la sesión (logcat: `FirebearStorageCryptoHelper: KeysetManager failed to initialize -
+unable to encrypt data`) y la sesión sólo vivía en memoria — se perdía al cerrar la app desde recientes,
+con cualquier cuenta. Dos piezas lo resuelven: `android/app/src/main/res/xml/backup_rules.xml` +
+`data_extraction_rules.xml` excluyen esos dos archivos del backup (el resto, Hive incluido, se sigue
+respaldando; el sufijo del nombre depende del appId de Android — actualizarlo si cambia), y
+`MainActivity.resetOrphanedFirebaseAuthKeyset()` repara al arrancar las instalaciones que ya quedaron así
+(borra el keyset huérfano para que Firebase genere uno nuevo; el usuario inicia sesión una vez más y desde
+ahí queda persistida). Si vuelve a aparecer "pide login cada vez que se reabre la app", buscar primero ese
+mensaje en logcat antes de sospechar de `revalidateThisDevice`/`_watchDeviceSlot`.
+
 **Suscripción premium (`lib/state/subscription_controller.dart`, `lib/services/subscription_tiers.dart`,
 `purchase_service.dart`, `device_addon_service.dart`, `subscription_management_launcher.dart`)**: en
 Android usa RevenueCat (`purchases_flutter`) sobre Google Play Billing; `isRevenueCatSupported`
