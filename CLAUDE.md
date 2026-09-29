@@ -178,6 +178,16 @@ cayó cada sección durante el mismo armado — después de generar, hay que rev
 (con la herramienta de lectura de PDF, pidiendo todas las páginas) y corregir esas constantes si algún
 contenido corrió de página.
 
+## Trabajo planificado
+
+**Estadística visual (pestañas "Gráficos" y "Mapas" en Estadísticas)**: aprobada el 29/09/2026, sin
+implementar. La spec implementable (decisiones tomadas, reglas de cálculo, etapas, tests) está en
+`documents/spec-estadistica-visual.md`, y el boceto visual en
+`documents/RallyStats-Propuesta-Estadistica-Visual.pdf` (generado por
+`tool/generate_propuesta_estadistica.dart`, que además es la referencia de dibujo de los trazos y
+gráficos). Se arranca por la Etapa 1 (gráficos de equipo). Leer la spec completa antes de tocar
+`stats_engine.dart`, `match_summary_screen.dart` o `pdf_report_service.dart` para esto.
+
 ## Proceso de release (después de cargar ajustes nuevos)
 
 Cuando se termina de implementar uno o varios cambios y hay que dejar todo listo para el usuario final,
