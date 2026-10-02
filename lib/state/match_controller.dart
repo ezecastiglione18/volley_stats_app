@@ -313,7 +313,7 @@ class MatchController extends ChangeNotifier {
 
   // ---------------- Registro de acciones ----------------
 
-  void logServe(String playerId, String grade, {int? targetZone}) {
+  void logServe(String playerId, String grade, {int? targetZone, String? missType}) {
     _currentRallyServerId = playerId;
     final terminal = grade == Grade.pp || grade == Grade.nn;
     final winner = grade == Grade.pp
@@ -327,6 +327,7 @@ class MatchController extends ChangeNotifier {
       endsRally: terminal,
       winner: winner,
       targetZone: targetZone,
+      missType: missType,
     );
     if (!terminal) {
       _stage = RallyStage.defending;
@@ -353,15 +354,15 @@ class MatchController extends ChangeNotifier {
     }
   }
 
-  void logAttack(String playerId, String grade, {int? targetZone}) {
-    _logAttackOrCounter(RallyPhase.attack, playerId, grade, targetZone: targetZone);
+  void logAttack(String playerId, String grade, {int? targetZone, String? missType}) {
+    _logAttackOrCounter(RallyPhase.attack, playerId, grade, targetZone: targetZone, missType: missType);
   }
 
-  void logCounter(String playerId, String grade, {int? targetZone}) {
-    _logAttackOrCounter(RallyPhase.counter, playerId, grade, targetZone: targetZone);
+  void logCounter(String playerId, String grade, {int? targetZone, String? missType}) {
+    _logAttackOrCounter(RallyPhase.counter, playerId, grade, targetZone: targetZone, missType: missType);
   }
 
-  void _logAttackOrCounter(RallyPhase phase, String playerId, String grade, {int? targetZone}) {
+  void _logAttackOrCounter(RallyPhase phase, String playerId, String grade, {int? targetZone, String? missType}) {
     final terminal = grade == Grade.pp || grade == Grade.nn || grade == Grade.bloq;
     final winner = grade == Grade.pp
         ? TeamSide.own
@@ -374,6 +375,7 @@ class MatchController extends ChangeNotifier {
       endsRally: terminal,
       winner: winner,
       targetZone: targetZone,
+      missType: missType,
     );
     if (!terminal) {
       _stage = RallyStage.defending;
@@ -1264,6 +1266,14 @@ class MatchController extends ChangeNotifier {
 
   String _randomRivalErrorType() => _rivalErrorTypePool[_rng.nextInt(_rivalErrorTypePool.length)];
 
+  /// En un NN, a veces afuera o a la red y a veces sin detalle (como en la
+  /// carga real, donde indicarlo es opcional).
+  String? _randomMiss(String grade) {
+    if (grade != Grade.nn) return null;
+    final r = _rng.nextInt(3);
+    return r == 0 ? MissType.out : (r == 1 ? MissType.net : null);
+  }
+
   int? _randomZone() =>
       currentSet.trackHitZones ? 1 + _rng.nextInt(currentSet.nineHitZones ? 9 : 6) : null;
 
@@ -1279,13 +1289,15 @@ class MatchController extends ChangeNotifier {
       guard++;
       switch (_stage) {
         case RallyStage.serveOwn:
-          logServe(_randomPlayerId(), _randomGrade(_serveGradePool), targetZone: _randomZone());
+          final g = _randomGrade(_serveGradePool);
+          logServe(_randomPlayerId(), g, targetZone: _randomZone(), missType: _randomMiss(g));
           break;
         case RallyStage.receiveOwn:
           logReception(_randomPlayerId(), _randomGrade(_receptionGradePool));
           break;
         case RallyStage.attackK1Own:
-          logAttack(_randomPlayerId(), _randomGrade(_attackGradePool), targetZone: _randomZone());
+          final g = _randomGrade(_attackGradePool);
+          logAttack(_randomPlayerId(), g, targetZone: _randomZone(), missType: _randomMiss(g));
           break;
         case RallyStage.defending:
           _simulateDefendingTouch();
@@ -1297,7 +1309,8 @@ class MatchController extends ChangeNotifier {
   void _simulateDefendingTouch() {
     final roll = _rng.nextDouble();
     if (roll < 0.45) {
-      logCounter(_randomPlayerId(), _randomGrade(_attackGradePool), targetZone: _randomZone());
+      final g = _randomGrade(_attackGradePool);
+      logCounter(_randomPlayerId(), g, targetZone: _randomZone(), missType: _randomMiss(g));
     } else if (roll < 0.65) {
       final blockers = onCourtPlayers..shuffle(_rng);
       logBlockPoint(blockers.take(1 + _rng.nextInt(2)).map((p) => p.id).toList());
@@ -1384,6 +1397,7 @@ class MatchController extends ChangeNotifier {
     TeamSide? winner,
     int? targetZone,
     String? rivalActionType,
+    String? missType,
   }) {
     final set = currentSet;
     final servingBefore = _servingTeam;
@@ -1410,6 +1424,8 @@ class MatchController extends ChangeNotifier {
       timestamp: _nextTimestamp(),
       targetZone: set.trackHitZones ? targetZone : null,
       rivalActionType: rivalActionType,
+      // El detalle de un error solo tiene sentido en un NN y con zonas.
+      missType: set.trackHitZones && grade == Grade.nn ? missType : null,
     );
     set.events.add(event);
 

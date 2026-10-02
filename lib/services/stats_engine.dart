@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../models/match_set.dart';
 import '../models/player.dart';
 import '../models/rally_event.dart';
@@ -499,7 +501,7 @@ class StatsEngine {
           final slot = order.indexOf(playerId);
           final courtPos = slot < 0 ? null : ((slot - offset) % 6 + 6) % 6 + 1;
           final (ox, oy) = shotOrigin(kind, positions[playerId], courtPos);
-          final result = shotResultOf(ev.grade);
+          final result = shotResultOf(ev.grade, ev.missType);
           final center = ev.targetZone == null ? null : zoneCenter(ev.targetZone!, nineZones: set.nineHitZones);
 
           double? tx, ty;
@@ -508,10 +510,19 @@ class StatsEngine {
             // del atacante, apenas inclinada hacia la zona a la que iba.
             tx = center == null ? ox : ox + (center.$1 - ox) * 0.1;
             ty = 0.52;
+          } else if (result == ShotResult.net) {
+            // A la red: igual que el bloqueado, pero sobre la red misma.
+            tx = center == null ? ox : ox + (center.$1 - ox) * 0.15;
+            ty = 0.503;
           } else if (center != null) {
             final (jx, jy) = _zoneJitter(ev.id);
             tx = center.$1 + jx;
             ty = center.$2 + jy;
+            if (result == ShotResult.out) {
+              // Afuera: la zona registrada marca la dirección; la flecha
+              // sigue en esa dirección hasta salir de la cancha.
+              (tx, ty) = _projectOut(ox, oy, tx, ty);
+            }
           }
 
           if (tx == null || ty == null) {
@@ -552,19 +563,37 @@ class StatsEngine {
     }
   }
 
-  /// Calificación → trazo (spec 5.2). Hasta la Etapa 3 no se registra si un
-  /// NN fue afuera o a la red, así que todo NN es un "error" genérico.
-  static ShotResult shotResultOf(String? grade) {
+  /// Calificación → trazo (spec 5.2). Un NN es "afuera" o "a la red" si
+  /// quien cargó lo indicó ([RallyEvent.missType], opcional); si no, es un
+  /// "error" sin detalle.
+  static ShotResult shotResultOf(String? grade, [String? missType]) {
     switch (grade) {
       case Grade.pp:
         return ShotResult.point;
       case Grade.bloq:
         return ShotResult.blocked;
       case Grade.nn:
+        if (missType == MissType.out) return ShotResult.out;
+        if (missType == MissType.net) return ShotResult.net;
         return ShotResult.error;
       default:
         return ShotResult.inPlay;
     }
+  }
+
+  /// Prolonga la recta origen → (x, y) hasta que sale de la mitad rival
+  /// (por una lateral o por el fondo) y la deja un poco afuera.
+  static (double, double) _projectOut(double ox, double oy, double x, double y) {
+    final dx = x - ox, dy = y - oy;
+    var t = double.infinity;
+    if (dx < 0) t = math.min(t, (0 - x) / dx);
+    if (dx > 0) t = math.min(t, (1 - x) / dx);
+    if (dy < 0) t = math.min(t, (0 - y) / dy);
+    if (t == double.infinity) return (x, -0.05);
+    final len = math.sqrt(dx * dx + dy * dy);
+    final extra = 0.05 / len; // un poco más allá de la línea
+    final px = x + dx * (t + extra), py = y + dy * (t + extra);
+    return (px.clamp(-0.1, 1.1), py.clamp(-0.12, 0.5));
   }
 
   /// Origen deducido de un toque (tabla de la spec 5.2). [courtPos] es la

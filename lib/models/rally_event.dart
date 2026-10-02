@@ -40,6 +40,14 @@ class RivalAction {
   static const generic = 'generic';
 }
 
+/// Cómo fue un error (NN) de saque, ataque o contra, si quien carga lo
+/// indicó (opcional, solo en sets con registro de zona). Se guarda en
+/// [RallyEvent.missType]; null = sin detalle (y en partidos anteriores).
+class MissType {
+  static const out = 'out'; // afuera
+  static const net = 'net'; // a la red
+}
+
 class RallyEvent {
   final String id;
   final int setNumber;
@@ -64,6 +72,10 @@ class RallyEvent {
   /// [RivalAction]). Null en el resto de las fases.
   final String? rivalActionType;
 
+  /// Solo para saque/ataque/contra con calificación NN: si fue afuera o a la
+  /// red (ver [MissType]). Null si no se indicó.
+  final String? missType;
+
   RallyEvent({
     required this.id,
     required this.setNumber,
@@ -80,6 +92,7 @@ class RallyEvent {
     required this.timestamp,
     this.targetZone,
     this.rivalActionType,
+    this.missType,
   });
 
   Map<String, dynamic> toJson() => {
@@ -98,6 +111,7 @@ class RallyEvent {
         'timestamp': timestamp.toIso8601String(),
         'targetZone': targetZone,
         'rivalActionType': rivalActionType,
+        'missType': missType,
       };
 
   factory RallyEvent.fromJson(Map<dynamic, dynamic> json) => RallyEvent(
@@ -124,5 +138,6 @@ class RallyEvent {
                 DateTime.now(),
         targetZone: (json['targetZone'] as num?)?.toInt(),
         rivalActionType: json['rivalActionType'] as String?,
+        missType: json['missType'] as String?,
       );
 }

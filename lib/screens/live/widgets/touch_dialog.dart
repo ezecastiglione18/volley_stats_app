@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/player.dart';
+import '../../../models/rally_event.dart';
 import '../../../utils/grade_labels.dart';
 import 'grouped_ficha_row.dart';
 import 'hit_zone_picker.dart';
 
 /// Muestra un modal para elegir jugador (si corresponde), calificar el
 /// toque y, si [trackZone] está activo, elegir la zona de destino (opcional;
-/// entre 9 zonas en vez de 6 si [nineZones] también está activo).
+/// entre 9 zonas en vez de 6 si [nineZones] también está activo) y, para un
+/// error (NN), si fue afuera o a la red (también opcional: se elige antes de
+/// tocar NN y se ignora con cualquier otra calificación, para no sumar un
+/// toque obligatorio a la carga).
 Future<void> showTouchDialog({
   required BuildContext context,
   required String title,
@@ -16,10 +20,12 @@ Future<void> showTouchDialog({
   required List<GradeOption> grades,
   bool trackZone = false,
   bool nineZones = false,
-  required void Function(String playerId, String grade, int? targetZone) onConfirm,
+  required void Function(String playerId, String grade, int? targetZone, String? missType) onConfirm,
 }) async {
   String? selected = fixedPlayerId ?? (players.length == 1 ? players.first.id : null);
   int? selectedZone;
+  String? selectedMiss;
+  final trackMiss = trackZone && grades.any((g) => g.code == Grade.nn);
 
   await showModalBottomSheet(
     context: context,
@@ -69,6 +75,20 @@ Future<void> showTouchDialog({
                         ),
                         const SizedBox(height: 18),
                       ],
+                      if (trackMiss) ...[
+                        const Text('Si es error (NN), ¿cómo fue? (opcional)',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        Wrap(spacing: 8, children: [
+                          for (final (code, label) in [(MissType.out, 'Afuera'), (MissType.net, 'A la red')])
+                            ChoiceChip(
+                              label: Text(label),
+                              selected: selectedMiss == code,
+                              onSelected: (on) => setState(() => selectedMiss = on ? code : null),
+                            ),
+                        ]),
+                        const SizedBox(height: 18),
+                      ],
                       const Text('Calificación', style: TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       GridView.count(
@@ -88,9 +108,13 @@ Future<void> showTouchDialog({
                                 ? null
                                 : () {
                                     Navigator.pop(ctx);
-                                    onConfirm(selected!, g.code, selectedZone);
+                                    onConfirm(selected!, g.code, selectedZone,
+                                        g.code == Grade.nn ? selectedMiss : null);
                                   },
-                            child: Text(g.label,
+                            child: Text(
+                                g.code == Grade.nn && selectedMiss != null
+                                    ? 'NN\nError · ${selectedMiss == MissType.out ? 'afuera' : 'a la red'}'
+                                    : g.label,
                                 textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
                           );
                         }).toList(),

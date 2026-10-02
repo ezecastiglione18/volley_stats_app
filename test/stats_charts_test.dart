@@ -17,6 +17,7 @@ import 'package:rally_stats/models/rally_event.dart';
 import 'package:rally_stats/models/sanction_event.dart';
 import 'package:rally_stats/models/visual_stats.dart';
 import 'package:rally_stats/models/volley_match.dart';
+import 'package:rally_stats/screens/live/widgets/touch_dialog.dart';
 import 'package:rally_stats/screens/matches/match_summary_screen.dart';
 import 'package:rally_stats/screens/settings/visual_stats_settings_screen.dart';
 import 'package:rally_stats/services/pdf_report_service.dart';
@@ -28,6 +29,7 @@ import 'package:rally_stats/state/match_controller.dart';
 import 'package:rally_stats/state/subscription_controller.dart';
 import 'package:rally_stats/state/theme_controller.dart';
 import 'package:rally_stats/utils/court_geometry.dart';
+import 'package:rally_stats/utils/grade_labels.dart';
 import 'package:rally_stats/utils/theme.dart';
 
 Player _p(String id, int number, PlayerPosition pos) =>
@@ -339,7 +341,8 @@ void main() {
       for (var i = 0; i < a.shots.length; i++) {
         final s = a.shots[i];
         expect((s.targetX, s.targetY), (b.shots[i].targetX, b.shots[i].targetY));
-        if (s.result == ShotResult.blocked) continue;
+        // Bloqueado, a la red y afuera no terminan en la zona (ver sus propios tests).
+        if (const {ShotResult.blocked, ShotResult.net, ShotResult.out}.contains(s.result)) continue;
         final center = StatsEngine.zoneCenter(s.event.targetZone!, nineZones: false)!;
         expect((s.targetX - center.$1).abs(), lessThanOrEqualTo(0.05));
         expect((s.targetY - center.$2).abs(), lessThanOrEqualTo(0.05));
@@ -373,6 +376,127 @@ void main() {
     });
   });
 
+  group('Errores: afuera o a la red', () {
+    test('se guarda solo en un NN, y un partido viejo lo lee como sin detalle', () {
+      final c = _newController();
+      c.logServe('A1', Grade.p, targetZone: 1, missType: MissType.out); // no es NN: se ignora
+      c.logCounter('O1', Grade.nn, targetZone: 5, missType: MissType.out);
+      c.logServe(c.playerAtPosition(1), Grade.nn, missType: MissType.net);
+      final events = c.match.sets.first.events;
+      expect(events[0].missType, isNull);
+      expect(events[1].missType, MissType.out);
+      expect(events[2].missType, MissType.net);
+
+      final json = jsonDecode(jsonEncode(c.match.toJson())) as Map<String, dynamic>;
+      final reloaded = VolleyMatch.fromJson(json);
+      expect(reloaded.sets.first.events[1].missType, MissType.out);
+      for (final ev in (json['sets'] as List).first['events'] as List) {
+        (ev as Map).remove('missType');
+      }
+      expect(VolleyMatch.fromJson(json).sets.first.events[1].missType, isNull);
+    });
+
+    test('sin registro de zona no se guarda (no hay mapa que lo use)', () {
+      final match = VolleyMatch(
+        id: 'sin_zona',
+        date: DateTime(2026, 10, 2),
+        ownTeamName: 'Propio',
+        ownRoster: _roster,
+        rivalTeamName: 'Rival',
+        config: MatchConfig(),
+      );
+      final c = MatchController(match)
+        ..startSet(setNumber: 1, startingOrderOwn: List.of(_order), startingServer: TeamSide.own, trackHitZones: false);
+      c.logServe('A1', Grade.nn, missType: MissType.out);
+      expect(c.match.sets.first.events.single.missType, isNull);
+    });
+
+    test('trazos: afuera sigue la dirección hasta salir de la cancha; a la red termina en la red', () {
+      expect(StatsEngine.shotResultOf(Grade.nn, MissType.out), ShotResult.out);
+      expect(StatsEngine.shotResultOf(Grade.nn, MissType.net), ShotResult.net);
+      expect(StatsEngine.shotResultOf(Grade.p, MissType.out), ShotResult.inPlay);
+
+      final c = _newController();
+      c.logServe('A1', Grade.p);
+      c.logCounter('O1', Grade.nn, targetZone: 5, missType: MissType.out); // opuesto adelante, hacia zona 5
+      c.logServe('A1', Grade.p);
+      c.logCounter('P1', Grade.nn, missType: MissType.net); // sin zona: igual se dibuja
+      final d = StatsEngine.computeShots(c.match);
+
+      final out = _shotOf(d, 'O1', ShotKind.counter);
+      expect(out.result, ShotResult.out);
+      final outside = out.targetX < 0 || out.targetX > 1 || out.targetY < 0;
+      expect(outside, isTrue, reason: 'destino (${out.targetX}, ${out.targetY})');
+      // Misma dirección que la zona 5 (fondo derecha, vista desde el banco).
+      final center = StatsEngine.zoneCenter(5, nineZones: false)!;
+      final dot = (out.targetX - out.originX) * (center.$1 - out.originX) +
+          (out.targetY - out.originY) * (center.$2 - out.originY);
+      expect(dot, greaterThan(0));
+
+      final net = _shotOf(d, 'P1', ShotKind.counter);
+      expect(net.result, ShotResult.net);
+      expect(net.targetY, 0.503);
+    });
+
+    testWidgets('en el diálogo, "Afuera" se elige antes de NN y no suma un toque obligatorio', (tester) async {
+      String? gotGrade;
+      String? gotMiss;
+      Future<void> open(bool trackZone) async {
+        await tester.pumpWidget(MaterialApp(
+          theme: buildLightTheme(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showTouchDialog(
+                    context: context,
+                    title: 'Ataque',
+                    players: [_roster.first],
+                    fixedPlayerId: _roster.first.id,
+                    grades: attackCounterGrades,
+                    trackZone: trackZone,
+                    onConfirm: (player, grade, zone, miss) {
+                      gotGrade = grade;
+                      gotMiss = miss;
+                    },
+                  ),
+                  child: const Text('abrir'),
+                ),
+              ),
+            ),
+          ),
+        ));
+        await tester.tap(find.text('abrir'));
+        await tester.pumpAndSettle();
+      }
+
+      tester.view.physicalSize = const Size(1080, 3000);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(tester.view.reset);
+
+      await open(true);
+      expect(find.text('Afuera'), findsOneWidget);
+      await tester.tap(find.text('Afuera'));
+      await tester.pumpAndSettle();
+      expect(find.text('NN\nError · afuera'), findsOneWidget);
+      await tester.tap(find.text('NN\nError · afuera'));
+      await tester.pumpAndSettle();
+      expect((gotGrade, gotMiss), (Grade.nn, MissType.out));
+
+      // Con otra calificación, el detalle elegido se ignora.
+      await open(true);
+      await tester.tap(find.text('A la red'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('PP\n'));
+      await tester.pumpAndSettle();
+      expect((gotGrade, gotMiss), (Grade.pp, null));
+
+      // Sin registro de zona, no aparece.
+      await open(false);
+      expect(find.text('Afuera'), findsNothing);
+    });
+  });
+
   group('Partidos archivados antes de la estadística visual', () {
     test('un partido guardado y vuelto a leer da los mismos gráficos y mapas', () {
       final c = _simulatedMatch(sets: 2);
@@ -399,11 +523,12 @@ void main() {
       final legacy = VolleyMatch.fromJson(json);
       expect(StatsEngine.computeRotations(legacy).total.rallies, StatsEngine.computeRotations(c.match).total.rallies);
       final shots = StatsEngine.computeShots(legacy);
-      // Solo los bloqueados se dibujan (terminan en la red, no necesitan zona).
-      expect(shots.shots.every((s) => s.result == ShotResult.blocked), isTrue);
+      // Solo se dibujan los que terminan en la red (bloqueados y "a la red"):
+      // no necesitan zona. El resto se cuenta como "sin zona".
+      expect(shots.shots.every((s) => s.result == ShotResult.blocked || s.result == ShotResult.net), isTrue);
       final team = StatsEngine.compute(legacy).team;
-      expect(shots.missingZone(ShotKind.serve), team.saque.total);
-      expect(shots.missingZone(ShotKind.attack), team.ataque.total - team.ataque.bloq);
+      expect(shots.missingZone(ShotKind.serve) + shots.where(ShotKind.serve).length, team.saque.total);
+      expect(shots.missingZone(ShotKind.attack) + shots.where(ShotKind.attack).length, team.ataque.total);
     });
   });
 

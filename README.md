@@ -10,7 +10,8 @@ estadísticas exportable como reporte en PDF.
 ## Funcionalidades
 
 - Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional
-  (saque, ataque y contraataque), en 6 zonas o en 9 (suma la franja media 7-8-9, elegible set a set).
+  (saque, ataque y contraataque), en 6 zonas o en 9 (suma la franja media 7-8-9, elegible set a set), y en
+  los errores, si fue afuera o a la red (también opcional).
 - Edición de la formación ya comenzada: mientras el set no tenga ninguna acción cargada, "Editar
   formación" vuelve a la pantalla de formación con todo precargado para corregir sexteto, saque, líberos
   u opciones de registro sin tener que cargar el partido de nuevo.
@@ -44,7 +45,7 @@ estadísticas exportable como reporte en PDF.
 - Estadística visual en el resumen del partido (por partido completo o por set), en dos pestañas:
   - "Mapas": una flecha por saque, ataque o contraataque, por jugador o de todo el equipo, desde el lugar
     de salida (deducido del puesto y la rotación) hasta la zona registrada; el trazo indica el resultado
-    (punto, adentro, error, bloqueado). Incluye resumen y tabla por zona.
+    (punto, adentro, afuera, a la red, error sin detalle, bloqueado). Incluye resumen y tabla por zona.
   - "Gráficos": tablero rápido (side-out, break-point, eficiencia de ataque, errores no forzados),
     rendimiento por rotación P1–P6 (tabla estilo DataVolley + diferencia de puntos), side-out y
     break-point por rotación, evolución del marcador con rachas, origen de los puntos, eficiencia de
@@ -76,7 +77,7 @@ estadísticas exportable como reporte en PDF.
 - "Tengo un código" (Configuración de la cuenta): canjear un código promocional para activar premium (o
   sumar un dispositivo adicional) sin pasar por Google Play Billing — pensado para dar acceso gratuito puntual (ej. a una federación) sin
   otorgarlo a mano por cuenta. Depende del backend en `volley_stats_app_backend` (ver esa sección más
-  abajo); todavía no salió en ninguna versión publicada en Play Store.
+  abajo); se publica por primera vez con la versión 1.1.0.
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
   dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +

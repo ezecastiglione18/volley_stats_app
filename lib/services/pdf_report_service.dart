@@ -347,7 +347,14 @@ class PdfReportService {
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
           ),
           pw.SizedBox(height: 4),
-          pdfShotLegend([ShotResult.point, ShotResult.inPlay, ShotResult.error, ShotResult.blocked]),
+          pdfShotLegend([
+            ShotResult.point,
+            ShotResult.inPlay,
+            for (final r in [ShotResult.out, ShotResult.net])
+              if (data.shots.any((s) => s.result == r)) r,
+            ShotResult.error,
+            ShotResult.blocked,
+          ]),
           pw.SizedBox(height: 8),
           rows.first,
         ]),

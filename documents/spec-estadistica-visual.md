@@ -1,6 +1,6 @@
 # Spec — Estadística visual (Gráficos + Mapas)
 
-**Estado:** aprobada el 29/09/2026 · **Etapas 1 y 2 implementadas el 02/10/2026** (ver `CLAUDE.md` → Trabajo planificado) · pendiente la Etapa 3.
+**Estado:** aprobada el 29/09/2026 · **Etapas 1 y 2 implementadas el 02/10/2026**, más el detalle "Afuera / A la red" de los errores (ver abajo) · **Etapa 3 pospuesta** por decisión del 02/10/2026 (ver `CLAUDE.md` → Trabajo planificado).
 
 **Documentos que la acompañan:**
 
@@ -244,7 +244,16 @@ Para cada `RallyEvent` propio de fase `serve`, `attack` o `counter`, con jugador
 - Centro de zona más desvío determinístico: dos llamadas dan exactamente el mismo resultado.
 - Correspondencia calificación → trazo, incluido NN sin missType → genérico.
 
-## 6. Etapa 3 — Carga precisa
+## 6. Etapa 3 — Carga precisa (POSPUESTA)
+
+> **02/10/2026: pospuesta.** Se decidió no cambiar la grilla de zonas por una cancha tocable, para no
+> confundir a quien carga. En su lugar se implementó algo más simple: con el registro de zona activo,
+> el diálogo del toque muestra una fila opcional "Si es error (NN), ¿cómo fue? Afuera / A la red" que
+> se elige antes de tocar NN (se ignora con cualquier otra calificación). Se guarda en
+> `RallyEvent.missType` (`MissType.out` / `MissType.net`, solo con NN y con zonas) y los mapas lo
+> dibujan con los trazos de afuera (siguiendo la dirección de la zona hasta salir de la cancha) y de
+> red. Lo que sigue de esta sección (destino exacto `targetX/Y`, origen tocado `originX/Y`) queda como
+> referencia por si se retoma.
 
 ### 6.1 Modelo (`rally_event.dart`)
 

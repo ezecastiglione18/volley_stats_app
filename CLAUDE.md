@@ -173,9 +173,9 @@ el tope sigue siendo 4. Dos detalles no obvios si se vuelve a tocar este flujo:
   caché si no se invalida a mano primero. Es comportamiento documentado de RevenueCat, no algo para
   "arreglar" del lado del SDK.
 
-Todavía no salió en ninguna versión publicada (no hay `cloud_functions` en ningún release de Play Store
-hasta ahora) — se implementó y probó de punta a punta contra el backend real, pero falta sumarlo al proceso
-de release de más abajo el día que se decida publicarlo como versión nueva.
+Se publica por primera vez con la versión 1.1.0+15 (builds preparados el 02/10/2026 junto con la
+estadística visual): hasta la 1.0.3 ningún release de Play Store incluía `cloud_functions`. Se implementó y
+probó de punta a punta contra el backend real.
 
 **Pizarra táctica (`lib/screens/whiteboard/`)**: cancha dibujable a mano (`WhiteboardPainter`, un
 `CustomPainter`) sobre la que se registran trazos (`PlayStroke`: color, flecha opcional, puntos
@@ -198,7 +198,8 @@ implementable (decisiones tomadas, reglas de cálculo, etapas, tests) está en
 `documents/spec-estadistica-visual.md`, y el boceto visual en
 `documents/RallyStats-Propuesta-Estadistica-Visual.pdf` (generado por
 `tool/generate_propuesta_estadistica.dart`, que además es la referencia de dibujo de los trazos y
-gráficos). Leer la spec completa antes de seguir con la etapa 3.
+gráficos). La Etapa 3 (cancha tocable) quedó **pospuesta** el 02/10/2026; en su lugar se hizo el detalle
+"Afuera / A la red" de los errores (ver abajo).
 
 **Etapas 1 (gráficos de equipo) y 2 (mapas con los datos de hoy): implementadas el 02/10/2026**, sin
 publicar todavía. Dónde quedó cada cosa:
@@ -211,8 +212,13 @@ publicar todavía. Dónde quedó cada cosa:
   evento por evento (rotación, rotaciones manuales y cambios por `slotIndex`) para saber en qué
   posición estaba cada jugador y deducir el origen (`shotOrigin`); el destino es `zoneCenter` + un
   desvío fijo por hash del id del evento. Los toques sin zona no se dibujan y se cuentan aparte
-  (`ShotMapData.missingZone`), salvo los bloqueados, que siempre terminan en la red. Hasta la Etapa 3 todo
-  NN es `ShotResult.error` (los valores `out`/`net` ya existen para cuando haya `missType`). La geometría
+  (`ShotMapData.missingZone`), salvo los bloqueados y los errores a la red, que siempre terminan en la
+  red. Un NN es `ShotResult.out`/`net` si se cargó `RallyEvent.missType` (`MissType.out`/`net`) y
+  `error` si no; "afuera" prolonga la recta origen → zona hasta salir de la cancha (`_projectOut`).
+- Carga de "Afuera / A la red": en `touch_dialog.dart`, con el registro de zona activo, una fila
+  opcional de `ChoiceChip` que se elige antes de tocar NN (el callback `onConfirm` recibe el
+  `missType`; con otra calificación se manda null). `MatchController._addEvent` solo lo guarda en un NN
+  y con zonas activas. "Simular resto del set" también lo carga a veces. La geometría
   de la cancha compacta es `lib/utils/court_geometry.dart` (Dart puro, la usan pantalla y PDF).
 - Pantalla: `MatchSummaryScreen` tiene un `TabBar` (Tabla / Mapas / Gráficos) con el selector de set
   compartido; las pestañas son `lib/screens/matches/widgets/court_maps_tab.dart` y `visual_stats_tab.dart`,
@@ -233,7 +239,8 @@ publicar todavía. Dónde quedó cada cosa:
   (hay un test que lo cubre).
 - Tests en `test/stats_charts_test.dart`.
 
-Pendiente: Etapa 3 (carga precisa: cancha tocable con afuera/red y origen opcional), según la spec.
+Pospuesto: Etapa 3 (cancha tocable con destino exacto y origen opcional). No retomarla sin que el usuario
+lo pida: se descartó para no complicar la carga en vivo.
 
 ## Proceso de release (después de cargar ajustes nuevos)
 

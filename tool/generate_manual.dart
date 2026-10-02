@@ -1143,7 +1143,15 @@ List<pw.Widget> _section9PantallaVivo() => [
         'Si en la formación del set se activó "Registrar zona de destino", al calificar un saque o un '
         'ataque aparece además un cuadro dividido en las 6 zonas de la cancha rival, numeradas de frente '
         'para quien anota (2-3-4 junto a la red, 1-6-5 en el fondo) para marcar, de forma opcional, hacia '
-        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 17).',
+        'dónde fue dirigido el toque. Esta información después se resume en el reporte en PDF (sección 17) '
+        'y en los mapas de la estadística (sección 16.2).',
+      ),
+      _p(
+        'Con el registro de zona activado aparece también, debajo del cuadro, "Si es error (NN), ¿cómo fue?" '
+        'con dos opciones: Afuera y A la red. Es opcional y se marca antes de tocar NN (el botón pasa a '
+        'decir, por ejemplo, "Error · afuera"); si después se elige cualquier otra calificación, se ignora. '
+        'Sirve para que el mapa dibuje ese error con su propio trazo; si no se marca, el error se dibuja '
+        'igual, sin ese detalle.',
       ),
       _p(
         'Si además se tildó "Registrar en 9 zonas" (sección 8), el cuadro suma una fila en el medio con la '
@@ -1656,7 +1664,9 @@ List<pw.Widget> _section16Resumen() => [
       _bullets([
         [_b('Línea continua azul: '), _t('punto (PP).')],
         [_b('Punteada gris: '), _t('la pelota entró y el rally siguió (P o N).')],
-        [_b('Punteada roja: '), _t('error (NN).')],
+        [_b('Punteada roja: '), _t('error (NN) sin detalle.')],
+        [_b('Doble punteada roja: '), _t('error afuera; la flecha sigue la dirección de la zona marcada hasta salir de la cancha.')],
+        [_b('Punteada roja que termina en la red con una cruz: '), _t('error a la red.')],
         [_b('Naranja que termina en la red con una barra: '), _t('bloqueado (BLOQ, solo ataque y contra).')],
       ]),
       _p(
@@ -1666,7 +1676,8 @@ List<pw.Widget> _section16Resumen() => [
       ),
       _infoBox(
         'El destino de cada flecha es la zona de destino registrada en la carga (sección 9.4): los toques sin '
-        'zona no se pueden dibujar, pero sí cuentan en el resumen (se avisa cuántos son). El origen no se '
+        'zona no se pueden dibujar (salvo los bloqueados y los errores a la red, que terminan siempre en la '
+        'red), pero sí cuentan en el resumen (se avisa cuántos son). El origen no se '
         'carga: la app lo deduce del puesto del jugador y de su lugar en la rotación en ese momento (por '
         'ejemplo, un punta adelante ataca desde la zona 4 y atrás, por el medio). Por eso el mapa muestra '
         'tendencias, no la posición exacta de cada pelota.',
