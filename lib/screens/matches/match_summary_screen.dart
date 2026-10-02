@@ -12,6 +12,9 @@ import '../../state/subscription_controller.dart';
 import '../../utils/theme.dart';
 import '../../widgets/premium_required_screen.dart';
 import '../../widgets/theme_toggle_switch.dart';
+import '../../services/visual_stats_preferences.dart';
+import 'widgets/court_maps_tab.dart';
+import 'widgets/visual_stats_tab.dart';
 
 class MatchSummaryScreen extends StatefulWidget {
   final VolleyMatch match;
@@ -39,9 +42,12 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
   }
 
   Future<void> _sharePdf() async {
+    final isPremium = context.read<SubscriptionController>().isPremium;
+    final charts = VisualStatsPreferences.pdfCharts(isPremium: isPremium);
+    final maps = VisualStatsPreferences.pdfMaps(isPremium: isPremium);
     setState(() => _loadingPdf = true);
     try {
-      await PdfReportService.shareMatchReport(widget.match);
+      await PdfReportService.shareMatchReport(widget.match, charts: charts, maps: maps);
     } finally {
       if (mounted) setState(() => _loadingPdf = false);
     }
@@ -72,8 +78,29 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
     final match = widget.match;
     final df = DateFormat('dd/MM/yyyy');
     final stats = StatsEngine.compute(match, setNumber: _selectedSet);
+    // Mismo selector (y mismo set elegido) en las dos pestañas.
+    final setSelector = Row(
+      children: [
+        const Text('Estadística: ', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: DropdownButton<int?>(
+            value: _selectedSet,
+            isExpanded: true,
+            items: [
+              const DropdownMenuItem(
+                  value: null, child: Text('Partido completo', overflow: TextOverflow.ellipsis)),
+              for (final s in match.sets) DropdownMenuItem(value: s.setNumber, child: Text('Set ${s.setNumber}')),
+            ],
+            onChanged: (v) => setState(() => _selectedSet = v),
+          ),
+        ),
+      ],
+    );
 
-    return Scaffold(
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
       appBar: AppBar(
         title: Text('${match.ownTeamName} vs ${match.rivalTeamName}'),
         actions: [
@@ -87,10 +114,18 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
             onPressed: _loadingPdf ? null : _sharePdf,
           ),
         ],
+        bottom: TabBar(
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Theme.of(context).colorScheme.secondary,
+          tabs: const [Tab(text: 'Tabla'), Tab(text: 'Mapas'), Tab(text: 'Gráficos')],
+        ),
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
+        child: TabBarView(
+          children: [
+            ListView(
         padding: const EdgeInsets.all(12),
         children: [
           if (widget.justFinished)
@@ -154,21 +189,7 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              const Text('Estadística: ', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              DropdownButton<int?>(
-                value: _selectedSet,
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Partido completo')),
-                  for (final s in match.sets)
-                    DropdownMenuItem(value: s.setNumber, child: Text('Set ${s.setNumber}')),
-                ],
-                onChanged: (v) => setState(() => _selectedSet = v),
-              ),
-            ],
-          ),
+          setSelector,
           const SizedBox(height: 8),
           _StatsTable(stats: stats),
           const SizedBox(height: 6),
@@ -184,6 +205,21 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           _RivalStatsCard(stats: stats),
           const SizedBox(height: 20),
         ],
+        ),
+              CourtMapsTab(
+                match: match,
+                setNumber: _selectedSet,
+                setSelector: setSelector,
+                visibleKinds: VisualStatsPreferences.screenMaps(isPremium: isPremium),
+              ),
+              VisualStatsTab(
+                match: match,
+                setNumber: _selectedSet,
+                setSelector: setSelector,
+                visibleCharts: VisualStatsPreferences.screenCharts(isPremium: isPremium),
+              ),
+            ],
+          ),
         ),
       ),
     );

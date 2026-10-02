@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/play.dart';
 import '../models/team.dart';
+import '../models/visual_stats.dart';
 import '../models/volley_match.dart';
 import '../utils/id_gen.dart';
 
@@ -23,6 +24,10 @@ class StorageService {
   static const _legacyDeviceIdKey = 'legacy_device_id';
   static const _subscriptionCacheKey = 'subscription_cache';
   static const _freeStatsMatchIdKey = 'free_stats_match_id';
+  static const _pdfVisualChartsKey = 'pdf_visual_charts';
+  static const _pdfCourtMapsKey = 'pdf_court_maps';
+  static const _screenVisualChartsKey = 'screen_visual_charts';
+  static const _screenCourtMapsKey = 'screen_court_maps';
 
   late Box _teams;
   late Box _matches;
@@ -196,5 +201,40 @@ class StorageService {
 
   Future<void> saveFreeStatsMatchId(String matchId) async {
     await _settings.put(_freeStatsMatchIdKey, matchId);
+  }
+
+  // Qué estadística visual se muestra (Configuración → Estadística visual en
+  // pantalla / del PDF, funciones premium). Si nunca se eligió nada, todo.
+  // Cuál se usa de verdad lo decide `VisualStatsPreferences` (sin premium,
+  // siempre todo).
+
+  /// Gráficos que lleva el PDF del partido.
+  Set<VisualChart> loadPdfVisualCharts() => _loadEnumSet(_pdfVisualChartsKey, VisualChart.values);
+  Future<void> savePdfVisualCharts(Set<VisualChart> v) => _saveEnumSet(_pdfVisualChartsKey, VisualChart.values, v);
+
+  /// Mapas de dirección (columnas de la planilla por jugador) que lleva el PDF.
+  Set<ShotKind> loadPdfCourtMaps() => _loadEnumSet(_pdfCourtMapsKey, ShotKind.values);
+  Future<void> savePdfCourtMaps(Set<ShotKind> v) => _saveEnumSet(_pdfCourtMapsKey, ShotKind.values, v);
+
+  /// Gráficos que se ven en la pestaña "Gráficos" de Estadísticas.
+  Set<VisualChart> loadScreenVisualCharts() => _loadEnumSet(_screenVisualChartsKey, VisualChart.values);
+  Future<void> saveScreenVisualCharts(Set<VisualChart> v) =>
+      _saveEnumSet(_screenVisualChartsKey, VisualChart.values, v);
+
+  /// Mapas que se ven en la pestaña "Mapas" de Estadísticas.
+  Set<ShotKind> loadScreenCourtMaps() => _loadEnumSet(_screenCourtMapsKey, ShotKind.values);
+  Future<void> saveScreenCourtMaps(Set<ShotKind> v) => _saveEnumSet(_screenCourtMapsKey, ShotKind.values, v);
+
+  /// Se guarda la lista de nombres (no los índices) para que agregar o
+  /// reordenar valores del enum no cambie lo que eligió el usuario.
+  Set<T> _loadEnumSet<T extends Enum>(String key, List<T> values) {
+    final raw = _settings.get(key);
+    if (raw is! List) return values.toSet();
+    final names = raw.map((e) => e.toString()).toSet();
+    return {for (final v in values) if (names.contains(v.name)) v};
+  }
+
+  Future<void> _saveEnumSet<T extends Enum>(String key, List<T> values, Set<T> selected) async {
+    await _settings.put(key, [for (final v in values) if (selected.contains(v)) v.name]);
   }
 }

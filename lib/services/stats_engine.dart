@@ -1,7 +1,9 @@
+import '../models/match_set.dart';
 import '../models/player.dart';
 import '../models/rally_event.dart';
 import '../models/sanction_event.dart';
 import '../models/stat_line.dart';
+import '../models/visual_stats.dart';
 import '../models/volley_match.dart';
 
 const String unassignedId = '__no_asignado__';
@@ -300,6 +302,339 @@ class StatsEngine {
       attackByZoneByPlayer: attackByZoneByPlayer,
       counterByZoneByPlayer: counterByZoneByPlayer,
     );
+  }
+
+  // ---------------- Estadística visual (pestaña "Gráficos") ----------------
+  //
+  // Reglas completas en documents/spec-estadistica-visual.md (secciones 3 y 4).
+
+  static List<MatchSet> _selectedSets(VolleyMatch match, int? setNumber) =>
+      setNumber == null ? match.sets : match.sets.where((s) => s.setNumber == setNumber).toList();
+
+  static bool _isClosing(RallyEvent ev) => ev.endsRally && ev.pointWinner != null;
+
+  /// Clasifica un rally por su evento de cierre (spec 3.3).
+  static RallyCategory classifyClosing(RallyEvent ev) {
+    switch (ev.phase) {
+      case RallyPhase.serve:
+        if (ev.grade == Grade.pp) return RallyCategory.servePoint;
+        if (ev.grade == Grade.nn) return RallyCategory.serveError;
+        break;
+      case RallyPhase.reception:
+        if (ev.grade == Grade.nn) return RallyCategory.receptionError;
+        break;
+      case RallyPhase.attack:
+      case RallyPhase.counter:
+        if (ev.grade == Grade.pp) {
+          return ev.phase == RallyPhase.attack ? RallyCategory.attackPoint : RallyCategory.counterPoint;
+        }
+        if (ev.grade == Grade.nn) return RallyCategory.attackError;
+        if (ev.grade == Grade.bloq) return RallyCategory.attackBlocked;
+        break;
+      case RallyPhase.block:
+        return RallyCategory.blockPoint;
+      case RallyPhase.genericError:
+        return RallyCategory.genericError;
+      case RallyPhase.opponentPoint:
+        return RallyCategory.rivalPoint;
+      case RallyPhase.opponentError:
+        return RallyCategory.rivalError;
+      case RallyPhase.sanction:
+        // Sanción con punto: si el punto es propio, sancionaron al rival
+        // (cuenta como error rival); si no, al equipo propio.
+        return ev.pointWinner == TeamSide.own ? RallyCategory.rivalError : RallyCategory.genericError;
+    }
+    assert(false, 'Evento de cierre sin categoría: ${ev.phase.name} ${ev.grade}');
+    return ev.pointWinner == TeamSide.own ? RallyCategory.otherWon : RallyCategory.otherLost;
+  }
+
+  /// Rallies cerrados de un set, en orden, cada uno con la rotación propia
+  /// vigente mientras se jugó (offset 0..5, misma unidad que
+  /// `MatchController._rotationOffsetOwn`). A diferencia de
+  /// `MatchController.resume` (que solo necesita la rotación final y suma
+  /// las rotaciones manuales al final), acá cada rotación manual se aplica
+  /// recién a partir del rally en el que se hizo.
+  static List<({RallyEvent event, int offset})> _replayRotations(MatchSet set) {
+    final manual = [...set.manualRotations]..sort((a, b) => a.rallyNumber.compareTo(b.rallyNumber));
+    var nextManual = 0;
+    var offset = 0;
+    var serving = set.startingServer;
+    final out = <({RallyEvent event, int offset})>[];
+    for (final ev in set.events) {
+      if (!_isClosing(ev)) continue;
+      while (nextManual < manual.length && manual[nextManual].rallyNumber <= ev.rallyNumber) {
+        offset = ((offset + manual[nextManual].steps) % 6 + 6) % 6;
+        nextManual++;
+      }
+      out.add((event: ev, offset: offset));
+      if (ev.pointWinner != serving) {
+        if (ev.pointWinner == TeamSide.own) offset = (offset + 1) % 6;
+        serving = ev.pointWinner!;
+      }
+    }
+    return out;
+  }
+
+  /// Índice en `startingOrderOwn` del único armador de la formación inicial
+  /// del set, o null si no hay ninguno o hay más de uno.
+  static int? _setterSlot(VolleyMatch match, MatchSet set) {
+    final positions = {for (final p in match.ownRoster) p.id: p.position};
+    int? slot;
+    for (var i = 0; i < set.startingOrderOwn.length; i++) {
+      if (positions[set.startingOrderOwn[i]] == PlayerPosition.armador) {
+        if (slot != null) return null;
+        slot = i;
+      }
+    }
+    return slot;
+  }
+
+  /// Rendimiento por rotación (spec 3.2 y 3.3). La rotación se etiqueta por
+  /// la posición en cancha del armador (P1 = armador en zona 1); los sets
+  /// sin un armador identificable van aparte, como R1..R6.
+  static RotationStats computeRotations(VolleyMatch match, {int? setNumber}) {
+    final setterRows = [for (var p = 1; p <= 6; p++) RotationRow('P$p')];
+    final fallbackRows = [for (var r = 1; r <= 6; r++) RotationRow('R$r')];
+    final fallbackSets = <int>[];
+    final total = RotationRow('Total');
+
+    for (final set in _selectedSets(match, setNumber)) {
+      final slot = _setterSlot(match, set);
+      final rallies = _replayRotations(set);
+      if (slot == null && rallies.isNotEmpty) fallbackSets.add(set.setNumber);
+      for (final r in rallies) {
+        final ev = r.event;
+        final category = classifyClosing(ev);
+        final row = slot == null ? fallbackRows[r.offset] : setterRows[((slot - r.offset) % 6 + 6) % 6];
+        row.add(category, serving: ev.servingTeamBefore, winner: ev.pointWinner!);
+        total.add(category, serving: ev.servingTeamBefore, winner: ev.pointWinner!);
+      }
+    }
+
+    return RotationStats(
+      setterRows: setterRows,
+      fallbackRows: fallbackRows,
+      fallbackSets: fallbackSets,
+      total: total,
+    );
+  }
+
+  /// Evolución del marcador de cada set de la selección (spec 3.4). Los
+  /// sets sin ningún rally cerrado no se incluyen.
+  static List<SetTimeline> computeTimelines(VolleyMatch match, {int? setNumber}) {
+    final out = <SetTimeline>[];
+    for (final set in _selectedSets(match, setNumber)) {
+      final closing = set.events.where(_isClosing).toList();
+      if (closing.isEmpty) continue;
+      final marks = <int>[];
+      for (final s in set.substitutions) {
+        if (s.isLiberoAction) continue;
+        final before = closing.where((ev) => ev.rallyNumber < s.rallyNumber).length;
+        if (before > 0 && before < closing.length) marks.add(before);
+      }
+      out.add(SetTimeline(
+        setNumber: set.setNumber,
+        points: [for (final ev in closing) TimelinePoint(ev.ownScoreAfter, ev.rivalScoreAfter, ev.pointWinner!)],
+        substitutionMarks: marks.toSet().toList()..sort(),
+      ));
+    }
+    return out;
+  }
+
+  /// Cuántos rallies terminaron en cada categoría (gráfico "Origen de los
+  /// puntos").
+  static PointOriginStats computePointOrigin(VolleyMatch match, {int? setNumber}) {
+    final counts = <RallyCategory, int>{};
+    for (final set in _selectedSets(match, setNumber)) {
+      for (final ev in set.events) {
+        if (!_isClosing(ev)) continue;
+        final c = classifyClosing(ev);
+        counts[c] = (counts[c] ?? 0) + 1;
+      }
+    }
+    return PointOriginStats(counts);
+  }
+
+  // ---------------- Mapas de dirección (pestaña "Mapas", Etapa 2) ----------------
+  //
+  // Reglas en documents/spec-estadistica-visual.md, secciones 5.1 y 5.2.
+
+  /// Toques de saque, ataque y contra del equipo propio como flechas. El
+  /// origen se deduce del puesto del jugador y de si estaba adelante o atrás
+  /// en ese rally (reproduciendo rotación y cambios del set); el destino es
+  /// el centro de la zona registrada, con un desvío chico y fijo por toque
+  /// para que no se encimen. Los toques sin zona no se dibujan (salvo los
+  /// bloqueados, que terminan siempre en la red) y se cuentan aparte.
+  static ShotMapData computeShots(VolleyMatch match, {int? setNumber}) {
+    final positions = {for (final p in match.ownRoster) p.id: p.position};
+    final shots = <CourtShot>[];
+    final missing = <(String, ShotKind), int>{};
+
+    for (final set in _selectedSets(match, setNumber)) {
+      final manual = [...set.manualRotations]..sort((a, b) => a.rallyNumber.compareTo(b.rallyNumber));
+      // Los cambios ya están en orden cronológico; no se reordenan porque dos
+      // cambios del mismo rally sobre el mismo slot (p. ej. entra el líbero
+      // y después se cambia por el otro) dependen de ese orden.
+      final subs = set.substitutions;
+      var nextManual = 0, nextSub = 0, offset = 0;
+      var serving = set.startingServer;
+      final order = List<String>.from(set.startingOrderOwn);
+
+      for (final ev in set.events) {
+        // Rotaciones manuales y cambios se hacen entre puntos y guardan el
+        // número del rally que venía: valen desde ese rally en adelante.
+        while (nextManual < manual.length && manual[nextManual].rallyNumber <= ev.rallyNumber) {
+          offset = ((offset + manual[nextManual].steps) % 6 + 6) % 6;
+          nextManual++;
+        }
+        while (nextSub < subs.length && subs[nextSub].rallyNumber <= ev.rallyNumber) {
+          final s = subs[nextSub];
+          if (s.slotIndex >= 0 && s.slotIndex < order.length) order[s.slotIndex] = s.playerInId;
+          nextSub++;
+        }
+
+        final kind = _shotKindOf(ev);
+        if (kind != null && ev.team == TeamSide.own && ev.playerIds.isNotEmpty) {
+          final playerId = ev.playerIds.first;
+          final slot = order.indexOf(playerId);
+          final courtPos = slot < 0 ? null : ((slot - offset) % 6 + 6) % 6 + 1;
+          final (ox, oy) = shotOrigin(kind, positions[playerId], courtPos);
+          final result = shotResultOf(ev.grade);
+          final center = ev.targetZone == null ? null : zoneCenter(ev.targetZone!, nineZones: set.nineHitZones);
+
+          double? tx, ty;
+          if (result == ShotResult.blocked) {
+            // Bloqueado: la pelota no pasó la red; la flecha muere enfrente
+            // del atacante, apenas inclinada hacia la zona a la que iba.
+            tx = center == null ? ox : ox + (center.$1 - ox) * 0.1;
+            ty = 0.52;
+          } else if (center != null) {
+            final (jx, jy) = _zoneJitter(ev.id);
+            tx = center.$1 + jx;
+            ty = center.$2 + jy;
+          }
+
+          if (tx == null || ty == null) {
+            missing[(playerId, kind)] = (missing[(playerId, kind)] ?? 0) + 1;
+          } else {
+            shots.add(CourtShot(
+              event: ev,
+              playerId: playerId,
+              kind: kind,
+              result: result,
+              originX: ox,
+              originY: oy,
+              targetX: tx,
+              targetY: ty,
+            ));
+          }
+        }
+
+        if (_isClosing(ev) && ev.pointWinner != serving) {
+          if (ev.pointWinner == TeamSide.own) offset = (offset + 1) % 6;
+          serving = ev.pointWinner!;
+        }
+      }
+    }
+    return ShotMapData(shots, missing);
+  }
+
+  static ShotKind? _shotKindOf(RallyEvent ev) {
+    switch (ev.phase) {
+      case RallyPhase.serve:
+        return ShotKind.serve;
+      case RallyPhase.attack:
+        return ShotKind.attack;
+      case RallyPhase.counter:
+        return ShotKind.counter;
+      default:
+        return null;
+    }
+  }
+
+  /// Calificación → trazo (spec 5.2). Hasta la Etapa 3 no se registra si un
+  /// NN fue afuera o a la red, así que todo NN es un "error" genérico.
+  static ShotResult shotResultOf(String? grade) {
+    switch (grade) {
+      case Grade.pp:
+        return ShotResult.point;
+      case Grade.bloq:
+        return ShotResult.blocked;
+      case Grade.nn:
+        return ShotResult.error;
+      default:
+        return ShotResult.inPlay;
+    }
+  }
+
+  /// Origen deducido de un toque (tabla de la spec 5.2). [courtPos] es la
+  /// posición en cancha (1-6) del jugador en ese rally; null si no estaba en
+  /// la formación (no debería pasar), y entonces se lo toma como delantero.
+  static (double, double) shotOrigin(ShotKind kind, PlayerPosition? position, int? courtPos) {
+    if (kind == ShotKind.serve) return (0.82, 1.06);
+    final front = courtPos == null || courtPos == 2 || courtPos == 3 || courtPos == 4;
+    switch (position) {
+      case PlayerPosition.puntaReceptor:
+        return front ? (0.13, 0.60) : (0.50, 0.77);
+      case PlayerPosition.opuesto:
+        return front ? (0.87, 0.60) : (0.85, 0.76);
+      case PlayerPosition.central:
+        return front ? (0.50, 0.59) : (0.50, 0.77);
+      case PlayerPosition.armador:
+        return (0.80, 0.56);
+      case PlayerPosition.universal:
+      case PlayerPosition.libero:
+      case null:
+        return _originByCourtPosition[courtPos] ?? (0.50, 0.59);
+    }
+  }
+
+  static const _originByCourtPosition = {
+    4: (0.13, 0.60),
+    3: (0.50, 0.59),
+    2: (0.87, 0.60),
+    5: (0.15, 0.76),
+    6: (0.50, 0.77),
+    1: (0.85, 0.76),
+  };
+
+  /// Centro de una zona de la cancha rival (spec 5.1). Con 6 zonas la fila
+  /// de fondo mide 6 m y la de red 3 m; con 9, la mitad rival se divide en
+  /// tres franjas de 3 m. Null si la zona no existe en ese esquema.
+  static (double, double)? zoneCenter(int zone, {required bool nineZones}) {
+    const column = {1: 0, 6: 1, 5: 2, 9: 0, 8: 1, 7: 2, 2: 0, 3: 1, 4: 2};
+    final col = column[zone];
+    if (col == null) return null;
+    final x = (col + 0.5) / 3;
+    final back = zone == 1 || zone == 6 || zone == 5;
+    final middle = zone == 9 || zone == 8 || zone == 7;
+    if (nineZones) return (x, back ? 1 / 12 : (middle ? 0.25 : 5 / 12));
+    if (middle) return null;
+    return (x, back ? 1 / 6 : 5 / 12);
+  }
+
+  /// Desvío de ±0.05 en cada eje, derivado del id del evento (hash FNV-1a,
+  /// estable entre ejecuciones): la misma jugada cae siempre en el mismo
+  /// lugar del mapa.
+  static (double, double) _zoneJitter(String id) {
+    var h = 0x811c9dc5;
+    for (final c in id.codeUnits) {
+      h = ((h ^ c) * 0x01000193) & 0xFFFFFFFF;
+    }
+    final jx = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.1;
+    final jy = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 0.1;
+    return (jx, jy);
+  }
+
+  /// Jugadores con al menos un ataque o contra, ordenados por eficiencia de
+  /// ataque (de mayor a menor). Sin la fila "No Asignado".
+  static List<(PlayerStatLine, AttackSummary)> attackRanking(MatchStats stats) {
+    final rows = [
+      for (final l in stats.orderedRows)
+        if (l.playerId != unassignedId && AttackSummary.of(l).total > 0) (l, AttackSummary.of(l)),
+    ];
+    rows.sort((a, b) => b.$2.efficiency!.compareTo(a.$2.efficiency!));
+    return rows;
   }
 
   static void _accumulateRecepcion(ReceptionStats target, ReceptionStats src) {

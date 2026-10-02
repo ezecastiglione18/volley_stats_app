@@ -193,13 +193,47 @@ contenido corrió de página.
 
 ## Trabajo planificado
 
-**Estadística visual (pestañas "Gráficos" y "Mapas" en Estadísticas)**: aprobada el 29/09/2026, sin
-implementar. La spec implementable (decisiones tomadas, reglas de cálculo, etapas, tests) está en
+**Estadística visual (pestañas "Gráficos" y "Mapas" en Estadísticas)**: aprobada el 29/09/2026. La spec
+implementable (decisiones tomadas, reglas de cálculo, etapas, tests) está en
 `documents/spec-estadistica-visual.md`, y el boceto visual en
 `documents/RallyStats-Propuesta-Estadistica-Visual.pdf` (generado por
 `tool/generate_propuesta_estadistica.dart`, que además es la referencia de dibujo de los trazos y
-gráficos). Se arranca por la Etapa 1 (gráficos de equipo). Leer la spec completa antes de tocar
-`stats_engine.dart`, `match_summary_screen.dart` o `pdf_report_service.dart` para esto.
+gráficos). Leer la spec completa antes de seguir con la etapa 3.
+
+**Etapas 1 (gráficos de equipo) y 2 (mapas con los datos de hoy): implementadas el 02/10/2026**, sin
+publicar todavía. Dónde quedó cada cosa:
+
+- Cálculos en `StatsEngine` (`computeRotations`, `computeTimelines`, `computePointOrigin`,
+  `attackRanking`, `classifyClosing`), con sus modelos en `lib/models/visual_stats.dart`. La rotación
+  de cada rally se reproduce en `_replayRotations`: a diferencia de `MatchController.resume`, ahí las
+  rotaciones manuales se aplican desde su `rallyNumber`, no todas al final.
+- Mapas (Etapa 2): `StatsEngine.computeShots` devuelve las flechas (`CourtShot`) reproduciendo cada set
+  evento por evento (rotación, rotaciones manuales y cambios por `slotIndex`) para saber en qué
+  posición estaba cada jugador y deducir el origen (`shotOrigin`); el destino es `zoneCenter` + un
+  desvío fijo por hash del id del evento. Los toques sin zona no se dibujan y se cuentan aparte
+  (`ShotMapData.missingZone`), salvo los bloqueados, que siempre terminan en la red. Hasta la Etapa 3 todo
+  NN es `ShotResult.error` (los valores `out`/`net` ya existen para cuando haya `missType`). La geometría
+  de la cancha compacta es `lib/utils/court_geometry.dart` (Dart puro, la usan pantalla y PDF).
+- Pantalla: `MatchSummaryScreen` tiene un `TabBar` (Tabla / Mapas / Gráficos) con el selector de set
+  compartido; las pestañas son `lib/screens/matches/widgets/court_maps_tab.dart` y `visual_stats_tab.dart`,
+  y cada gráfico es un `CustomPainter` en `lib/widgets/charts/` (los trazos de los mapas, en
+  `court_shots_chart.dart`). El texto que dibujan los painters tiene que usar `ChartPalette.label(...)`
+  (lleva la fuente del tema: un `TextPainter` no hereda el `DefaultTextStyle`).
+- PDF: secciones "Estadística visual" (`PdfReportService._visualSection`) y "Mapas de dirección por
+  jugador" (`_mapsSection`) al final del reporte, dibujadas con `lib/services/pdf_charts.dart`. El
+  reporte usa Helvetica (WinAnsi): nada de "−", "→" ni símbolos fuera de Latin-1 en los textos del PDF.
+- **Qué se muestra** (pedido aparte de la spec, función premium): en Configuración → Estadística visual
+  en pantalla / del PDF (`lib/screens/settings/visual_stats_settings_screen.dart`, una pantalla para los
+  dos destinos) se eligen los mapas (`ShotKind`) y los gráficos (`VisualChart`). Se guardan en Hive
+  (`StorageService`, claves `screen_visual_charts`, `screen_court_maps`, `pdf_visual_charts`,
+  `pdf_court_maps`; por defecto todo) y `VisualStatsPreferences` decide qué se usa: la selección solo
+  con premium; sin premium (o si se dejó de serlo), todo.
+- Partidos guardados antes de esta versión: todo es derivado del log de eventos, así que se ven igual,
+  sin migración; los que no registraron zona de destino tienen gráficos completos pero mapas vacíos
+  (hay un test que lo cubre).
+- Tests en `test/stats_charts_test.dart`.
+
+Pendiente: Etapa 3 (carga precisa: cancha tocable con afuera/red y origen opcional), según la spec.
 
 ## Proceso de release (después de cargar ajustes nuevos)
 

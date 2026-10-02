@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,21 +10,29 @@ import '../models/player.dart';
 import '../models/rally_event.dart';
 import '../models/sanction_event.dart';
 import '../models/stat_line.dart';
+import '../models/visual_stats.dart';
 import '../models/volley_match.dart';
+import 'pdf_charts.dart';
 import 'stats_engine.dart';
+import '../utils/court_geometry.dart';
 
 class PdfReportService {
   /// Fondo suave para resaltar la fila del líbero en la tabla de
   /// estadísticas (el resto de las filas queda en blanco).
   static const _liberoRowColor = PdfColor.fromInt(0xFFDCEFFA);
 
-  static Future<void> shareMatchReport(VolleyMatch match) async {
-    final bytes = await _buildPdf(match);
+  /// [charts] son los gráficos de la estadística visual a agregar al final y
+  /// [maps] las columnas de la planilla de mapas por jugador (ver
+  /// `VisualStatsPreferences.pdfCharts` / `pdfMaps`); vacíos = sin esa sección.
+  static Future<void> shareMatchReport(VolleyMatch match,
+      {Set<VisualChart> charts = const {}, Set<ShotKind> maps = const {}}) async {
+    final bytes = await buildPdf(match, charts: charts, maps: maps);
     await Printing.sharePdf(bytes: bytes, filename: _fileName(match));
   }
 
-  static Future<void> printMatchReport(VolleyMatch match) async {
-    final bytes = await _buildPdf(match);
+  static Future<void> printMatchReport(VolleyMatch match,
+      {Set<VisualChart> charts = const {}, Set<ShotKind> maps = const {}}) async {
+    final bytes = await buildPdf(match, charts: charts, maps: maps);
     await Printing.layoutPdf(onLayout: (_) async => bytes);
   }
 
@@ -33,7 +42,9 @@ class PdfReportService {
     return 'partido_${d}_$rival.pdf';
   }
 
-  static Future<Uint8List> _buildPdf(VolleyMatch match) async {
+  @visibleForTesting
+  static Future<Uint8List> buildPdf(VolleyMatch match,
+      {Set<VisualChart> charts = const {}, Set<ShotKind> maps = const {}}) async {
     final doc = pw.Document();
     final stats = StatsEngine.compute(match);
     final zones = StatsEngine.computeZones(match);
@@ -171,11 +182,439 @@ class PdfReportService {
               pw.SizedBox(height: 10),
             ],
           ],
+          ..._visualSection(match, stats, zones, charts),
+          ..._mapsSection(match, stats, maps),
         ],
       ),
     );
 
     return doc.save();
+  }
+
+  // ---------------- Estadística visual ----------------
+  //
+  // Mismos cálculos que la pestaña "Gráficos" (StatsEngine), siempre sobre el
+  // partido completo. Ver documents/spec-estadistica-visual.md, sección 4.3.
+
+  static const double _pageW = 794; // A4 apaisado menos los márgenes de 24
+
+  static List<pw.Widget> _visualSection(
+      VolleyMatch match, MatchStats stats, ZoneStats zones, Set<VisualChart> charts) {
+    final rotations = StatsEngine.computeRotations(match);
+    if (charts.isEmpty || !rotations.hasData) return [];
+
+    final out = <pw.Widget>[
+      pw.NewPage(),
+      pw.Text('Estadística visual', style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+      pw.Text('Partido completo. Calculada a partir de cada punto cargado.',
+          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+    ];
+    for (final chart in VisualChart.values.where(charts.contains)) {
+      out.add(pw.SizedBox(height: 12));
+      switch (chart) {
+        case VisualChart.dashboard:
+          out.add(pw.Inseparable(child: _chartBlock(chart, null, _pdfDashboard(rotations, stats))));
+          break;
+        case VisualChart.rotations:
+          out.add(pw.Inseparable(child: _chartBlock(chart, 'P1 = armador en zona 1. G-P = puntos ganados menos perdidos en cada rotación.', _pdfRotations(rotations))));
+          break;
+        case VisualChart.sideOutBreak:
+          out.add(pw.Inseparable(child: _chartBlock(chart, null, _pdfSideOutBreak(rotations))));
+          break;
+        case VisualChart.timeline:
+          out.addAll(_pdfTimelines(StatsEngine.computeTimelines(match)));
+          break;
+        case VisualChart.pointOrigin:
+          out.add(pw.Inseparable(
+              child: _chartBlock(chart, 'De qué salieron los puntos ganados y cómo se perdieron los perdidos.',
+                  _pdfPointOrigin(StatsEngine.computePointOrigin(match)))));
+          break;
+        case VisualChart.attackEfficiency:
+          out.add(pw.Inseparable(
+              child: _chartBlock(chart, 'Ataque + contra. Eficiencia = (puntos - errores - bloqueados) / total.',
+                  _pdfAttackEfficiency(stats))));
+          break;
+        case VisualChart.reception:
+          out.add(pw.Inseparable(
+              child: _chartBlock(chart, 'Cada barra suma el 100 % de las recepciones del jugador. A la derecha, '
+                  '(PP + P) / total y la cantidad.', _pdfReception(stats))));
+          break;
+        case VisualChart.heatmap:
+          if (zones.hasAnyData) {
+            out.add(pw.Inseparable(
+                child: _chartBlock(chart, 'Zonas de la cancha rival (fondo arriba, red abajo). Más oscuro = más '
+                    'toques; debajo, el % que terminó en punto.', _pdfHeatmaps(zones))));
+          }
+          break;
+      }
+    }
+    return out;
+  }
+
+  /// Planilla de mapas por jugador (Etapa 2 de la spec, sección 5.3): un
+  /// bloque por jugador con toques, con una cancha por fundamento elegido y
+  /// su resumen debajo. Los bloques se acomodan en filas (las que entran en
+  /// el ancho de la hoja), para que el salto de página nunca corte una cancha.
+  static List<pw.Widget> _mapsSection(VolleyMatch match, MatchStats stats, Set<ShotKind> maps) {
+    final kinds = [for (final k in ShotKind.values) if (maps.contains(k)) k];
+    if (kinds.isEmpty) return [];
+    final data = StatsEngine.computeShots(match);
+    final players = [
+      for (final l in stats.orderedRows)
+        if (l.playerId != unassignedId && kinds.any((k) => touchStatsOf(l, k).total > 0)) l,
+    ];
+    if (players.isEmpty || data.shots.isEmpty) return [];
+
+    const courtW = 105.0, labelW = 46.0, gap = 6.0, blockGap = 16.0;
+    final blockW = labelW + gap + kinds.length * (courtW + gap);
+    final perRow = ((_pageW + blockGap) / (blockW + blockGap)).floor().clamp(1, 4);
+
+    pw.Widget caption(PlayerStatLine l, ShotKind k) {
+      final s = shotSummary(touchStatsOf(l, k));
+      if (s.total == 0) return pw.Text('Sin toques', style: const pw.TextStyle(fontSize: 6.5, color: pdfMuted));
+      final eff = s.efficiency!;
+      final missing = data.missingZone(k, playerId: l.playerId);
+      return pw.RichText(
+        text: pw.TextSpan(style: const pw.TextStyle(fontSize: 6.5, color: pdfMuted), children: [
+          pw.TextSpan(text: '${s.total} ', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, color: pdfText)),
+          const pw.TextSpan(text: 'tot · '),
+          pw.TextSpan(text: '${s.points} pts', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, color: pdfPositive)),
+          pw.TextSpan(text: ' · ${s.errors} err · Ef '),
+          pw.TextSpan(
+            text: '${eff > 0 ? '+' : ''}${(eff * 100).round()}%',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: eff >= 0 ? pdfPositive : pdfNegative),
+          ),
+          if (missing > 0) pw.TextSpan(text: ' · $missing sin zona'),
+        ]),
+      );
+    }
+
+    pw.Widget block(PlayerStatLine l) {
+      final courtH = CourtGeometry.heightForWidth(courtW);
+      return pw.SizedBox(
+        width: blockW,
+        child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Container(
+            width: labelW,
+            height: courtH + 22,
+            alignment: pw.Alignment.center,
+            decoration: pw.BoxDecoration(color: pdfNavy, borderRadius: pw.BorderRadius.circular(4)),
+            child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
+              pw.Text('#${l.number}', style: const pw.TextStyle(color: PdfColors.white, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              if (l.position != null)
+                pw.Text(l.position!.shortLabel, style: const pw.TextStyle(color: pdfCyan, fontSize: 8, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 3),
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 2),
+                child: pw.Text(l.displayName.split(',').first,
+                    textAlign: pw.TextAlign.center, maxLines: 2, style: const pw.TextStyle(color: PdfColors.white, fontSize: 6.5)),
+              ),
+            ]),
+          ),
+          pw.SizedBox(width: gap),
+          for (final k in kinds) ...[
+            pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              pw.Text(k.label, style: const pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: pdfNavy)),
+              pw.SizedBox(height: 2),
+              pdfCourtShots(courtW, data.where(k, playerId: l.playerId)),
+              pw.SizedBox(height: 2),
+              pw.SizedBox(width: courtW, child: caption(l, k)),
+            ]),
+            pw.SizedBox(width: gap),
+          ],
+        ]),
+      );
+    }
+
+    final rows = <pw.Widget>[];
+    for (var i = 0; i < players.length; i += perRow) {
+      rows.add(pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        for (var j = i; j < i + perRow && j < players.length; j++) ...[
+          block(players[j]),
+          if (j < i + perRow - 1) pw.SizedBox(width: blockGap),
+        ],
+      ]));
+    }
+
+    return [
+      pw.NewPage(),
+      pw.Inseparable(
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text('Mapas de dirección por jugador', style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+          pw.Text(
+            'Partido completo. Cada flecha es un toque: sale del lugar deducido por el puesto y la rotación del '
+            'jugador y termina en la zona registrada. Los toques sin zona de destino no se dibujan.',
+            style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+          ),
+          pw.SizedBox(height: 4),
+          pdfShotLegend([ShotResult.point, ShotResult.inPlay, ShotResult.error, ShotResult.blocked]),
+          pw.SizedBox(height: 8),
+          rows.first,
+        ]),
+      ),
+      for (final r in rows.skip(1)) ...[pw.SizedBox(height: 10), r],
+    ];
+  }
+
+  static pw.Widget _chartBlock(VisualChart chart, String? help, pw.Widget body) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(chart.label, style: const pw.TextStyle(fontSize: 11.5, fontWeight: pw.FontWeight.bold, color: pdfNavy)),
+          if (help != null) pw.Text(help, style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
+          pw.SizedBox(height: 5),
+          body,
+        ],
+      );
+
+  static pw.Widget _pdfDashboard(RotationStats rotations, MatchStats stats) {
+    final t = rotations.total;
+    final attack = AttackSummary.of(stats.team);
+    String pct(double? v) => v == null ? '-' : '${(v * 100).round()}%';
+    pw.Widget tile(String label, String value, String sub, PdfColor color) => pw.Container(
+          width: 180,
+          padding: const pw.EdgeInsets.fromLTRB(8, 5, 8, 5),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: pdfGrid, width: 0.8),
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Text(label, style: const pw.TextStyle(fontSize: 7.5, color: pdfMuted)),
+            pw.Text(value, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: color)),
+            pw.Text(sub, style: const pw.TextStyle(fontSize: 6.5, color: pdfMuted)),
+          ]),
+        );
+    final eff = attack.efficiency;
+    return pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+      tile('Side-out', pct(t.sideOutPct), 'rallies ganados recibiendo (${t.sideOutWon}/${t.receivingRallies})', pdfNavy),
+      tile('Break-point', pct(t.breakPct), 'rallies ganados sacando (${t.breakWon}/${t.servingRallies})', pdfCyan),
+      tile('Eficiencia de ataque', eff == null ? '-' : (eff > 0 ? '+${(eff * 100).round()}%' : '${(eff * 100).round()}%'),
+          '(pts - err) / total', eff == null || eff >= 0 ? pdfPositive : pdfNegative),
+      tile('Errores no forzados', '${unforcedErrorsOf(stats.team)}', 'saque + ataque + genérico', pdfNegative),
+    ]);
+  }
+
+  static pw.Widget _rotationTable(List<RotationRow> rows, RotationRow? total) {
+    final data = [
+      for (final r in rows) rotationTableCells(r),
+      if (total != null) rotationTableCells(total),
+    ];
+    return pw.TableHelper.fromTextArray(
+      headers: rotationTableHeaders,
+      data: data,
+      headerStyle: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 6.5, color: PdfColors.white),
+      headerDecoration: const pw.BoxDecoration(color: pdfNavy),
+      cellStyle: const pw.TextStyle(fontSize: 7.5),
+      cellAlignment: pw.Alignment.center,
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 2.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+      border: const pw.TableBorder(
+        horizontalInside: pw.BorderSide(color: pdfGrid, width: 0.5),
+        bottom: pw.BorderSide(color: pdfGrid, width: 0.5),
+      ),
+    );
+  }
+
+  static pw.Widget _pdfRotations(RotationStats rotations) {
+    final rows = rotations.mainRows;
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pdfDivergingBars(290, 165, [for (final r in rows) r.label], [for (final r in rows) r.diff]),
+        pw.SizedBox(width: 14),
+        pw.Expanded(child: _rotationTable(rows, rotations.total)),
+      ]),
+      if (rotations.hasSeparateFallback) ...[
+        pw.SizedBox(height: 6),
+        pw.Text(
+          'Sets ${rotations.fallbackSets.join(', ')} agrupados aparte por no tener un único armador en la formación '
+          'inicial (R1 = como arrancó el set):',
+          style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+        ),
+        pw.SizedBox(height: 3),
+        _rotationTable(rotations.fallbackRows, null),
+      ] else if (!rotations.hasSetterData)
+        pw.Text(
+          'Sin un único armador en la formación inicial: rotaciones contadas desde la formación inicial '
+          '(R1 = como arrancó el set).',
+          style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+        ),
+    ]);
+  }
+
+  static pw.Widget _pdfSideOutBreak(RotationStats rotations) {
+    final rows = rotations.mainRows;
+    return pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      pdfGroupedPctBars(420, 150, [for (final r in rows) r.label], [for (final r in rows) r.sideOutPct],
+          [for (final r in rows) r.breakPct]),
+      pw.SizedBox(width: 16),
+      pw.Expanded(
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pdfLegend([('Side-out', pdfNavy), ('Break-point', pdfCyan)]),
+          pw.SizedBox(height: 6),
+          pw.Text('Side-out: % de rallies ganados cuando saca el rival (recepción + K1).',
+              style: const pw.TextStyle(fontSize: 8)),
+          pw.SizedBox(height: 3),
+          pw.Text('Break-point: % de rallies ganados con saque propio.', style: const pw.TextStyle(fontSize: 8)),
+          pw.SizedBox(height: 3),
+          pw.Text('Separa si una rotación falla recibiendo o sacando.', style: const pw.TextStyle(fontSize: 8)),
+        ]),
+      ),
+    ]);
+  }
+
+  /// Un gráfico por set, de a dos por fila; el título va pegado a la
+  /// primera fila para que no quede solo al pie de una hoja.
+  static List<pw.Widget> _pdfTimelines(List<SetTimeline> timelines) {
+    if (timelines.isEmpty) return [];
+    const gap = 14.0;
+    const w = (_pageW - gap) / 2;
+    pw.Widget one(SetTimeline t) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text('Set ${t.setNumber} · ${t.ownScore}-${t.rivalScore}',
+              style: const pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+          pdfTimeline(w, 115, t),
+        ]);
+    final rows = <pw.Widget>[];
+    for (var i = 0; i < timelines.length; i += 2) {
+      rows.add(pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        one(timelines[i]),
+        if (i + 1 < timelines.length) ...[pw.SizedBox(width: gap), one(timelines[i + 1])],
+      ]));
+    }
+    return [
+      pw.Inseparable(
+        child: _chartBlock(
+          VisualChart.timeline,
+          'Cada columna es un rally: arriba de la línea el equipo va ganando, abajo perdiendo. Se marcan las '
+          'rachas de 4 o más puntos y, con un triángulo, los cambios de jugador.',
+          rows.first,
+        ),
+      ),
+      for (final r in rows.skip(1)) ...[pw.SizedBox(height: 6), pw.Inseparable(child: r)],
+    ];
+  }
+
+  static PdfColor _categoryColor(RallyCategory c) {
+    switch (c) {
+      case RallyCategory.attackPoint:
+        return pdfPositive;
+      case RallyCategory.counterPoint:
+        return pdfPositiveLight;
+      case RallyCategory.blockPoint:
+        return pdfNavy;
+      case RallyCategory.servePoint:
+        return pdfCyan;
+      case RallyCategory.rivalError:
+      case RallyCategory.otherWon:
+        return pdfNeutral;
+      case RallyCategory.attackError:
+        return pdfNegative;
+      case RallyCategory.attackBlocked:
+        return pdfNegativeDark;
+      case RallyCategory.serveError:
+        return pdfSold;
+      case RallyCategory.receptionError:
+        return pdfWarning;
+      case RallyCategory.genericError:
+      case RallyCategory.otherLost:
+        return pdfBlock;
+      case RallyCategory.rivalPoint:
+        return pdfSlate;
+    }
+  }
+
+  static const _wonCategories = [
+    (RallyCategory.attackPoint, 'Ataque'),
+    (RallyCategory.counterPoint, 'Contra'),
+    (RallyCategory.blockPoint, 'Bloqueo'),
+    (RallyCategory.servePoint, 'Saque'),
+    (RallyCategory.rivalError, 'Error rival'),
+    (RallyCategory.otherWon, 'Otros'),
+  ];
+
+  static const _lostCategories = [
+    (RallyCategory.attackError, 'Err. ataque'),
+    (RallyCategory.attackBlocked, 'Bloqueado'),
+    (RallyCategory.serveError, 'Err. saque'),
+    (RallyCategory.receptionError, 'Err. recepción'),
+    (RallyCategory.genericError, 'Err. genérico'),
+    (RallyCategory.rivalPoint, 'Punto rival'),
+    (RallyCategory.otherLost, 'Otros'),
+  ];
+
+  static pw.Widget _pdfPointOrigin(PointOriginStats origin) {
+    pw.Widget bar(String title, int total, List<(RallyCategory, String)> cats) => pw.Row(children: [
+          pw.SizedBox(width: 80, child: pw.Text('$title ($total)', style: const pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold))),
+          pdfStackedBar(600, 14, [for (final (c, l) in cats) PdfSegment(l, origin.count(c), _categoryColor(c))]),
+        ]);
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      bar('Ganados', origin.won, _wonCategories),
+      pw.SizedBox(height: 4),
+      bar('Perdidos', origin.lost, _lostCategories),
+      pw.SizedBox(height: 5),
+      pdfLegend([
+        for (final (c, l) in [..._wonCategories, ..._lostCategories])
+          if (origin.count(c) > 0) (l, _categoryColor(c)),
+      ]),
+    ]);
+  }
+
+  static pw.Widget _pdfAttackEfficiency(MatchStats stats) {
+    final ranking = StatsEngine.attackRanking(stats);
+    if (ranking.isEmpty) {
+      return pw.Text('No hay ataques cargados.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700));
+    }
+    return pdfEfficiencyBars(620, [
+      for (final (l, a) in ranking)
+        PdfEfficiencyRow('#${l.number} ${l.displayName}', a.efficiency!, '${a.points} pts · ${a.errors} err · ${a.total} tot'),
+    ]);
+  }
+
+  static const _receptionColors = [pdfPositive, pdfPositiveLight, pdfExcl, pdfWarning, pdfSold, pdfNegative];
+  static const _receptionLabels = ['PP', 'P', '!', 'N', 'V-', 'NN'];
+
+  static pw.Widget _pdfReception(MatchStats stats) {
+    final players = stats.orderedRows.where((l) => l.recepcion.total > 0).toList();
+    if (players.isEmpty) {
+      return pw.Text('No hay recepciones cargadas.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700));
+    }
+    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      for (final l in players)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 3),
+          child: pw.Row(children: [
+            pw.SizedBox(
+              width: 130,
+              child: pw.Text(l.playerId == unassignedId ? l.displayName : '#${l.number} ${l.displayName}',
+                  maxLines: 1, style: const pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            ),
+            pdfStackedBar(520, 12, [
+              for (final (i, v) in [l.recepcion.pp, l.recepcion.p, l.recepcion.excl, l.recepcion.n, l.recepcion.vNeg, l.recepcion.nn].indexed)
+                PdfSegment(_receptionLabels[i], v, _receptionColors[i]),
+            ], showPercent: true),
+            pw.SizedBox(width: 8),
+            pw.Text('${(l.recepcion.efficiency! * 100).round()}%',
+                style: const pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: pdfPositive)),
+            pw.Text('  (${l.recepcion.total})', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700)),
+          ]),
+        ),
+      pw.SizedBox(height: 3),
+      pdfLegend([for (var i = 0; i < 6; i++) (_receptionLabels[i], _receptionColors[i])]),
+    ]);
+  }
+
+  static pw.Widget _pdfHeatmaps(ZoneStats zones) {
+    final nine = zones.hasMiddleZoneData;
+    final width = nine ? 170.0 : 200.0;
+    pw.Widget one(String title, Map<int, TouchStats> byZone) => pw.Column(children: [
+          pw.Text(title, style: const pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 3),
+          pdfZoneHeatmap(width, byZone, nineZones: nine),
+        ]);
+    return pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly, children: [
+      one('Saque', zones.serveByZone),
+      one('Ataque', zones.attackByZone),
+      one('Contraataque', zones.counterByZone),
+    ]);
   }
 
   /// Línea con el equipo ganador del partido (en sets), o null si todavía

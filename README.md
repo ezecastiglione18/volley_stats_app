@@ -41,6 +41,18 @@ estadísticas exportable como reporte en PDF.
 - Estadísticas del partido completo o por set (propias y del rival), con porcentajes de efectividad de
   saque, ataque, contraataque y recepción, y reporte en PDF listo para compartir (incluye desglose por
   jugador, sanciones y zonas de destino de saque, ataque y contraataque).
+- Estadística visual en el resumen del partido (por partido completo o por set), en dos pestañas:
+  - "Mapas": una flecha por saque, ataque o contraataque, por jugador o de todo el equipo, desde el lugar
+    de salida (deducido del puesto y la rotación) hasta la zona registrada; el trazo indica el resultado
+    (punto, adentro, error, bloqueado). Incluye resumen y tabla por zona.
+  - "Gráficos": tablero rápido (side-out, break-point, eficiencia de ataque, errores no forzados),
+    rendimiento por rotación P1–P6 (tabla estilo DataVolley + diferencia de puntos), side-out y
+    break-point por rotación, evolución del marcador con rachas, origen de los puntos, eficiencia de
+    ataque y recepción por jugador, y mapa de calor de zonas.
+
+  Lo mismo va al final del PDF (gráficos + planilla de mapas por jugador). Con premium se elige qué se ve
+  en pantalla y qué va al PDF (Configuración → Estadística visual en pantalla / del PDF); sin premium se
+  muestra todo. Funciona también con los partidos guardados antes de esta versión.
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
@@ -53,7 +65,8 @@ estadísticas exportable como reporte en PDF.
   principal, la formación previa al set y la carga en vivo.
 - Modo claro y modo oscuro.
 - Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
-  hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra ni zona de destino, y estadística/
+  hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra, zona de destino ni elección de
+  los mapas y gráficos que se muestran, y estadística/
   reporte en PDF disponible para un único partido de toda la cuenta —a elección propia, y solo una vez que
   ese partido está guardado y terminado en el archivo, nunca en vivo ni entre sets—, y se puede seguir
   usando así de forma indefinida sin suscribirse; premium quita esos límites y permite sumar hasta 3

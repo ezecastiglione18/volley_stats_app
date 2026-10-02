@@ -1,4 +1,4 @@
-﻿// Genera manual_usuario_rallystats.pdf en la raíz del repo.
+// Genera manual_usuario_rallystats.pdf en la raíz del repo.
 //
 // No existe ningún archivo fuente "editable" del manual (se armó en algún
 // momento con una herramienta externa y solo quedó commiteado el PDF final),
@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 27;
+const _coverTotalPages = 29;
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -40,10 +40,10 @@ const _pIntroduccion = 4;
 const _pCuentaLogin = 5;
 const _pPantallaPrincipal = 5;
 const _pPizarra = 6;
-const _pGestionEquipos = 6;
+const _pGestionEquipos = 7;
 const _pCrearEquipo = 7;
 const _pAgregarJugadores = 7;
-const _pEquipoEjemplo = 7;
+const _pEquipoEjemplo = 8;
 const _pExportarEquipo = 8;
 const _pImportarEquipo = 8;
 const _pCrearPartido = 8;
@@ -74,17 +74,19 @@ const _pExportarPartido = 18;
 const _pImportarPartido = 18;
 const _pRivalScouting = 18;
 const _pResumen = 19;
-const _pExportarPdf = 20;
-const _pGlosario = 20;
-const _pSuscripcionPremium = 22;
-const _pQueIncluyePremium = 22;
-const _pComoSuscribirse = 23;
-const _pDispositivosAdicionales = 23;
-const _pRestaurarCompras = 23;
-const _pGestionarCancelar = 23;
-const _pDarDeBajaDispositivo = 23;
-const _pFaq = 24;
-const _pContacto = 27;
+const _pGraficos = 20;
+const _pMapas = 20;
+const _pExportarPdf = 21;
+const _pGlosario = 22;
+const _pSuscripcionPremium = 24;
+const _pQueIncluyePremium = 24;
+const _pComoSuscribirse = 24;
+const _pDispositivosAdicionales = 25;
+const _pRestaurarCompras = 25;
+const _pGestionarCancelar = 25;
+const _pDarDeBajaDispositivo = 25;
+const _pFaq = 25;
+const _pContacto = 28;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -570,6 +572,8 @@ List<pw.Widget> _indexContent() {
     entry('Importar un partido', _pImportarPartido, sub: true),
     entry('Scouting de rivales', _pRivalScouting),
     entry('Resumen del partido y estadísticas', _pResumen),
+    entry('Gráficos', _pGraficos, sub: true),
+    entry('Mapas', _pMapas, sub: true),
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
     entry('Suscripción Premium', _pSuscripcionPremium),
@@ -670,9 +674,9 @@ List<pw.Widget> _section2CuentaLogin() => [
         'se conectó más recientemente.',
       ),
       _p(
-        'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: el '
-        'ícono de salida, en el encabezado de la pantalla principal (sección 3), cierra la sesión de este '
-        'dispositivo.',
+        'Para liberar la cuenta y poder usarla en otro dispositivo, hay que cerrar sesión primero: en '
+        'Configuración (ícono de engranaje del encabezado de la pantalla principal, sección 3), "Cerrar '
+        'sesión" cierra la sesión de este dispositivo.',
         bottom: 6,
       ),
       _p(
@@ -710,6 +714,28 @@ List<pw.Widget> _section3PantallaPrincipal() => [
         'la pantalla de partido en vivo (sección 9), donde este interruptor está dentro del menú "Más '
         'opciones" del encabezado (sección 12), para no competir con los accesos propios de la carga en '
         'vivo.',
+      ),
+      _p(
+        'Al lado de ese interruptor, el ícono de engranaje abre Configuración, con estas opciones:',
+        bottom: 6,
+      ),
+      _bullets([
+        [
+          _b('Estadística visual en pantalla (premium): '),
+          _t('elegí qué mapas (saque, ataque, contraataque) y qué gráficos se ven en las pestañas Mapas y '
+              'Gráficos de Estadísticas (secciones 16.1 y 16.2).')
+        ],
+        [
+          _b('Estadística visual del PDF (premium): '),
+          _t('lo mismo para el reporte en PDF del partido (sección 17).')
+        ],
+        [_b('Tengo un código: '), _t('canjea un código promocional para activar premium (sección 19).')],
+        [_b('Cerrar sesión '), _t('y '), _b('Eliminar cuenta '), _t('(sección 2).')],
+        [_t('La Política de Privacidad y los Términos y Condiciones.')],
+      ]),
+      _p(
+        'Sin la suscripción premium, las dos opciones de estadística visual aparecen con un candado y se '
+        'muestra todo: todos los mapas y gráficos, en pantalla y en el PDF.',
       ),
     ];
 
@@ -1563,6 +1589,88 @@ List<pw.Widget> _section16Resumen() => [
         [_b('Ataque y Contraataque: '), _t('PP sobre el total de toques (PP + P + N + Bl + NN).')],
         [_b('Recepción: '), _t('(PP + P) sobre el total de recepciones.')],
       ]),
+      _subHeading('16.1 Gráficos'),
+      _p(
+        'La pantalla tiene tres pestañas: Tabla (todo lo descripto arriba), Mapas (sección 16.2) y '
+        'Gráficos, con la estadística del equipo en forma visual. El selector Estadística es el mismo para '
+        'las tres, así que los mapas y los gráficos también se pueden ver del partido completo o de un set. '
+        'Tocando cualquier gráfico se abre a pantalla completa. Los gráficos son, en este orden (con premium '
+        'se puede elegir cuáles se ven, sección 3):',
+        bottom: 6,
+      ),
+      _numbered([
+        [
+          _b('Tablero rápido: '),
+          _t('side-out (% de rallies ganados cuando saca el rival), break-point (% de rallies ganados con '
+              'saque propio), eficiencia de ataque del equipo y errores no forzados (saque, ataque y '
+              'contra NN, más errores genéricos).')
+        ],
+        [
+          _b('Rendimiento por rotación: '),
+          _t('para cada rotación, cuántos puntos se ganaron menos cuántos se perdieron (G-P), en barras y '
+              'en una tabla que desglosa de dónde salió cada punto (errores y puntos del rival, puntos y '
+              'errores propios de saque, recepción, ataque y bloqueo). La rotación se nombra por la '
+              'posición del armador: P1 = armador en zona 1. Si en la formación inicial de un set no hay '
+              'un único jugador con posición Armador, ese set se cuenta aparte como R1 a R6 (R1 = como '
+              'arrancó el set).')
+        ],
+        [
+          _b('Side-out y break-point por rotación: '),
+          _t('los dos porcentajes del tablero, separados por rotación, para ver si una rotación falla '
+              'recibiendo o sacando.')
+        ],
+        [
+          _b('Evolución del marcador: '),
+          _t('un gráfico por set con la diferencia del marcador rally por rally, las rachas de 4 o más '
+              'puntos seguidos y una marca chica en cada cambio de jugador.')
+        ],
+        [
+          _b('Origen de los puntos: '),
+          _t('de qué salieron los puntos ganados (ataque, contra, bloqueo, saque, error rival) y cómo se '
+              'perdieron los perdidos (errores propios por tipo o punto directo del rival).')
+        ],
+        [
+          _b('Eficiencia de ataque por jugador: '),
+          _t('(puntos - errores - bloqueados) / total, sumando ataque y contra, de mayor a menor.')
+        ],
+        [_b('Recepción por jugador: '), _t('cómo se reparten las calificaciones de recepción de cada receptor.')],
+        [
+          _b('Mapa de calor por zona: '),
+          _t('las zonas de destino de saque, ataque o contra pintadas sobre la cancha rival (solo si se '
+              'registró la zona de destino, sección 8).')
+        ],
+      ]),
+      _infoBox(
+        'Los gráficos se calculan a partir de cada punto cargado, igual que la tabla: no hace falta cargar '
+        'nada extra, y también aparecen en los partidos guardados antes de esta versión.',
+      ),
+      _subHeading('16.2 Mapas'),
+      _p(
+        'La pestaña Mapas dibuja una flecha por cada saque, ataque o contraataque, desde el lugar donde '
+        'salió hasta la zona donde cayó la pelota, sobre la cancha rival (arriba) y la propia (abajo, más '
+        'chica porque de ese lado solo importa el origen). Arriba se elige el fundamento (Saque / Ataque / '
+        'Contra) y el jugador, o Todos para ver al equipo completo.',
+        bottom: 6,
+      ),
+      _p('El tipo de trazo dice cómo terminó cada toque:', bottom: 6),
+      _bullets([
+        [_b('Línea continua azul: '), _t('punto (PP).')],
+        [_b('Punteada gris: '), _t('la pelota entró y el rally siguió (P o N).')],
+        [_b('Punteada roja: '), _t('error (NN).')],
+        [_b('Naranja que termina en la red con una barra: '), _t('bloqueado (BLOQ, solo ataque y contra).')],
+      ]),
+      _p(
+        'Tocando una flecha se ve su detalle (jugador, calificación, set, rally, marcador y zona). Debajo de '
+        'la cancha van el total, los puntos, las pelotas que entraron, los errores y la eficiencia; y "Ver '
+        'como tabla por zona" muestra los mismos toques contados por zona.',
+      ),
+      _infoBox(
+        'El destino de cada flecha es la zona de destino registrada en la carga (sección 9.4): los toques sin '
+        'zona no se pueden dibujar, pero sí cuentan en el resumen (se avisa cuántos son). El origen no se '
+        'carga: la app lo deduce del puesto del jugador y de su lugar en la rotación en ese momento (por '
+        'ejemplo, un punta adelante ataca desde la zona 4 y atrás, por el medio). Por eso el mapa muestra '
+        'tendencias, no la posición exacta de cada pelota.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1585,6 +1693,12 @@ List<pw.Widget> _section17ExportarPdf() => [
         [_t('Una tabla con los errores del rival por tipo (saque, ataque, contra, genérico) y los puntos que ganó con su propio toque (ataque o contra).')],
         [_t('Si se registraron zonas de destino durante el partido: un desglose de saque, ataque y contraataque por separado, por zona de cancha (1 a 6, o 1 a 9 si se usó el registro en 9 zonas), tanto a nivel equipo como por jugador.')],
         [_t('Si el partido tuvo más de un set: el detalle de estadística de cada set por separado.')],
+        [
+          _t('Al final, la estadística visual del partido completo: los gráficos de la sección 16.1 y una '
+              'planilla de mapas por jugador (sección 16.2), con una cancha por fundamento. Con la '
+              'suscripción premium se elige qué lleva en Configuración > Estadística visual del PDF '
+              '(sección 3); sin premium, el reporte lleva todo.')
+        ],
       ]),
       _infoBox(
         'Nota: el reporte en PDF es, hoy, la única forma de sacar los datos de un partido fuera del '
@@ -1649,6 +1763,23 @@ List<pw.Widget> _section18Glosario() => [
           ['Z1 a Z9', 'Zonas de destino de la cancha rival, numeradas de frente para quien anota (Z7 a Z9: franja media, solo con el registro en 9 zonas).'],
         ],
       ),
+      pw.SizedBox(height: 14),
+      _subHeading('Términos de los gráficos'),
+      _table(
+        headers: ['', 'Significado'],
+        flex: [3, 7],
+        rows: [
+          ['P1 a P6', 'Rotación, nombrada por la posición del armador en la cancha (P1 = armador en zona 1).'],
+          ['R1 a R6', 'Rotación contada desde la formación inicial, para sets sin un único armador (R1 = como arrancó el set).'],
+          ['G-P', 'Rallies ganados menos perdidos.'],
+          ['Side-out', '% de rallies ganados cuando saca el rival.'],
+          ['Break-point', '% de rallies ganados con saque propio.'],
+          ['Adv -Pts / Adv +Err', 'Puntos directos del rival / errores del rival (incluye sanciones al rival con punto).'],
+          ['+Pts / -Err', 'Puntos ganados con acción propia / perdidos por error propio.'],
+          ['Eficiencia de ataque', '(Puntos - errores - bloqueados) / total, sumando ataque y contra.'],
+          ['Errores no forzados', 'Saque NN + ataque NN + contra NN + errores genéricos.'],
+        ],
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1683,11 +1814,12 @@ List<pw.Widget> _section19SuscripcionPremium() => [
               'entre sets (secciones 12 y 13): solo una vez que el partido está guardado y terminado.')
         ],
         [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
+        [_t('Sin poder elegir qué mapas y gráficos se ven en pantalla y en el PDF (sección 3): se muestra todo.')],
       ]),
       _p(
         'La suscripción premium desbloquea todo lo de la lista de arriba (partidos sin límite en el '
-        'archivo, pizarra, estadística ilimitada e incluida en vivo y entre sets, y zona de destino) y '
-        'permite además sumar dispositivos adicionales (sección 19.3).',
+        'archivo, pizarra, estadística ilimitada e incluida en vivo y entre sets, zona de destino y '
+        'elección de los mapas y gráficos) y permite además sumar dispositivos adicionales (sección 19.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '

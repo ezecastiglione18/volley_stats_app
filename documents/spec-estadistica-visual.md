@@ -1,6 +1,6 @@
 # Spec — Estadística visual (Gráficos + Mapas)
 
-**Estado:** aprobada el 29/09/2026 · **no implementada todavía** · se arranca por la **Etapa 1**.
+**Estado:** aprobada el 29/09/2026 · **Etapas 1 y 2 implementadas el 02/10/2026** (ver `CLAUDE.md` → Trabajo planificado) · pendiente la Etapa 3.
 
 **Documentos que la acompañan:**
 
