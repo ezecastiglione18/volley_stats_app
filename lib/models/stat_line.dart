@@ -72,6 +72,83 @@ class PlayerStatLine {
       recepcion.nn;
 }
 
+/// Encabezados de la tabla de estadística por jugador (pantalla de resumen y
+/// exportación a CSV), en el orden de [statLineValues] precedidos por "N°" y
+/// "Jugador".
+const statsTableHeaders = [
+  'N°',
+  'Jugador',
+  'Pts',
+  'Err',
+  'Saq PP',
+  'Saq P',
+  'Saq N',
+  'Saq NN',
+  'Saq %',
+  'Atq PP',
+  'Atq P',
+  'Atq N',
+  'Atq Bl',
+  'Atq NN',
+  'Atq %',
+  'Ctr PP',
+  'Ctr P',
+  'Ctr N',
+  'Ctr Bl',
+  'Ctr NN',
+  'Ctr %',
+  'Blq',
+  'E.Gen',
+  'Rec Tot',
+  'Rec PP',
+  'Rec P',
+  'Rec !',
+  'Rec N',
+  'Rec V/',
+  'Rec NN',
+  'Rec %',
+  'Am',
+  'Ro',
+];
+
+/// Valores de una fila de la tabla de estadística desde "Pts" hasta "Ro"
+/// (las columnas de [statsTableHeaders] sin "N°" ni "Jugador"). Los conteos
+/// son `int`; los porcentajes, `double?` entre 0 y 1 (null = sin toques),
+/// para que cada destino les dé su propio formato.
+List<Object?> statLineValues(PlayerStatLine r) => [
+      r.totalPts,
+      r.totalErr,
+      r.saque.pp,
+      r.saque.p,
+      r.saque.n,
+      r.saque.nn,
+      r.saque.pctServe,
+      r.ataque.pp,
+      r.ataque.p,
+      r.ataque.n,
+      r.ataque.bloq,
+      r.ataque.nn,
+      r.ataque.pctPoint,
+      r.contra.pp,
+      r.contra.p,
+      r.contra.n,
+      r.contra.bloq,
+      r.contra.nn,
+      r.contra.pctPoint,
+      r.bloqueoPts,
+      r.errGen,
+      r.recepcion.total,
+      r.recepcion.pp,
+      r.recepcion.p,
+      r.recepcion.excl,
+      r.recepcion.n,
+      r.recepcion.vNeg,
+      r.recepcion.nn,
+      r.recepcion.efficiency,
+      r.yellowCards,
+      r.redCards,
+    ];
+
 /// Errores del equipo rival por tipo de toque (los cuenta el equipo propio
 /// al marcar "Error Rival" con la opción correspondiente). `generic` incluye
 /// también los errores rivales cargados antes de este campo (sin subtipo

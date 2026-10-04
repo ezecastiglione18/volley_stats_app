@@ -356,6 +356,7 @@ class _MatchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final finished = match.status == MatchStatus.finished;
     final won = finished && match.ownSetsWon > match.rivalSetsWon;
+    final notes = match.notes;
     return Card(
       child: ListTile(
         dense: true,
@@ -364,7 +365,25 @@ class _MatchRow extends StatelessWidget {
           color: finished ? (won ? successColor(context) : errorColor(context)) : warningColor(context),
         ),
         title: Text('${df.format(match.date)}  ·  ${match.ownSetsWon} - ${match.rivalSetsWon}'),
-        subtitle: match.tournament.isNotEmpty ? Text(match.tournament) : null,
+        subtitle: match.tournament.isEmpty && notes == null
+            ? null
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (match.tournament.isNotEmpty) Text(match.tournament),
+                  if (notes != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 4, bottom: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: warningColor(context).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(notes, maxLines: 3, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+              ),
         onTap: finished
             ? () => Navigator.push(
                   context,

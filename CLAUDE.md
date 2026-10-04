@@ -21,7 +21,7 @@ incluye una versión de escritorio para Windows, pero por el momento no se está
 flutter pub get              # instalar dependencias
 flutter run                  # correr en un dispositivo/emulador conectado
 flutter analyze              # linter/analizador estático (usa analysis_options.yaml + flutter_lints)
-flutter test                 # correr todos los tests (test/widget_test.dart y test/match_controller_test.dart)
+flutter test                 # correr todos los tests (test/*.dart)
 flutter test --plain-name "nombre del test"   # correr un solo testWidgets por su descripción
 flutter build apk --release      # generar el APK de Android (build/app/outputs/flutter-apk/)
 flutter build appbundle --release  # generar el .aab para subir a Play Console (build/app/outputs/bundle/release/)
@@ -189,7 +189,8 @@ por completo con `tool/generate_manual.dart` (usa `package:pdf`). Los números d
 escritos a mano ahí mismo (`_pIntroduccion`, `_pFaq`, etc.) porque `package:pdf` no expone en qué página
 cayó cada sección durante el mismo armado — después de generar, hay que revisar el PDF resultante
 (con la herramienta de lectura de PDF, pidiendo todas las páginas) y corregir esas constantes si algún
-contenido corrió de página.
+contenido corrió de página. La versión de la tapa ya no se escribe a mano: `_appVersion` la lee de
+`version:` en `pubspec.yaml` (sin el número de build).
 
 ## Trabajo planificado
 
@@ -212,8 +213,8 @@ publicar todavía. Dónde quedó cada cosa:
   evento por evento (rotación, rotaciones manuales y cambios por `slotIndex`) para saber en qué
   posición estaba cada jugador y deducir el origen (`shotOrigin`); el destino es `zoneCenter` + un
   desvío fijo por hash del id del evento. Los toques sin zona no se dibujan y se cuentan aparte
-  (`ShotMapData.missingZone`), salvo los bloqueados y los errores a la red, que siempre terminan en la
-  red. Un NN es `ShotResult.out`/`net` si se cargó `RallyEvent.missType` (`MissType.out`/`net`) y
+  (`ShotMapData.missingZone`), salvo los bloqueados, los rejuegos y los errores a la red, que siempre
+  terminan en la red. Un NN es `ShotResult.out`/`net` si se cargó `RallyEvent.missType` (`MissType.out`/`net`) y
   `error` si no; "afuera" prolonga la recta origen → zona hasta salir de la cancha (`_projectOut`).
 - Carga de "Afuera / A la red": en `touch_dialog.dart`, con el registro de zona activo, una fila
   opcional de `ChoiceChip` que se elige antes de tocar NN (el callback `onConfirm` recibe el
@@ -238,6 +239,30 @@ publicar todavía. Dónde quedó cada cosa:
   sin migración; los que no registraron zona de destino tienen gráficos completos pero mapas vacíos
   (hay un test que lo cubre).
 - Tests en `test/stats_charts_test.dart`.
+
+**Tanda 1 de `documents/RallyStats-Funcionalidades-Pendientes.pdf` (secciones 1, 2 y 4): implementada el
+04/10/2026**, con manual (secciones 9.3, 14.3, 16.3, 16.4, glosario, 19.1 y FAQ; 30 páginas) y README
+actualizados. Va en la versión **1.2.0+16** (builds de APK, .aab, Windows, zip e instalador preparados el
+04/10/2026, sin publicar todavía):
+
+- Notas de scouting: `VolleyMatch.notes` (opcional, null en partidos viejos), tarjeta + diálogo en la
+  pestaña Tabla del resumen (gratis), debajo de cada partido en `RivalScoutingDetailScreen` y sección al
+  final del PDF (`PdfReportService.latin1Safe` pasa comillas curvas/rayas/"…" a Latin-1).
+- CSV: `lib/services/csv_export_service.dart` (`buildCsv` puro y testeado), botón en el resumen con
+  `runIfPremium`. Encabezados y valores de la tabla en `statsTableHeaders`/`statLineValues`
+  (`stat_line.dart`), compartidos por la tabla de la app, el CSV y el comparador (el PDF tiene su propia
+  `_statCols`).
+- Comparador: tabla extraída a `lib/screens/matches/widgets/stats_table.dart` (`StatsTable`), lógica en
+  `lib/services/match_compare.dart`, pantalla `match_compare_screen.dart`, entrada "Comparar con…" en el
+  archivo con `runIfPremium`.
+- Leyenda de la tabla de rotaciones (`rotationTableLegend` en `visual_stats.dart`, pantalla y PDF).
+- Rejuego (atacar contra el bloqueo para retenerla): sexto botón "R" en el diálogo de Ataque/Contra
+  (`GradeOption.replay` en `grade_labels.dart`). Se guarda como `Grade.p` + `RallyEvent.replay = true`
+  (false en partidos viejos), sin zona; el punto sigue en `defending`, así que el toque siguiente es una
+  Contra. Decisión del usuario: por ahora cuenta como una P más (no se separa en la estadística; el campo
+  queda para hacerlo después si se pide). En los mapas es `ShotResult.replay`: termina en la red como el
+  bloqueado; a pedido del usuario el rejuego usa la línea continua con barra (el trazo que antes era del
+  bloqueado) y el bloqueado pasó a la misma línea punteada.
 
 Pospuesto: Etapa 3 (cancha tocable con destino exacto y origen opcional). No retomarla sin que el usuario
 lo pida: se descartó para no complicar la carga en vivo.

@@ -11,7 +11,8 @@ import 'hit_zone_picker.dart';
 /// entre 9 zonas en vez de 6 si [nineZones] también está activo) y, para un
 /// error (NN), si fue afuera o a la red (también opcional: se elige antes de
 /// tocar NN y se ignora con cualquier otra calificación, para no sumar un
-/// toque obligatorio a la carga).
+/// toque obligatorio a la carga). La opción "R · Rejuego" de ataque/contra
+/// confirma una P con `replay: true` y sin zona.
 Future<void> showTouchDialog({
   required BuildContext context,
   required String title,
@@ -20,7 +21,8 @@ Future<void> showTouchDialog({
   required List<GradeOption> grades,
   bool trackZone = false,
   bool nineZones = false,
-  required void Function(String playerId, String grade, int? targetZone, String? missType) onConfirm,
+  required void Function(String playerId, String grade, int? targetZone, String? missType, bool replay)
+      onConfirm,
 }) async {
   String? selected = fixedPlayerId ?? (players.length == 1 ? players.first.id : null);
   int? selectedZone;
@@ -108,8 +110,8 @@ Future<void> showTouchDialog({
                                 ? null
                                 : () {
                                     Navigator.pop(ctx);
-                                    onConfirm(selected!, g.code, selectedZone,
-                                        g.code == Grade.nn ? selectedMiss : null);
+                                    onConfirm(selected!, g.code, g.replay ? null : selectedZone,
+                                        g.code == Grade.nn ? selectedMiss : null, g.replay);
                                   },
                             child: Text(
                                 g.code == Grade.nn && selectedMiss != null

@@ -94,8 +94,9 @@ extension ShotKindInfo on ShotKind {
 
 /// Resultado de un toque, que define el trazo de su flecha (spec 5.2).
 /// [out] y [net] llegan con la Etapa 3 (carga precisa); hasta entonces todo
-/// NN se dibuja como [error].
-enum ShotResult { point, inPlay, out, net, blocked, error }
+/// NN se dibuja como [error]. [replay] es el rejuego (R): cuenta como P en la
+/// estadística, pero se dibuja aparte, terminando en la red como [blocked].
+enum ShotResult { point, inPlay, out, net, blocked, replay, error }
 
 extension ShotResultInfo on ShotResult {
   String get label {
@@ -110,6 +111,8 @@ extension ShotResultInfo on ShotResult {
         return 'A la red';
       case ShotResult.blocked:
         return 'Bloqueado';
+      case ShotResult.replay:
+        return 'Rejuego';
       case ShotResult.error:
         return 'Error';
     }
@@ -329,6 +332,21 @@ const rotationTableHeaders = [
   'Ataque\nErr',
   'Bloq\nTot',
 ];
+
+/// Referencias de cada columna de la tabla de rotaciones, con sus cálculos
+/// (debajo de la tabla, en la pantalla y en el PDF; sin caracteres fuera de
+/// Latin-1 por el PDF). Cada rally cerrado suma en una sola columna de
+/// punto/error según cómo terminó (`StatsEngine.classifyClosing`).
+const rotationTableLegend =
+    'Rot.: rotación (P1 a P6 = zona en la que está el armador; R1 a R6 = rotaciones contadas desde la '
+    'formación inicial, si el set no tiene un único armador) · G-P: rallies ganados menos perdidos = '
+    '(+Pts + Adv +Err) - (-Err + Adv -Pts) · Adv -Pts: puntos directos del rival (su ataque o contra, sin '
+    'error propio) · Adv +Err: errores del rival, incluidas sus sanciones con punto · +Pts: puntos por acción '
+    'propia = Saque Pts + Ataque Pts + Bloq Tot · -Err: puntos perdidos por error propio = Saque Err + Rec. Err '
+    '+ Ataque Err + Ataque Bl + Err gen. · Err gen.: errores generales (rotación, 4 toques, etc.) y sanciones '
+    'propias con punto · Saque Pts / Saque Err: saques PP (punto) / NN (error) · Rec. Err: recepciones NN · '
+    'Ataque Pts / Ataque Bl / Ataque Err: ataques y contraataques PP / bloqueados / NN · Bloq Tot: puntos de '
+    'bloqueo · "." = 0.';
 
 /// Celdas de una fila de la tabla de rotaciones, en el orden de
 /// [rotationTableHeaders]. Los ceros se muestran como "." (como DataVolley)

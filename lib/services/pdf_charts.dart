@@ -424,6 +424,7 @@ PdfColor _shotColor(ShotResult r) {
     case ShotResult.inPlay:
       return pdfSlate;
     case ShotResult.blocked:
+    case ShotResult.replay:
       return pdfBlock;
     case ShotResult.out:
     case ShotResult.net:
@@ -469,8 +470,11 @@ void pdfShotStroke(PdfChartCanvas c, double x1, double y1, double x2, double y2,
       c.line(x1 - nx * o, y1 - ny * o, ex - nx * o, ey - ny * o, color, width: 0.55 * k, dash: [2.2 * k, 1.4 * k]);
       arrow();
       break;
+    case ShotResult.replay:
     case ShotResult.blocked:
-      c.line(x1, y1, x2, y2, color, width: 1.1 * k);
+      // Continuo el rejuego, punteado el bloqueado; los dos con la barra.
+      c.line(x1, y1, x2, y2, color,
+          width: 1.1 * k, dash: result == ShotResult.blocked ? [2.2 * k, 1.4 * k] : null);
       final b = 3.2 * k;
       c.line(x2 + nx * b, y2 + ny * b, x2 - nx * b, y2 - ny * b, color, width: 1.4 * k);
       break;
@@ -524,7 +528,7 @@ pw.Widget pdfShotLegend(List<ShotResult> results) => pw.Wrap(
         for (final r in results)
           pw.Row(mainAxisSize: pw.MainAxisSize.min, children: [
             PdfChart(28, 9, (c) {
-              final end = r == ShotResult.blocked || r == ShotResult.net ? 24.0 : 27.0;
+              final end = r == ShotResult.blocked || r == ShotResult.replay || r == ShotResult.net ? 24.0 : 27.0;
               pdfShotStroke(c, 2, 4.5, end, 4.5, r);
             }),
             pw.SizedBox(width: 3),

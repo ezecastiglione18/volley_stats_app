@@ -3,17 +3,19 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/rally_event.dart';
-import '../../models/stat_line.dart';
 import '../../models/volley_match.dart';
+import '../../services/csv_export_service.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/stats_engine.dart';
 import '../../state/app_data_controller.dart';
 import '../../state/subscription_controller.dart';
 import '../../utils/theme.dart';
+import '../../widgets/premium_gate.dart';
 import '../../widgets/premium_required_screen.dart';
 import '../../widgets/theme_toggle_switch.dart';
 import '../../services/visual_stats_preferences.dart';
 import 'widgets/court_maps_tab.dart';
+import 'widgets/stats_table.dart';
 import 'widgets/visual_stats_tab.dart';
 
 class MatchSummaryScreen extends StatefulWidget {
@@ -34,6 +36,7 @@ class MatchSummaryScreen extends StatefulWidget {
 class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
   int? _selectedSet; // null = partido completo
   bool _loadingPdf = false;
+  bool _loadingCsv = false;
 
   @override
   void initState() {
@@ -50,6 +53,43 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
       await PdfReportService.shareMatchReport(widget.match, charts: charts, maps: maps);
     } finally {
       if (mounted) setState(() => _loadingPdf = false);
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    setState(() => _loadingCsv = true);
+    try {
+      await CsvExportService.exportMatchStats(widget.match, setNumber: _selectedSet);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo exportar: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingCsv = false);
+    }
+  }
+
+  /// Notas de scouting: función gratuita (sin runIfPremium). Texto vacío o
+  /// solo espacios se guarda como null.
+  Future<void> _editNotes() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => _NotesDialog(initial: widget.match.notes ?? ''),
+    );
+    if (result == null || !mounted) return; // cancelado
+    final trimmed = result.trim();
+    final newNotes = trimmed.isEmpty ? null : trimmed;
+    if (newNotes == widget.match.notes) return;
+    final previous = widget.match.notes;
+    final isPremium = context.read<SubscriptionController>().isPremium;
+    setState(() => widget.match.notes = newNotes);
+    try {
+      await context.read<AppDataController>().saveMatch(widget.match, isPremium: isPremium);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => widget.match.notes = previous);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('No se pudieron guardar las notas: $e')));
     }
   }
 
@@ -105,6 +145,16 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
         title: Text('${match.ownTeamName} vs ${match.rivalTeamName}'),
         actions: [
           const ThemeToggleSwitch(),
+          IconButton(
+            icon: _loadingCsv
+                ? const SizedBox(
+                    width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.table_chart_outlined),
+            tooltip: 'Exportar a Excel (CSV)',
+            // Premium por su cuenta: la pantalla también la ve un free en su
+            // partido de estadística gratuita (freeStatsMatchId).
+            onPressed: _loadingCsv ? null : () => runIfPremium(context, _exportCsv),
+          ),
           IconButton(
             icon: _loadingPdf
                 ? const SizedBox(
@@ -191,10 +241,11 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           const SizedBox(height: 14),
           setSelector,
           const SizedBox(height: 8),
-          _StatsTable(stats: stats),
+          StatsTable(rows: stats.orderedRows, total: stats.team),
           const SizedBox(height: 6),
           Text(
-            'Referencias — Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva · N Negativa · '
+            'Referencias — Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva (en Ataque/Contra incluye R Rejuego) · '
+            'N Negativa · '
             'Bl Bloqueado (solo Ataque/Contra) · NN Error (Doble Negativa). % Saque = (PP+P)/Total · '
             '% Ataque y % Contra = PP/Total. Recepción: PP Perfecta · P Positiva · ! Exclamativa · '
             'N Negativa · V/ Vendida · NN Error · % Rec = (PP+P)/Total. Pts puntos · Err errores '
@@ -202,6 +253,8 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
             style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 14),
+          _NotesCard(notes: match.notes, onEdit: _editNotes),
+          const SizedBox(height: 10),
           _RivalStatsCard(stats: stats),
           const SizedBox(height: 20),
         ],
@@ -222,6 +275,92 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _NotesCard extends StatelessWidget {
+  final String? notes;
+  final VoidCallback onEdit;
+  const _NotesCard({required this.notes, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Notas de scouting', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  tooltip: 'Editar notas',
+                  onPressed: onEdit,
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: notes == null
+                  ? Text('Sin notas · tocá ✎ para agregar', style: TextStyle(color: muted))
+                  : Text(notes!),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Diálogo de edición de las notas. Devuelve el texto escrito al guardar,
+/// o null si se canceló.
+class _NotesDialog extends StatefulWidget {
+  final String initial;
+  const _NotesDialog({required this.initial});
+
+  @override
+  State<_NotesDialog> createState() => _NotesDialogState();
+}
+
+class _NotesDialogState extends State<_NotesDialog> {
+  late final TextEditingController _ctrl = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Notas del partido'),
+      content: SizedBox(
+        width: 420,
+        child: TextField(
+          controller: _ctrl,
+          autofocus: true,
+          minLines: 4,
+          maxLines: 10,
+          maxLength: 1000,
+          keyboardType: TextInputType.multiline,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Ej.: saque flotado corto a zona 1, reforzar bloqueo en 4…',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(onPressed: () => Navigator.pop(context, _ctrl.text), child: const Text('Guardar')),
+      ],
     );
   }
 }
@@ -257,178 +396,6 @@ class _RivalStatsCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _StatsTable extends StatelessWidget {
-  final MatchStats stats;
-  const _StatsTable({required this.stats});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final rows = stats.orderedRows;
-
-    TableRow header() => TableRow(
-          decoration: BoxDecoration(color: surfaceAltColor(context)),
-          children: const [
-            _H('N°'),
-            _H('Jugador'),
-            _H('Pts'),
-            _H('Err'),
-            _H('Saq PP'),
-            _H('Saq P'),
-            _H('Saq N'),
-            _H('Saq NN'),
-            _H('Saq %'),
-            _H('Atq PP'),
-            _H('Atq P'),
-            _H('Atq N'),
-            _H('Atq Bl'),
-            _H('Atq NN'),
-            _H('Atq %'),
-            _H('Ctr PP'),
-            _H('Ctr P'),
-            _H('Ctr N'),
-            _H('Ctr Bl'),
-            _H('Ctr NN'),
-            _H('Ctr %'),
-            _H('Blq'),
-            _H('E.Gen'),
-            _H('Rec Tot'),
-            _H('Rec PP'),
-            _H('Rec P'),
-            _H('Rec !'),
-            _H('Rec N'),
-            _H('Rec V/'),
-            _H('Rec NN'),
-            _H('Rec %'),
-            _H('Am'),
-            _H('Ro'),
-          ],
-        );
-
-    String pct(double? v) => v == null ? '-' : '${(v * 100).toStringAsFixed(0)}%';
-
-    TableRow row(PlayerStatLine r) {
-      final eff = r.recepcion.efficiency;
-      Widget c(String v) => _C(v);
-      return TableRow(children: [
-        c(r.playerId == unassignedId ? '-' : '${r.number}'),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-          child: Text(r.displayName, style: const TextStyle(fontSize: 12)),
-        ),
-        c('${r.totalPts}'),
-        c('${r.totalErr}'),
-        c('${r.saque.pp}'),
-        c('${r.saque.p}'),
-        c('${r.saque.n}'),
-        c('${r.saque.nn}'),
-        c(pct(r.saque.pctServe)),
-        c('${r.ataque.pp}'),
-        c('${r.ataque.p}'),
-        c('${r.ataque.n}'),
-        c('${r.ataque.bloq}'),
-        c('${r.ataque.nn}'),
-        c(pct(r.ataque.pctPoint)),
-        c('${r.contra.pp}'),
-        c('${r.contra.p}'),
-        c('${r.contra.n}'),
-        c('${r.contra.bloq}'),
-        c('${r.contra.nn}'),
-        c(pct(r.contra.pctPoint)),
-        c('${r.bloqueoPts}'),
-        c('${r.errGen}'),
-        c('${r.recepcion.total}'),
-        c('${r.recepcion.pp}'),
-        c('${r.recepcion.p}'),
-        c('${r.recepcion.excl}'),
-        c('${r.recepcion.n}'),
-        c('${r.recepcion.vNeg}'),
-        c('${r.recepcion.nn}'),
-        c(eff == null ? '-' : '${(eff * 100).toStringAsFixed(0)}%'),
-        c('${r.yellowCards}'),
-        c('${r.redCards}'),
-      ]);
-    }
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Table(
-        defaultColumnWidth: const FixedColumnWidth(56),
-        columnWidths: const {1: FixedColumnWidth(140)},
-        border: TableBorder.all(color: scheme.outline),
-        children: [
-          header(),
-          for (final r in rows) row(r),
-          TableRow(
-            decoration: BoxDecoration(color: scheme.secondary.withValues(alpha: 0.16)),
-            children: [
-              const _C(''),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                child: Text('TOTAL EQUIPO', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-              _C('${stats.team.totalPts}'),
-              _C('${stats.team.totalErr}'),
-              _C('${stats.team.saque.pp}'),
-              _C('${stats.team.saque.p}'),
-              _C('${stats.team.saque.n}'),
-              _C('${stats.team.saque.nn}'),
-              _C(pct(stats.team.saque.pctServe)),
-              _C('${stats.team.ataque.pp}'),
-              _C('${stats.team.ataque.p}'),
-              _C('${stats.team.ataque.n}'),
-              _C('${stats.team.ataque.bloq}'),
-              _C('${stats.team.ataque.nn}'),
-              _C(pct(stats.team.ataque.pctPoint)),
-              _C('${stats.team.contra.pp}'),
-              _C('${stats.team.contra.p}'),
-              _C('${stats.team.contra.n}'),
-              _C('${stats.team.contra.bloq}'),
-              _C('${stats.team.contra.nn}'),
-              _C(pct(stats.team.contra.pctPoint)),
-              _C('${stats.team.bloqueoPts}'),
-              _C('${stats.team.errGen}'),
-              _C('${stats.team.recepcion.total}'),
-              _C('${stats.team.recepcion.pp}'),
-              _C('${stats.team.recepcion.p}'),
-              _C('${stats.team.recepcion.excl}'),
-              _C('${stats.team.recepcion.n}'),
-              _C('${stats.team.recepcion.vNeg}'),
-              _C('${stats.team.recepcion.nn}'),
-              _C(stats.team.recepcion.efficiency == null
-                  ? '-'
-                  : '${(stats.team.recepcion.efficiency! * 100).toStringAsFixed(0)}%'),
-              _C('${stats.team.yellowCards}'),
-              _C('${stats.team.redCards}'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _H extends StatelessWidget {
-  final String text;
-  const _H(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-        child: Text(text,
-            textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-      );
-}
-
-class _C extends StatelessWidget {
-  final String text;
-  const _C(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-        child: Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-      );
 }
 
 /// Paso de confirmación antes de gastar el único cupo de estadística free en

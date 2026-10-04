@@ -112,6 +112,11 @@ class VisualStatsTab extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: palette.textMuted),
                 ),
               ],
+              const SizedBox(height: 6),
+              Text(
+                'Referencias — $rotationTableLegend',
+                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
             ],
           ),
         ),

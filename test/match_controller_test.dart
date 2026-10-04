@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:rally_stats/models/match_config.dart';
 import 'package:rally_stats/models/player.dart';
 import 'package:rally_stats/models/rally_event.dart';
+import 'package:rally_stats/models/visual_stats.dart';
 import 'package:rally_stats/models/volley_match.dart';
 import 'package:rally_stats/screens/live/live_match_screen.dart';
 import 'package:rally_stats/screens/live/widgets/court_view.dart';
@@ -255,6 +256,82 @@ void main() {
       final c = _newController(nineHitZones: true);
       final json = jsonDecode(jsonEncode(c.match.toJson())) as Map<String, dynamic>;
       expect(VolleyMatch.fromJson(json).sets.single.nineHitZones, isTrue);
+    });
+  });
+
+  group('Rejuego (R)', () {
+    test('se guarda como P con replay, sin zona, y el punto sigue con una Contra', () {
+      final c = _newController(startingServer: TeamSide.rival);
+      c.logReception('P1', Grade.p);
+      expect(c.stage, RallyStage.attackK1Own);
+      c.logAttack('O1', Grade.p, targetZone: 4, replay: true);
+
+      final ev = c.currentSet.events.last;
+      expect((ev.phase, ev.grade, ev.replay, ev.targetZone, ev.endsRally),
+          (RallyPhase.attack, Grade.p, true, null, false));
+      expect(c.stage, RallyStage.defending);
+
+      // Rejuego también desde una contra, y después el punto.
+      c.logCounter('P2', Grade.p, replay: true);
+      expect(c.stage, RallyStage.defending);
+      c.logCounter('O1', Grade.pp, targetZone: 1);
+      expect(c.currentSet.ownScore, 1);
+
+      // Cuenta como una P más (ataque y contra), sin columnas nuevas.
+      final stats = StatsEngine.compute(c.match);
+      expect(stats.byPlayer['O1']!.ataque.p, 1);
+      expect(stats.byPlayer['P2']!.contra.p, 1);
+      expect(stats.team.ataque.total + stats.team.contra.total, 3);
+
+      // En los mapas se dibuja con su propio trazo, terminando en la red
+      // como un bloqueado (no necesita zona, así que no cuenta como "sin zona").
+      final shots = StatsEngine.computeShots(c.match);
+      final replay = shots.where(ShotKind.attack).single;
+      expect((replay.result, replay.targetY), (ShotResult.replay, 0.52));
+      expect(shots.missingZone(ShotKind.attack), 0);
+      expect(shots.missingZone(ShotKind.counter), 0);
+      expect([for (final s in shots.where(ShotKind.counter)) s.result], [ShotResult.replay, ShotResult.point]);
+    });
+
+    test('solo vale con P: con otra calificación se ignora', () {
+      final c = _newController(startingServer: TeamSide.rival);
+      c.logReception('P1', Grade.p);
+      c.logAttack('O1', Grade.n, targetZone: 2, replay: true);
+      final ev = c.currentSet.events.last;
+      expect((ev.replay, ev.targetZone), (false, 2));
+    });
+
+    test('se conserva al guardar y retomar, y deshacer vuelve al ataque', () {
+      final c = _newController(startingServer: TeamSide.rival);
+      c.logReception('P1', Grade.p);
+      c.logAttack('O1', Grade.p, replay: true);
+
+      final saved = VolleyMatch.fromJson(
+          jsonDecode(jsonEncode(c.match.toJson())) as Map<String, dynamic>);
+      expect(saved.sets.last.events.last.replay, isTrue);
+      expect(MatchController.resume(saved).stage, RallyStage.defending);
+
+      c.undoLastAction();
+      expect(c.stage, RallyStage.attackK1Own);
+      expect(c.currentSet.events.last.phase, RallyPhase.reception);
+    });
+
+    test('un evento guardado antes de este campo da replay = false', () {
+      final json = RallyEvent(
+        id: 'e',
+        setNumber: 1,
+        rallyNumber: 1,
+        phase: RallyPhase.attack,
+        team: TeamSide.own,
+        grade: Grade.p,
+        endsRally: false,
+        servingTeamBefore: TeamSide.rival,
+        ownScoreAfter: 0,
+        rivalScoreAfter: 0,
+        timestamp: DateTime(2026, 10, 4),
+      ).toJson()
+        ..remove('replay');
+      expect(RallyEvent.fromJson(json).replay, isFalse);
     });
   });
 

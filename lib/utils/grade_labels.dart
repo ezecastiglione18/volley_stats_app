@@ -6,7 +6,10 @@ class GradeOption {
   final String code;
   final String label;
   final Color color;
-  const GradeOption(this.code, this.label, this.color);
+
+  /// Botón "R · Rejuego": se guarda con [code] (P) y `RallyEvent.replay`.
+  final bool replay;
+  const GradeOption(this.code, this.label, this.color, {this.replay = false});
 }
 
 const serveAttackGrades = [
@@ -22,6 +25,8 @@ const attackCounterGrades = [
   GradeOption(Grade.n, 'N\nNegativa', Color(0xFFFFB74D)),
   GradeOption(Grade.bloq, 'BLOQ\nBloqueado', Color(0xFFE64A3B)),
   GradeOption(Grade.nn, 'NN\nError (Doble Negativa)', Color(0xFFB71C1C)),
+  // Rejuego: atacar contra el bloqueo para retenerla. Cuenta como P.
+  GradeOption(Grade.p, 'R\nRejuego', Color(0xFF4DB6AC), replay: true),
 ];
 
 const receptionGrades = [

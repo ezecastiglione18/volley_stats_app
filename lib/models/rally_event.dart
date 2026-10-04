@@ -76,6 +76,13 @@ class RallyEvent {
   /// red (ver [MissType]). Null si no se indicó.
   final String? missType;
 
+  /// Solo para ataque/contra con calificación P: el ataque se jugó contra el
+  /// bloqueo rival para retenerla y la posesión volvió al equipo propio
+  /// (botón "R · Rejuego"). Cuenta como una P más en la estadística; se
+  /// guarda aparte por si en el futuro se quiere separar. Sin zona de
+  /// destino. false en el resto de los casos y en partidos anteriores.
+  final bool replay;
+
   RallyEvent({
     required this.id,
     required this.setNumber,
@@ -93,6 +100,7 @@ class RallyEvent {
     this.targetZone,
     this.rivalActionType,
     this.missType,
+    this.replay = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -112,6 +120,7 @@ class RallyEvent {
         'targetZone': targetZone,
         'rivalActionType': rivalActionType,
         'missType': missType,
+        'replay': replay,
       };
 
   factory RallyEvent.fromJson(Map<dynamic, dynamic> json) => RallyEvent(
@@ -139,5 +148,6 @@ class RallyEvent {
         targetZone: (json['targetZone'] as num?)?.toInt(),
         rivalActionType: json['rivalActionType'] as String?,
         missType: json['missType'] as String?,
+        replay: json['replay'] as bool? ?? false,
       );
 }

@@ -120,7 +120,7 @@ class _CourtMapsTabState extends State<CourtMapsTab> {
                     ShotResult.point,
                     ShotResult.inPlay,
                     ShotResult.error,
-                    if (_kind != ShotKind.serve) ShotResult.blocked,
+                    if (_kind != ShotKind.serve) ...[ShotResult.blocked, ShotResult.replay],
                     for (final r in [ShotResult.out, ShotResult.net])
                       if (shots.any((s) => s.result == r)) r,
                   ]),
@@ -260,7 +260,7 @@ class _SelectedShotCard extends StatelessWidget {
         Expanded(
           child: Text(
             '${player == null ? '' : '#${player.number} ${player.displayName} · '}${shot.kind.label} '
-            '${_gradeLabels[ev.grade] ?? ev.grade ?? ''}\n'
+            '${ev.replay ? 'R · Rejuego (cuenta como P)' : _gradeLabels[ev.grade] ?? ev.grade ?? ''}\n'
             'Set ${ev.setNumber} · rally ${ev.rallyNumber} · marcador ${ev.ownScoreAfter}-${ev.rivalScoreAfter}'
             '${ev.targetZone == null ? '' : ' · zona ${ev.targetZone}'}',
             style: const TextStyle(fontSize: 12.5),

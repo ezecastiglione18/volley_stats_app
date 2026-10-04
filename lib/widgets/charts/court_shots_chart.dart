@@ -146,6 +146,7 @@ Color shotColor(ShotResult r, ChartPalette palette) {
     case ShotResult.inPlay:
       return palette.slate;
     case ShotResult.blocked:
+    case ShotResult.replay:
       return kChartBlock;
     case ShotResult.out:
     case ShotResult.net:
@@ -191,8 +192,15 @@ void paintShotStroke(Canvas canvas, Offset a, Offset b, ShotResult result, Chart
       _dashedLine(canvas, a - o, end - o, paint, 3 * k, 2 * k);
       _arrowHead(canvas, a, b, color, head);
       break;
+    case ShotResult.replay:
     case ShotResult.blocked:
-      canvas.drawLine(a, b, paint..strokeWidth = 1.5 * k);
+      // Mismo dibujo (termina en el bloqueo, con una barra): continuo el
+      // rejuego, punteado el bloqueado.
+      if (result == ShotResult.replay) {
+        canvas.drawLine(a, b, paint..strokeWidth = 1.5 * k);
+      } else {
+        _dashedLine(canvas, a, b, paint..strokeWidth = 1.5 * k, 3 * k, 2 * k);
+      }
       final bar = n * 4.5 * k;
       canvas.drawLine(b + bar, b - bar, Paint()
         ..color = color
@@ -273,7 +281,8 @@ class _LegendStrokePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final endInset = result == ShotResult.blocked || result == ShotResult.net ? 5.0 : 1.0;
+    final endInset =
+        result == ShotResult.blocked || result == ShotResult.replay || result == ShotResult.net ? 5.0 : 1.0;
     paintShotStroke(canvas, Offset(3, size.height / 2), Offset(size.width - endInset, size.height / 2), result, palette);
   }
 

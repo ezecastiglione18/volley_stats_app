@@ -11,7 +11,8 @@ estadísticas exportable como reporte en PDF.
 
 - Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional
   (saque, ataque y contraataque), en 6 zonas o en 9 (suma la franja media 7-8-9, elegible set a set), y en
-  los errores, si fue afuera o a la red (también opcional).
+  los errores, si fue afuera o a la red (también opcional). En ataque y contraataque, el botón "R" registra
+  un rejuego (atacar contra el bloqueo para retenerla): cuenta como una P y el punto sigue con una contra.
 - Edición de la formación ya comenzada: mientras el set no tenga ninguna acción cargada, "Editar
   formación" vuelve a la pantalla de formación con todo precargado para corregir sexteto, saque, líberos
   u opciones de registro sin tener que cargar el partido de nuevo.
@@ -41,13 +42,19 @@ estadísticas exportable como reporte en PDF.
   manual).
 - Estadísticas del partido completo o por set (propias y del rival), con porcentajes de efectividad de
   saque, ataque, contraataque y recepción, y reporte en PDF listo para compartir (incluye desglose por
-  jugador, sanciones y zonas de destino de saque, ataque y contraataque).
+  jugador, sanciones y zonas de destino de saque, ataque y contraataque). La tabla por jugador también se
+  exporta a Excel (CSV con `;`, BOM UTF-8 y porcentajes enteros, para Excel en español).
+- Notas de scouting por partido: texto libre en el resumen, que se ve también en el historial del
+  scouting de cada rival y al final del PDF.
+- Comparador de dos partidos terminados: métricas de equipo lado a lado con la diferencia coloreada según
+  mejore o empeore, y la tabla de un jugador presente en los dos partidos, una fila por partido.
 - Estadística visual en el resumen del partido (por partido completo o por set), en dos pestañas:
   - "Mapas": una flecha por saque, ataque o contraataque, por jugador o de todo el equipo, desde el lugar
     de salida (deducido del puesto y la rotación) hasta la zona registrada; el trazo indica el resultado
     (punto, adentro, afuera, a la red, error sin detalle, bloqueado). Incluye resumen y tabla por zona.
   - "Gráficos": tablero rápido (side-out, break-point, eficiencia de ataque, errores no forzados),
-    rendimiento por rotación P1–P6 (tabla estilo DataVolley + diferencia de puntos), side-out y
+    rendimiento por rotación P1–P6 (tabla estilo DataVolley + diferencia de puntos, con referencias de
+    cada columna y sus cálculos), side-out y
     break-point por rotación, evolución del marcador con rachas, origen de los puntos, eficiencia de
     ataque y recepción por jugador, y mapa de calor de zonas.
 
@@ -59,15 +66,16 @@ estadísticas exportable como reporte en PDF.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
 - Scouting de rivales: elegido un equipo propio, arma automáticamente la estadística acumulada contra
   cada rival ya enfrentado (récord, errores más frecuentes del rival y con qué toque suele ganar el
-  punto), a partir de los partidos ya guardados en el archivo, sin tener que revisarlos uno por uno.
+  punto), a partir de los partidos ya guardados en el archivo, sin tener que revisarlos uno por uno, con
+  las notas de scouting de cada partido en el historial.
 - Pizarra táctica: cancha dibujable a mano (formaciones, rotaciones, sistemas de ataque/defensa), con
   colores, modo flecha, fichines arrastrables para representar jugadores por puesto (armador, punta/
   receptor, central, opuesto, líbero) y archivo propio de jugadas guardadas, accesible desde la pantalla
   principal, la formación previa al set y la carga en vivo.
 - Modo claro y modo oscuro.
 - Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
-  hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra, zona de destino ni elección de
-  los mapas y gráficos que se muestran, y estadística/
+  hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra, zona de destino, elección de
+  los mapas y gráficos que se muestran, exportación a Excel ni comparador de partidos, y estadística/
   reporte en PDF disponible para un único partido de toda la cuenta —a elección propia, y solo una vez que
   ese partido está guardado y terminado en el archivo, nunca en vivo ni entre sets—, y se puede seguir
   usando así de forma indefinida sin suscribirse; premium quita esos límites y permite sumar hasta 3
@@ -99,7 +107,7 @@ estadísticas exportable como reporte en PDF.
 ```bash
 flutter pub get
 flutter run
-flutter test      # tests de widgets y de las reglas de juego de MatchController
+flutter test      # tests de widgets, reglas de juego de MatchController, estadística, CSV y comparador
 ```
 
 Para generar el APK de Android:
@@ -125,7 +133,8 @@ lib/
               # SubscriptionController (estado de la suscripción premium)
   screens/    # pantallas: home, auth, equipos, armado de partido, carga en vivo, resumen, archivo, pizarra,
               # suscripción/paywall, canje de código promocional, configuración de cuenta
-  services/   # persistencia local (Hive), estadísticas, reportes en PDF, exportar/importar partidos,
+  services/   # persistencia local (Hive), estadísticas, comparador, reportes en PDF, exportar a CSV,
+              # exportar/importar partidos,
               # auth (Firebase), compras (RevenueCat), canje de código (Cloud Functions)
 ```
 
@@ -138,7 +147,7 @@ Firebase propio (Authentication + Firestore). Los pasos para configurarlo están
 ## Suscripción premium (Google Play Billing vía RevenueCat)
 
 Android usa [RevenueCat](https://app.revenuecat.com) (`purchases_flutter`) para la suscripción premium
-mensual (qué queda bloqueado sin ella está detallado en la sección 18 del manual de usuario). Para que las
+mensual (qué queda bloqueado sin ella está detallado en la sección 19.1 del manual de usuario). Para que las
 compras funcionen de verdad hace falta:
 
 - Un producto de suscripción cargado en Play Console con el mismo product id / base plan que

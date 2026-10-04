@@ -354,15 +354,24 @@ class MatchController extends ChangeNotifier {
     }
   }
 
-  void logAttack(String playerId, String grade, {int? targetZone, String? missType}) {
-    _logAttackOrCounter(RallyPhase.attack, playerId, grade, targetZone: targetZone, missType: missType);
+  void logAttack(String playerId, String grade, {int? targetZone, String? missType, bool replay = false}) {
+    _logAttackOrCounter(RallyPhase.attack, playerId, grade,
+        targetZone: targetZone, missType: missType, replay: replay);
   }
 
-  void logCounter(String playerId, String grade, {int? targetZone, String? missType}) {
-    _logAttackOrCounter(RallyPhase.counter, playerId, grade, targetZone: targetZone, missType: missType);
+  void logCounter(String playerId, String grade, {int? targetZone, String? missType, bool replay = false}) {
+    _logAttackOrCounter(RallyPhase.counter, playerId, grade,
+        targetZone: targetZone, missType: missType, replay: replay);
   }
 
-  void _logAttackOrCounter(RallyPhase phase, String playerId, String grade, {int? targetZone, String? missType}) {
+  /// [replay] (rejuego: atacar contra el bloqueo para recuperar la
+  /// posesión) solo vale con [Grade.p] y se guarda sin zona. Como cualquier
+  /// P, el punto sigue en `defending`, donde el próximo toque propio es una
+  /// Contra.
+  void _logAttackOrCounter(RallyPhase phase, String playerId, String grade,
+      {int? targetZone, String? missType, bool replay = false}) {
+    final isReplay = replay && grade == Grade.p;
+    if (isReplay) targetZone = null;
     final terminal = grade == Grade.pp || grade == Grade.nn || grade == Grade.bloq;
     final winner = grade == Grade.pp
         ? TeamSide.own
@@ -376,6 +385,7 @@ class MatchController extends ChangeNotifier {
       winner: winner,
       targetZone: targetZone,
       missType: missType,
+      replay: isReplay,
     );
     if (!terminal) {
       _stage = RallyStage.defending;
@@ -1274,6 +1284,9 @@ class MatchController extends ChangeNotifier {
     return r == 0 ? MissType.out : (r == 1 ? MissType.net : null);
   }
 
+  /// Una P de ataque/contra es a veces un rejuego.
+  bool _randomReplay(String grade) => grade == Grade.p && _rng.nextInt(4) == 0;
+
   int? _randomZone() =>
       currentSet.trackHitZones ? 1 + _rng.nextInt(currentSet.nineHitZones ? 9 : 6) : null;
 
@@ -1297,7 +1310,8 @@ class MatchController extends ChangeNotifier {
           break;
         case RallyStage.attackK1Own:
           final g = _randomGrade(_attackGradePool);
-          logAttack(_randomPlayerId(), g, targetZone: _randomZone(), missType: _randomMiss(g));
+          logAttack(_randomPlayerId(), g,
+              targetZone: _randomZone(), missType: _randomMiss(g), replay: _randomReplay(g));
           break;
         case RallyStage.defending:
           _simulateDefendingTouch();
@@ -1310,7 +1324,8 @@ class MatchController extends ChangeNotifier {
     final roll = _rng.nextDouble();
     if (roll < 0.45) {
       final g = _randomGrade(_attackGradePool);
-      logCounter(_randomPlayerId(), g, targetZone: _randomZone(), missType: _randomMiss(g));
+      logCounter(_randomPlayerId(), g,
+          targetZone: _randomZone(), missType: _randomMiss(g), replay: _randomReplay(g));
     } else if (roll < 0.65) {
       final blockers = onCourtPlayers..shuffle(_rng);
       logBlockPoint(blockers.take(1 + _rng.nextInt(2)).map((p) => p.id).toList());
@@ -1398,6 +1413,7 @@ class MatchController extends ChangeNotifier {
     int? targetZone,
     String? rivalActionType,
     String? missType,
+    bool replay = false,
   }) {
     final set = currentSet;
     final servingBefore = _servingTeam;
@@ -1426,6 +1442,7 @@ class MatchController extends ChangeNotifier {
       rivalActionType: rivalActionType,
       // El detalle de un error solo tiene sentido en un NN y con zonas.
       missType: set.trackHitZones && grade == Grade.nn ? missType : null,
+      replay: replay,
     );
     set.events.add(event);
 

@@ -24,6 +24,11 @@ class VolleyMatch {
   List<MatchSet> sets;
   MatchStatus status;
 
+  /// Notas de scouting en texto libre (cómo saca el rival, qué reforzar,
+  /// etc.). Null = sin notas, también en partidos guardados antes de este
+  /// campo.
+  String? notes;
+
   VolleyMatch({
     required this.id,
     required this.date,
@@ -39,6 +44,7 @@ class VolleyMatch {
     required this.config,
     List<MatchSet>? sets,
     this.status = MatchStatus.setup,
+    this.notes,
   }) : sets = sets ?? [];
 
   int get ownSetsWon => sets.where((s) => s.finished && s.winner == TeamSide.own).length;
@@ -62,6 +68,7 @@ class VolleyMatch {
         'config': config.toJson(),
         'sets': sets.map((s) => s.toJson()).toList(),
         'status': status.name,
+        'notes': notes,
       };
 
   factory VolleyMatch.fromJson(Map<dynamic, dynamic> json) {
@@ -103,6 +110,7 @@ class VolleyMatch {
         (e) => e.name == json['status'],
         orElse: () => MatchStatus.setup,
       ),
+      notes: json['notes'] as String?,
     );
   }
 }

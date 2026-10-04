@@ -124,6 +124,22 @@ void main() {
   });
 
   group('Rotaciones', () {
+    test('la fórmula de G-P de la leyenda vale en cada fila: (+Pts + Adv +Err) - (-Err + Adv -Pts)', () {
+      for (var i = 0; i < 3; i++) {
+        final s = StatsEngine.computeRotations(_simulatedMatch(sets: 3).match);
+        for (final r in [...s.setterRows, s.total]) {
+          expect(r.diff, (r.ownPts + r.rivalErr) - (r.ownErr + r.rivalPts), reason: r.label);
+          expect(r.ownPts, r.servePts + r.attackPts + r.blockPts);
+          expect(r.ownErr, r.serveErr + r.recErr + r.attackErr + r.attackBl + r.genErr);
+        }
+      }
+      // La leyenda va también al PDF (Helvetica): solo Latin-1.
+      expect(rotationTableLegend.runes.every((c) => c <= 0xFF), isTrue);
+      for (final h in rotationTableHeaders.skip(1)) {
+        expect(rotationTableLegend, contains(h.replaceAll('\n', ' ')), reason: h);
+      }
+    });
+
     test('P1 con el armador en zona 1; cada side-out ganado pasa a P6 y después a P5', () {
       final c = _newController();
       c.logServe('A1', Grade.pp); // rally 1: break ganado en P1
@@ -341,8 +357,10 @@ void main() {
       for (var i = 0; i < a.shots.length; i++) {
         final s = a.shots[i];
         expect((s.targetX, s.targetY), (b.shots[i].targetX, b.shots[i].targetY));
-        // Bloqueado, a la red y afuera no terminan en la zona (ver sus propios tests).
-        if (const {ShotResult.blocked, ShotResult.net, ShotResult.out}.contains(s.result)) continue;
+        // Bloqueado, rejuego, a la red y afuera no terminan en la zona (ver sus propios tests).
+        if (const {ShotResult.blocked, ShotResult.replay, ShotResult.net, ShotResult.out}.contains(s.result)) {
+          continue;
+        }
         final center = StatsEngine.zoneCenter(s.event.targetZone!, nineZones: false)!;
         expect((s.targetX - center.$1).abs(), lessThanOrEqualTo(0.05));
         expect((s.targetY - center.$2).abs(), lessThanOrEqualTo(0.05));
@@ -438,6 +456,52 @@ void main() {
       expect(net.targetY, 0.503);
     });
 
+    testWidgets('en el diálogo, "R" confirma una P de rejuego sin zona aunque se haya marcado una', (tester) async {
+      (String, int?, String?, bool)? got;
+      tester.view.physicalSize = const Size(1080, 3000);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        theme: buildLightTheme(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => showTouchDialog(
+                  context: context,
+                  title: 'Contraataque',
+                  players: [_roster.first],
+                  fixedPlayerId: _roster.first.id,
+                  grades: attackCounterGrades,
+                  trackZone: true,
+                  onConfirm: (player, grade, zone, miss, replay) => got = (grade, zone, miss, replay),
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+      // Sexto botón de la grilla, al lado de NN.
+      expect(find.text('R\nRejuego'), findsOneWidget);
+      await tester.tap(find.text('3'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('R\nRejuego'));
+      await tester.pumpAndSettle();
+      expect(got, (Grade.p, null, null, true));
+
+      // La P común sigue igual, con su zona.
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('3'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('P\nPositiva'));
+      await tester.pumpAndSettle();
+      expect(got, (Grade.p, 3, null, false));
+    });
+
     testWidgets('en el diálogo, "Afuera" se elige antes de NN y no suma un toque obligatorio', (tester) async {
       String? gotGrade;
       String? gotMiss;
@@ -455,7 +519,7 @@ void main() {
                     fixedPlayerId: _roster.first.id,
                     grades: attackCounterGrades,
                     trackZone: trackZone,
-                    onConfirm: (player, grade, zone, miss) {
+                    onConfirm: (player, grade, zone, miss, replay) {
                       gotGrade = grade;
                       gotMiss = miss;
                     },
@@ -523,9 +587,10 @@ void main() {
       final legacy = VolleyMatch.fromJson(json);
       expect(StatsEngine.computeRotations(legacy).total.rallies, StatsEngine.computeRotations(c.match).total.rallies);
       final shots = StatsEngine.computeShots(legacy);
-      // Solo se dibujan los que terminan en la red (bloqueados y "a la red"):
-      // no necesitan zona. El resto se cuenta como "sin zona".
-      expect(shots.shots.every((s) => s.result == ShotResult.blocked || s.result == ShotResult.net), isTrue);
+      // Solo se dibujan los que terminan en la red (bloqueados, rejuegos y "a
+      // la red"): no necesitan zona. El resto se cuenta como "sin zona".
+      const atNet = {ShotResult.blocked, ShotResult.replay, ShotResult.net};
+      expect(shots.shots.every((s) => atNet.contains(s.result)), isTrue);
       final team = StatsEngine.compute(legacy).team;
       expect(shots.missingZone(ShotKind.serve) + shots.where(ShotKind.serve).length, team.saque.total);
       expect(shots.missingZone(ShotKind.attack) + shots.where(ShotKind.attack).length, team.ataque.total);

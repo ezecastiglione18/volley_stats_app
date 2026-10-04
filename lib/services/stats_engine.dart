@@ -501,13 +501,14 @@ class StatsEngine {
           final slot = order.indexOf(playerId);
           final courtPos = slot < 0 ? null : ((slot - offset) % 6 + 6) % 6 + 1;
           final (ox, oy) = shotOrigin(kind, positions[playerId], courtPos);
-          final result = shotResultOf(ev.grade, ev.missType);
+          final result = ev.replay ? ShotResult.replay : shotResultOf(ev.grade, ev.missType);
           final center = ev.targetZone == null ? null : zoneCenter(ev.targetZone!, nineZones: set.nineHitZones);
 
           double? tx, ty;
-          if (result == ShotResult.blocked) {
-            // Bloqueado: la pelota no pasó la red; la flecha muere enfrente
-            // del atacante, apenas inclinada hacia la zona a la que iba.
+          if (result == ShotResult.blocked || result == ShotResult.replay) {
+            // Bloqueado o rejuego: la pelota no pasó la red; la flecha muere
+            // enfrente del atacante, apenas inclinada hacia la zona a la que
+            // iba (un rejuego nunca tiene zona: va derecho al bloqueo).
             tx = center == null ? ox : ox + (center.$1 - ox) * 0.1;
             ty = 0.52;
           } else if (result == ShotResult.net) {

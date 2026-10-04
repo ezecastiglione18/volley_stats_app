@@ -184,6 +184,7 @@ class PdfReportService {
           ],
           ..._visualSection(match, stats, zones, charts),
           ..._mapsSection(match, stats, maps),
+          ..._notesSection(match),
         ],
       ),
     );
@@ -343,7 +344,8 @@ class PdfReportService {
           pw.Text('Mapas de dirección por jugador', style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
           pw.Text(
             'Partido completo. Cada flecha es un toque: sale del lugar deducido por el puesto y la rotación del '
-            'jugador y termina en la zona registrada. Los toques sin zona de destino no se dibujan.',
+            'jugador y termina en la zona registrada. Los toques sin zona de destino no se dibujan, salvo los '
+            'bloqueados, los rejuegos y los errores a la red, que terminan en la red.',
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
           ),
           pw.SizedBox(height: 4),
@@ -354,6 +356,7 @@ class PdfReportService {
               if (data.shots.any((s) => s.result == r)) r,
             ShotResult.error,
             ShotResult.blocked,
+            ShotResult.replay,
           ]),
           pw.SizedBox(height: 8),
           rows.first,
@@ -428,7 +431,15 @@ class PdfReportService {
       pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pdfDivergingBars(290, 165, [for (final r in rows) r.label], [for (final r in rows) r.diff]),
         pw.SizedBox(width: 14),
-        pw.Expanded(child: _rotationTable(rows, rotations.total)),
+        pw.Expanded(
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            _rotationTable(rows, rotations.total),
+            pw.SizedBox(height: 3),
+            // Mismo estilo que las referencias de la tabla de estadísticas.
+            pw.Text('Referencias - $rotationTableLegend',
+                style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700)),
+          ]),
+        ),
       ]),
       if (rotations.hasSeparateFallback) ...[
         pw.SizedBox(height: 6),
@@ -624,6 +635,53 @@ class PdfReportService {
     ]);
   }
 
+  /// "Notas de scouting" al final del reporte, solo si el partido tiene notas.
+  static List<pw.Widget> _notesSection(VolleyMatch match) {
+    final notes = match.notes;
+    if (notes == null || notes.trim().isEmpty) return [];
+    return [
+      pw.SizedBox(height: 16),
+      pw.Inseparable(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Notas de scouting', style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+              ),
+              child: pw.Text(latin1Safe(notes.trim()), style: const pw.TextStyle(fontSize: 9.5)),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// El reporte usa Helvetica (solo Latin-1): pasa a su equivalente los
+  /// signos tipográficos que meten los teclados de celular (comillas curvas,
+  /// guiones largos, "…") y descarta el resto de lo que no se puede dibujar
+  /// (emojis, flechas), que si no saldría como un recuadro vacío.
+  @visibleForTesting
+  static String latin1Safe(String s) {
+    const map = {
+      0x2018: "'", 0x2019: "'", 0x201A: "'", 0x201C: '"', 0x201D: '"', 0x201E: '"',
+      0x2013: '-', 0x2014: '-', 0x2212: '-', 0x2026: '...', 0x2022: '·', 0x2192: '->', 0x2190: '<-',    };
+    final out = StringBuffer();
+    for (final r in s.runes) {
+      if (r <= 0xFF) {
+        out.writeCharCode(r);
+      } else if (map[r] != null) {
+        out.write(map[r]);
+      }
+    }
+    return out.toString();
+  }
+
   /// Línea con el equipo ganador del partido (en sets), o null si todavía
   /// está empatado en sets (partido sin definir).
   static pw.Widget? _matchWinnerText(VolleyMatch match) {
@@ -808,7 +866,8 @@ class PdfReportService {
         ),
         pw.SizedBox(height: 3),
         pw.Text(
-          'Referencias - Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva · N Negativa · '
+          'Referencias - Saque/Ataque/Contra: PP Punto (Doble Positiva) · P Positiva (en Ataque/Contra incluye R Rejuego) · '
+          'N Negativa · '
           'Bl Bloqueado · NN Error (Doble Negativa). % Saque = (PP+P)/Total · % Ataque y % Contra = '
           'PP/Total.  Recepción: PP Perfecta (Doble Positiva) · P Positiva · '
           '! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa). % Recepción = (PP+P)/Total. '

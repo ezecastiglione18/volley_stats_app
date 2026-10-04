@@ -10,8 +10,10 @@ import '../../state/match_controller.dart';
 import '../../state/subscription_controller.dart';
 import '../../utils/id_gen.dart';
 import '../../utils/theme.dart';
+import '../../widgets/premium_gate.dart';
 import '../../widgets/theme_toggle_switch.dart';
 import '../live/live_match_screen.dart';
+import 'match_compare_screen.dart';
 import 'match_summary_screen.dart';
 
 class MatchArchiveScreen extends StatefulWidget {
@@ -36,6 +38,24 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Abre el comparador con [match] como partido A (función premium). Hace
+  /// falta al menos otro partido terminado para elegir como B.
+  void _compareWith(VolleyMatch match, List<VolleyMatch> matches) {
+    final finishedCount = matches.where((m) => m.status == MatchStatus.finished).length;
+    if (finishedCount < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Para comparar hacen falta al menos 2 partidos terminados en el archivo.')));
+      return;
+    }
+    runIfPremium(
+      context,
+      () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => MatchCompareScreen(initialA: match)),
+      ),
+    );
   }
 
   Future<void> _importMatch() async {
@@ -124,11 +144,14 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
                           await context.read<AppDataController>().deleteMatch(m.id);
                         } else if (v == 'export') {
                           await _exportMatch(m);
+                        } else if (v == 'compare') {
+                          _compareWith(m, matches);
                         }
                       },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'export', child: Text('Exportar')),
-                        PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'export', child: Text('Exportar')),
+                        if (finished) const PopupMenuItem(value: 'compare', child: Text('Comparar con…')),
+                        const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
                       ],
                     ),
                     onTap: () {

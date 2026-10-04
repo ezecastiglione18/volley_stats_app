@@ -32,7 +32,14 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 29;
+const _coverTotalPages = 30;
+
+/// Versión de la tapa, leída de `version:` en pubspec.yaml (sin el número de
+/// build), para que no quede desactualizada al subir la versión de la app.
+final String _appVersion = () {
+  final line = File('pubspec.yaml').readAsLinesSync().firstWhere((l) => l.startsWith('version:'));
+  return line.substring('version:'.length).trim().split('+').first;
+}();
 
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
@@ -60,7 +67,7 @@ const _pCancha = 11;
 const _pBotonesAccion = 11;
 const _pZonaDestino = 13;
 const _pRotacionManual = 13;
-const _pCambiosJugador = 13;
+const _pCambiosJugador = 14;
 const _pCambioRegular = 14;
 const _pCambioLibero = 14;
 const _pDeshacerCambio = 15;
@@ -72,21 +79,24 @@ const _pFinSet = 17;
 const _pArchivo = 18;
 const _pExportarPartido = 18;
 const _pImportarPartido = 18;
-const _pRivalScouting = 18;
-const _pResumen = 19;
+const _pCompararPartidos = 19;
+const _pRivalScouting = 19;
+const _pResumen = 20;
 const _pGraficos = 20;
-const _pMapas = 20;
-const _pExportarPdf = 21;
-const _pGlosario = 22;
-const _pSuscripcionPremium = 24;
-const _pQueIncluyePremium = 24;
-const _pComoSuscribirse = 24;
-const _pDispositivosAdicionales = 25;
-const _pRestaurarCompras = 25;
-const _pGestionarCancelar = 25;
-const _pDarDeBajaDispositivo = 25;
-const _pFaq = 25;
-const _pContacto = 28;
+const _pMapas = 21;
+const _pNotasScouting = 22;
+const _pExportarCsv = 22;
+const _pExportarPdf = 22;
+const _pGlosario = 23;
+const _pSuscripcionPremium = 25;
+const _pQueIncluyePremium = 25;
+const _pComoSuscribirse = 26;
+const _pDispositivosAdicionales = 26;
+const _pRestaurarCompras = 26;
+const _pGestionarCancelar = 26;
+const _pDarDeBajaDispositivo = 26;
+const _pFaq = 27;
+const _pContacto = 30;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -188,7 +198,7 @@ pw.Page _coverPage(pw.MemoryImage logo) {
                   style: pw.TextStyle(color: PdfColors.blueGrey200, fontSize: 9),
                   children: [
                     const pw.TextSpan(text: 'Versión de la app '),
-                    pw.TextSpan(text: '1.0', style: pw.TextStyle(color: _white, fontWeight: pw.FontWeight.bold)),
+                    pw.TextSpan(text: _appVersion, style: pw.TextStyle(color: _white, fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
               ),
@@ -570,10 +580,13 @@ List<pw.Widget> _indexContent() {
     entry('Archivo de partidos', _pArchivo),
     entry('Exportar un partido', _pExportarPartido, sub: true),
     entry('Importar un partido', _pImportarPartido, sub: true),
+    entry('Comparar dos partidos', _pCompararPartidos, sub: true),
     entry('Scouting de rivales', _pRivalScouting),
     entry('Resumen del partido y estadísticas', _pResumen),
     entry('Gráficos', _pGraficos, sub: true),
     entry('Mapas', _pMapas, sub: true),
+    entry('Notas de scouting', _pNotasScouting, sub: true),
+    entry('Exportar a Excel (CSV)', _pExportarCsv, sub: true),
     entry('Exportar el reporte en PDF', _pExportarPdf),
     entry('Glosario de calificaciones y abreviaturas', _pGlosario),
     entry('Suscripción Premium', _pSuscripcionPremium),
@@ -619,6 +632,8 @@ List<pw.Widget> _section1Introduccion() => [
         [_t('Ver la estadística del partido completo o de un set en particular.')],
         [_t('Ver el scouting acumulado de cada rival ya enfrentado: récord, con qué error se lo suele vencer y con qué toque suele ganar el punto (sección 15).')],
         [_t('Exportar y compartir un reporte en PDF con el resultado, la estadística por jugador, la del rival y las zonas de destino de saque, ataque y contraataque.')],
+        [_t('Exportar la tabla de estadísticas a Excel (sección 16.4) y comparar dos partidos lado a lado (sección 14.3).')],
+        [_t('Dejar notas de scouting en cada partido para repasarlas antes del próximo cruce (sección 16.3).')],
         [
           _t('Exportar un partido guardado como archivo (no el PDF) para pasarlo a otro dispositivo '
               'e importarlo ahí, conservando todos sus datos.')
@@ -645,9 +660,9 @@ List<pw.Widget> _section1Introduccion() => [
         'usar en dos dispositivos a la vez.',
       ),
       _p(
-        'Algunas de estas funciones (pizarra, zona de destino, guardar más de 3 partidos, y estadísticas '
-        'más allá de un único partido) requieren la suscripción premium: ver el detalle completo en la '
-        'sección 19.',
+        'Algunas de estas funciones (pizarra, zona de destino, guardar más de 3 partidos, estadísticas '
+        'más allá de un único partido, exportar a Excel y comparar partidos) requieren la suscripción '
+        'premium: ver el detalle completo en la sección 19.',
       ),
     ];
 
@@ -1122,7 +1137,7 @@ List<pw.Widget> _section9PantallaVivo() => [
         flex: [3, 7],
         rows: [
           ['Saque', 'PP Punto (Doble Positiva) · P Positiva · N Negativa · NN Error (Doble Negativa)'],
-          ['Ataque / Contra', 'PP Punto (Doble Positiva) · P Positiva · N Negativa · BLOQ Bloqueado · NN Error (Doble Negativa)'],
+          ['Ataque / Contra', 'PP Punto (Doble Positiva) · P Positiva · N Negativa · BLOQ Bloqueado · NN Error (Doble Negativa) · R Rejuego (cuenta como P)'],
           ['Recepción', 'PP Perfecta (Doble Positiva) · P Positiva · ! Exclamativa · N Negativa · V/ Vendida · NN Error (Doble Negativa)'],
         ],
       ),
@@ -1131,6 +1146,13 @@ List<pw.Widget> _section9PantallaVivo() => [
         'Una recepción calificada como V/ Vendida no habilita Ataque (la pelota quedó descontrolada del '
         'lado rival, no en condiciones de armar un ataque propio): habilita Contra, Bloqueo (Punto), Error '
         'Genérico, Punto Rival y Error Rival, igual que cualquier otra pelota en juego del lado rival.',
+      ),
+      _p(
+        'El botón R Rejuego, en el panel de Ataque y de Contra, es para cuando el jugador ataca contra el '
+        'bloqueo rival a propósito para retener la pelota y la posesión vuelve al equipo propio. En la '
+        'estadística cuenta como una P (Positiva) más de ese jugador, y el punto sigue con la pelota de '
+        'nuestro lado: el próximo ataque se carga con el botón Contra. No hace falta marcar zona de destino '
+        '(si se marcó una, se ignora).',
       ),
       _p('Para el bloqueo se puede elegir uno o más jugadores (bloqueo doble o triple); para "Error Genérico" se puede elegir un jugador o dejarlo sin asignar.'),
       _p(
@@ -1484,7 +1506,10 @@ List<pw.Widget> _section14Archivo() => [
       _bullets([
         [_t('Tocar un partido terminado abre directamente su resumen de estadísticas (sección 16).')],
         [_t('Tocar un partido en curso retoma la carga en vivo exactamente donde había quedado, reconstruyendo el marcador, la rotación y los cambios ya realizados.')],
-        [_t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 14.1) o eliminar del archivo.')],
+        [
+          _t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 14.1), compararlo con '
+              'otro partido terminado (ver 14.3) o eliminarlo del archivo.')
+        ],
       ]),
       _subHeading('14.1 Exportar un partido'),
       _p(
@@ -1505,6 +1530,31 @@ List<pw.Widget> _section14Archivo() => [
         'Si ya hay ahí un partido con el mismo identificador (por ejemplo, si el mismo archivo se importa '
         'dos veces), se guarda como una copia nueva y aparte, sin pisar el que ya estaba.',
       ),
+      _subHeading('14.3 Comparar dos partidos'),
+      _p(
+        'La opción Comparar con... del menú de tres puntos de un partido terminado (función premium) pone ese '
+        'partido (A) al lado de otro (B), por ejemplo la ida y la vuelta contra el mismo rival, o un partido '
+        'antes y otro después de cambiar el sistema de juego. Arriba se pueden cambiar los dos partidos '
+        '(solo terminados) y se compara siempre el partido completo. Hacen falta al menos 2 partidos '
+        'terminados en el archivo.',
+        bottom: 6,
+      ),
+      _bullets([
+        [
+          _b('Equipo: '),
+          _t('una tabla con cada métrica, su valor en A y en B y la diferencia (B menos A; en los '
+              'porcentajes, en puntos porcentuales): sets, puntos (totales, de saque, ataque, contra y '
+              'bloqueo), errores de saque, de ataque y generales, eficacia de ataque y de recepción y '
+              'errores del rival. La diferencia va en verde si B mejoró y en rojo si empeoró; en los errores '
+              'propios, mejorar es que bajen.')
+        ],
+        [
+          _b('Jugador: '),
+          _t('se elige un jugador y se ve la misma tabla de estadísticas del resumen (sección 16), con una '
+              'fila por partido. Solo aparecen los jugadores que estuvieron en los dos partidos, así que '
+              'los dos tienen que haberse armado desde el mismo equipo de "Equipos" (sección 5).')
+        ],
+      ]),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1541,7 +1591,8 @@ List<pw.Widget> _section15RivalScouting() => [
         ],
         [
           _t('El historial de esos partidos (fecha, resultado y torneo), con acceso directo al resumen de '
-              'estadísticas de cada uno que ya haya terminado (sección 16).')
+              'estadísticas de cada uno que ya haya terminado (sección 16). Si un partido tiene notas de '
+              'scouting (sección 16.3), aparecen debajo, para repasarlas antes del próximo cruce.')
         ],
       ]),
       _infoBox(
@@ -1569,6 +1620,7 @@ List<pw.Widget> _section16Resumen() => [
         [_t('Si acabás de terminar el partido, un aviso y un botón Volver al inicio para ir directo a la pantalla principal.')],
         [_t('El resultado punto a punto de cada set jugado.')],
         [_t('Una tabla de estadísticas por jugador, con una fila de TOTAL EQUIPO al final.')],
+        [_t('Las notas de scouting del partido (sección 16.3).')],
         [
           _t('Una sección aparte, "Estadística del rival", con sus errores por tipo (saque, ataque, contra, '
               'genérico) y los puntos que ganó con su propio toque (ataque o contra).')
@@ -1594,7 +1646,11 @@ List<pw.Widget> _section16Resumen() => [
       ),
       _bullets([
         [_b('Saque: '), _t('(PP + P) sobre el total de saques.')],
-        [_b('Ataque y Contraataque: '), _t('PP sobre el total de toques (PP + P + N + Bl + NN).')],
+        [
+          _b('Ataque y Contraataque: '),
+          _t('PP sobre el total de toques (PP + P + N + Bl + NN). Los rejuegos (R, sección 9.3) están '
+              'sumados dentro de la P.')
+        ],
         [_b('Recepción: '), _t('(PP + P) sobre el total de recepciones.')],
       ]),
       _subHeading('16.1 Gráficos'),
@@ -1620,7 +1676,9 @@ List<pw.Widget> _section16Resumen() => [
               'errores propios de saque, recepción, ataque y bloqueo). La rotación se nombra por la '
               'posición del armador: P1 = armador en zona 1. Si en la formación inicial de un set no hay '
               'un único jugador con posición Armador, ese set se cuenta aparte como R1 a R6 (R1 = como '
-              'arrancó el set).')
+              'arrancó el set). Debajo de la tabla, unas referencias explican cada columna y cómo se '
+              'calcula (por ejemplo, G-P = (+Pts + Adv +Err) - (-Err + Adv -Pts)); también en el glosario, '
+              'sección 18.')
         ],
         [
           _b('Side-out y break-point por rotación: '),
@@ -1667,7 +1725,11 @@ List<pw.Widget> _section16Resumen() => [
         [_b('Punteada roja: '), _t('error (NN) sin detalle.')],
         [_b('Doble punteada roja: '), _t('error afuera; la flecha sigue la dirección de la zona marcada hasta salir de la cancha.')],
         [_b('Punteada roja que termina en la red con una cruz: '), _t('error a la red.')],
-        [_b('Naranja que termina en la red con una barra: '), _t('bloqueado (BLOQ, solo ataque y contra).')],
+        [_b('Naranja punteada que termina en la red con una barra: '), _t('bloqueado (BLOQ, solo ataque y contra).')],
+        [
+          _b('Naranja continua que termina en la red con una barra: '),
+          _t('rejuego (R, solo ataque y contra): se atacó contra el bloqueo y la pelota volvió.')
+        ],
       ]),
       _p(
         'Tocando una flecha se ve su detalle (jugador, calificación, set, rally, marcador y zona). Debajo de '
@@ -1676,11 +1738,36 @@ List<pw.Widget> _section16Resumen() => [
       ),
       _infoBox(
         'El destino de cada flecha es la zona de destino registrada en la carga (sección 9.4): los toques sin '
-        'zona no se pueden dibujar (salvo los bloqueados y los errores a la red, que terminan siempre en la '
-        'red), pero sí cuentan en el resumen (se avisa cuántos son). El origen no se '
+        'zona no se pueden dibujar (salvo los bloqueados, los rejuegos y los errores a la red, que terminan '
+        'siempre en la red), pero sí cuentan en el resumen (se avisa cuántos son). El origen no se '
         'carga: la app lo deduce del puesto del jugador y de su lugar en la rotación en ese momento (por '
         'ejemplo, un punta adelante ataca desde la zona 4 y atrás, por el medio). Por eso el mapa muestra '
         'tendencias, no la posición exacta de cada pelota.',
+      ),
+      _subHeading('16.3 Notas de scouting'),
+      _p(
+        'En la pestaña Tabla, la tarjeta Notas de scouting sirve para dejar observaciones en texto libre '
+        'sobre el partido (cómo saca el rival, qué rotación costó, qué reforzar), hasta 1000 caracteres. '
+        'El ícono del lápiz abre el editor; Guardar las deja grabadas con el partido y, si se borra todo el '
+        'texto, la tarjeta vuelve a decir "Sin notas". Es una función gratuita.',
+      ),
+      _p(
+        'Las notas aparecen también debajo de cada partido en el historial de Scouting de rivales (sección '
+        '15) y al final del reporte en PDF (sección 17).',
+      ),
+      _subHeading('16.4 Exportar a Excel (CSV)'),
+      _p(
+        'El ícono de tabla del encabezado (función premium) exporta la tabla de estadísticas por jugador a '
+        'un archivo .csv que se abre con Excel o Google Sheets, para cruzarla con planillas propias. Lleva '
+        'las mismas columnas y filas que la tabla de la app (incluida TOTAL EQUIPO) del partido completo o '
+        'del set elegido en el selector Estadística. En el celular se abre la hoja para compartir; en la '
+        'computadora, un "Guardar como".',
+      ),
+      _infoBox(
+        'El archivo está pensado para Excel en español: las columnas van separadas por punto y coma, los '
+        'acentos y la ñ se ven bien, y los porcentajes van como números enteros sin el signo % (por ejemplo, '
+        '67), para poder ordenarlos o sacar promedios. Si un jugador no tuvo toques de un tipo, ese '
+        'porcentaje queda vacío.',
       ),
     ];
 
@@ -1710,11 +1797,12 @@ List<pw.Widget> _section17ExportarPdf() => [
               'suscripción premium se elige qué lleva en Configuración > Estadística visual del PDF '
               '(sección 3); sin premium, el reporte lleva todo.')
         ],
+        [_t('Si el partido tiene notas de scouting (sección 16.3), una sección "Notas de scouting" al final.')],
       ]),
       _infoBox(
-        'Nota: el reporte en PDF es, hoy, la única forma de sacar los datos de un partido fuera del '
-        'dispositivo. Conviene exportarlo y guardarlo (o enviarlo al cuerpo técnico) apenas termina cada '
-        'partido importante.',
+        'Nota: los datos se guardan solo en el dispositivo. Conviene exportar el reporte en PDF (o la tabla '
+        'a Excel, sección 16.4) y guardarlo o enviarlo al cuerpo técnico apenas termina cada partido '
+        'importante.',
       ),
     ];
 
@@ -1735,6 +1823,11 @@ List<pw.Widget> _section18Glosario() => [
           ['N', 'Negativa: toque que dificulta la jugada propia pero no termina el punto.'],
           ['BLOQ', 'Bloqueado: solo en ataque/contra, el toque fue bloqueado por el rival (termina el punto en contra).'],
           ['NN', 'Error (Doble Negativa): el toque termina el punto a favor del rival.'],
+          [
+            'R',
+            'Rejuego: solo en ataque/contra, se atacó contra el bloqueo para retenerla y la pelota volvió al '
+                'equipo propio (el punto sigue). En la estadística cuenta como P.'
+          ],
         ],
       ),
       pw.SizedBox(height: 14),
@@ -1782,11 +1875,16 @@ List<pw.Widget> _section18Glosario() => [
         rows: [
           ['P1 a P6', 'Rotación, nombrada por la posición del armador en la cancha (P1 = armador en zona 1).'],
           ['R1 a R6', 'Rotación contada desde la formación inicial, para sets sin un único armador (R1 = como arrancó el set).'],
-          ['G-P', 'Rallies ganados menos perdidos.'],
+          ['G-P', 'Rallies ganados menos perdidos = (+Pts + Adv +Err) - (-Err + Adv -Pts).'],
           ['Side-out', '% de rallies ganados cuando saca el rival.'],
           ['Break-point', '% de rallies ganados con saque propio.'],
           ['Adv -Pts / Adv +Err', 'Puntos directos del rival / errores del rival (incluye sanciones al rival con punto).'],
-          ['+Pts / -Err', 'Puntos ganados con acción propia / perdidos por error propio.'],
+          [
+            '+Pts / -Err',
+            'Puntos ganados con acción propia (saque + ataque y contra + bloqueo) / perdidos por error propio '
+                '(saque + recepción + ataque y contra NN + bloqueados + errores generales).'
+          ],
+          ['Err gen.', 'Errores generales (rotación, cuatro toques, etc.) y sanciones propias con punto.'],
           ['Eficiencia de ataque', '(Puntos - errores - bloqueados) / total, sumando ataque y contra.'],
           ['Errores no forzados', 'Saque NN + ataque NN + contra NN + errores genéricos.'],
         ],
@@ -1826,11 +1924,13 @@ List<pw.Widget> _section19SuscripcionPremium() => [
         ],
         [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
         [_t('Sin poder elegir qué mapas y gráficos se ven en pantalla y en el PDF (sección 3): se muestra todo.')],
+        [_t('Sin exportar la tabla a Excel (sección 16.4) ni comparar dos partidos (sección 14.3).')],
       ]),
       _p(
-        'La suscripción premium desbloquea todo lo de la lista de arriba (partidos sin límite en el '
-        'archivo, pizarra, estadística ilimitada e incluida en vivo y entre sets, zona de destino y '
-        'elección de los mapas y gráficos) y permite además sumar dispositivos adicionales (sección 19.3).',
+        'Las notas de scouting (sección 16.3) son gratuitas. La suscripción premium desbloquea todo lo de '
+        'la lista de arriba (partidos sin límite en el archivo, pizarra, estadística ilimitada e incluida en '
+        'vivo y entre sets, zona de destino, elección de los mapas y gráficos, exportación a Excel y '
+        'comparador de partidos) y permite además sumar dispositivos adicionales (sección 19.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
@@ -1960,6 +2060,16 @@ List<pw.Widget> _section20Faq() => [
             'archivo se puede volver a abrir en la app, incluso si el partido todavía estaba en curso. Lo '
             'que no se puede hacer es cargar el mismo partido en vivo desde dos dispositivos a la vez: una '
             'vez importada, cada copia queda independiente y no se sincroniza sola con el original.',
+      ),
+      _faqCard(
+        '¿Puedo llevar la estadística a Excel o Google Sheets?',
+        'Sí, con premium: el ícono de tabla del resumen del partido exporta la tabla por jugador a un '
+            'archivo .csv del partido completo o del set elegido (sección 16.4).',
+      ),
+      _faqCard(
+        'El jugador atacó contra el bloqueo y la pelota volvió a nuestro lado, ¿cómo lo cargo?',
+        'Con el botón R Rejuego del panel de Ataque o de Contra (sección 9.3): cuenta como una P del '
+            'atacante y el punto sigue; el ataque siguiente se carga con Contra.',
       ),
       _faqCard(
         '¿Puedo pasar un equipo (plantel, cuerpo técnico y estadística acumulada) a otro dispositivo?',
