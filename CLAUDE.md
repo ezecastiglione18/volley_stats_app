@@ -248,6 +248,17 @@ actualizados. Va en la versión **1.2.0+16** (builds de APK, .aab, Windows, zip 
 - Notas de scouting: `VolleyMatch.notes` (opcional, null en partidos viejos), tarjeta + diálogo en la
   pestaña Tabla del resumen (gratis), debajo de cada partido en `RivalScoutingDetailScreen` y sección al
   final del PDF (`PdfReportService.latin1Safe` pasa comillas curvas/rayas/"…" a Latin-1).
+- Panel de temporada (issue #49): `lib/services/season_engine.dart` (`SeasonEngine.buildSeason`, estilo de
+  `scouting_engine.dart`) suma `StatsEngine.compute` por partido terminado y agrupa por `Player.id`;
+  los porcentajes salen de conteos sumados (`TouchStats/ReceptionStats.addFrom`), nunca promediando.
+  Equipo = `ownTeamSourceId` o `name:<ownTeamName>`. Pantalla `season_stats_screen.dart` (reporte recalculado
+  al cambiar un filtro, no en `build`); `StatsTable` suma la columna "PJ" si recibe `matchesPlayed`. Tile en
+  Inicio con `runIfPremium`. Test: `test/season_engine_test.dart` (necesita abrir Hive con `path_provider`
+  simulado antes de armar los partidos, porque `MatchController` persiste cada acción).
+- Impacto en cancha: `lib/services/impact_engine.dart` reconstruye quién estaba en cancha punto a punto
+  (formación inicial + `substitutions` por `rallyNumber`) y calcula el "+/-" por jugador; pantalla
+  `player_impact_screen.dart` (elegir equipo → reporte).
+- Investigación iOS/multiplataforma (issue #25): `documents/Investigacion-iOS-y-multiplataforma.md`.
 - CSV: `lib/services/csv_export_service.dart` (`buildCsv` puro y testeado), botón en el resumen con
   `runIfPremium`. Encabezados y valores de la tabla en `statsTableHeaders`/`statLineValues`
   (`stat_line.dart`), compartidos por la tabla de la app, el CSV y el comparador (el PDF tiene su propia

@@ -40,6 +40,14 @@ class SubscriptionController extends ChangeNotifier {
       isPremium = true;
       deviceLimit = 1;
       isLoading = false;
+      // `refresh()` se llama desde `initState()` (ver `_SubscriptionGateState`
+      // en main.dart): sin este `await` antes de notifyListeners(), esta rama
+      // (sin operación async real de por medio) notifica de forma síncrona
+      // mientras Flutter todavía está construyendo un widget ancestro más
+      // arriba en el mismo frame, lo que dispara "setState()/markNeedsBuild()
+      // called during build" y tira abajo toda la app. Encolarlo como
+      // microtask alcanza para salir del frame de build actual.
+      await Future<void>.delayed(Duration.zero);
       notifyListeners();
       return;
     }

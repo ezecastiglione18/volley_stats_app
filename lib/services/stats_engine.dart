@@ -112,12 +112,12 @@ class StatsEngine {
 
     final team = PlayerStatLine(playerId: 'team', displayName: 'Total Equipo', number: -1);
     for (final l in lines.values) {
-      _accumulate(team.saque, l.saque);
-      _accumulate(team.ataque, l.ataque);
-      _accumulate(team.contra, l.contra);
+      team.saque.addFrom(l.saque);
+      team.ataque.addFrom(l.ataque);
+      team.contra.addFrom(l.contra);
       team.bloqueoPts += l.bloqueoPts;
       team.errGen += l.errGen;
-      _accumulateRecepcion(team.recepcion, l.recepcion);
+      team.recepcion.addFrom(l.recepcion);
       team.yellowCards += l.yellowCards;
       team.redCards += l.redCards;
     }
@@ -244,14 +244,6 @@ class StatsEngine {
         stats.nn++;
         break;
     }
-  }
-
-  static void _accumulate(TouchStats target, TouchStats src) {
-    target.pp += src.pp;
-    target.p += src.p;
-    target.n += src.n;
-    target.nn += src.nn;
-    target.bloq += src.bloq;
   }
 
   /// Calcula la estadística de saque y ataque por zona de destino (1-9: las
@@ -665,14 +657,5 @@ class StatsEngine {
     ];
     rows.sort((a, b) => b.$2.efficiency!.compareTo(a.$2.efficiency!));
     return rows;
-  }
-
-  static void _accumulateRecepcion(ReceptionStats target, ReceptionStats src) {
-    target.pp += src.pp;
-    target.p += src.p;
-    target.excl += src.excl;
-    target.n += src.n;
-    target.vNeg += src.vNeg;
-    target.nn += src.nn;
   }
 }

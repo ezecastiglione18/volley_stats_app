@@ -4,7 +4,9 @@ import '../utils/theme.dart';
 import '../widgets/premium_gate.dart';
 import '../widgets/theme_toggle_switch.dart';
 import 'matches/match_archive_screen.dart';
+import 'matches/player_impact_screen.dart';
 import 'matches/rival_scouting_screen.dart';
+import 'matches/season_stats_screen.dart';
 import 'new_match/new_match_screen.dart';
 import 'settings/account_settings_screen.dart';
 import 'subscription/subscription_screen.dart';
@@ -74,6 +76,31 @@ class HomeScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const RivalScoutingTeamPickerScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _HomeButton(
+                    icon: Icons.insights,
+                    label: 'Mi temporada',
+                    subtitle: 'Estadística acumulada de todos tus partidos, con filtros',
+                    color: successColor(context),
+                    onTap: () => runIfPremium(
+                      context,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SeasonStatsScreen()),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _HomeButton(
+                    icon: Icons.trending_up,
+                    label: 'Impacto en cancha',
+                    subtitle: 'Rendimiento del equipo con cada jugador adentro (titulares y suplentes)',
+                    color: warningColor(context),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PlayerImpactTeamPickerScreen()),
                     ),
                   ),
                   const SizedBox(height: 12),

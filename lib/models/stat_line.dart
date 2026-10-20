@@ -16,6 +16,16 @@ class TouchStats {
 
   /// % de efectividad de saque = (PP + P) / Total (bloq siempre 0 acá).
   double? get pctServe => total == 0 ? null : (pp + p) / total;
+
+  /// Suma los conteos de [other] a los de este objeto (para acumular
+  /// jugadores en un total de equipo, o partidos en una temporada).
+  void addFrom(TouchStats other) {
+    pp += other.pp;
+    p += other.p;
+    n += other.n;
+    nn += other.nn;
+    bloq += other.bloq;
+  }
 }
 
 /// Conteo de calificaciones de Recepción (escala PP/P/!/N/V-/NN).
@@ -31,6 +41,17 @@ class ReceptionStats {
 
   /// Efectividad = (PP + P) / Total, tal como en la planilla original.
   double? get efficiency => total == 0 ? null : (pp + p) / total;
+
+  /// Suma los conteos de [other] a los de este objeto (ver
+  /// [TouchStats.addFrom]).
+  void addFrom(ReceptionStats other) {
+    pp += other.pp;
+    p += other.p;
+    excl += other.excl;
+    n += other.n;
+    vNeg += other.vNeg;
+    nn += other.nn;
+  }
 }
 
 class PlayerStatLine {

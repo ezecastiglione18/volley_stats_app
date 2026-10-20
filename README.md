@@ -68,6 +68,11 @@ estadísticas exportable como reporte en PDF.
   cada rival ya enfrentado (récord, errores más frecuentes del rival y con qué toque suele ganar el
   punto), a partir de los partidos ya guardados en el archivo, sin tener que revisarlos uno por uno, con
   las notas de scouting de cada partido en el historial.
+- Mi temporada (premium): la estadística de un equipo sumando todos sus partidos terminados, con filtros
+  por torneo y rango de fechas, tabla por jugador con partidos jugados (PJ) y los porcentajes calculados
+  desde los conteos sumados.
+- Impacto en cancha: cuántos puntos ganó y perdió el equipo mientras cada jugador estaba adentro
+  ("+/-" por punto jugado), para ver si los suplentes aportan cuando entran.
 - Pizarra táctica: cancha dibujable a mano (formaciones, rotaciones, sistemas de ataque/defensa), con
   colores, modo flecha, fichines arrastrables para representar jugadores por puesto (armador, punta/
   receptor, central, opuesto, líbero) y archivo propio de jugadas guardadas, accesible desde la pantalla

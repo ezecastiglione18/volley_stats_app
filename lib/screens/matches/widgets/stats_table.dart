@@ -17,8 +17,18 @@ class StatsTable extends StatelessWidget {
   /// Fila "TOTAL EQUIPO" al final, resaltada. Null = sin fila de total.
   final PlayerStatLine? total;
 
-  const StatsTable({super.key, required this.rows, this.rowLabels, this.total})
-      : assert(rowLabels == null || rowLabels.length == rows.length);
+  /// Partidos jugados por cada jugador (clave = playerId). Si viene, se agrega
+  /// la columna "PJ" justo después de "Jugador" (la usa el panel de
+  /// temporada, donde las filas suman varios partidos).
+  final Map<String, int>? matchesPlayed;
+
+  const StatsTable({
+    super.key,
+    required this.rows,
+    this.rowLabels,
+    this.total,
+    this.matchesPlayed,
+  }) : assert(rowLabels == null || rowLabels.length == rows.length);
 
   static String _pct(double? v) => v == null ? '-' : '${(v * 100).toStringAsFixed(0)}%';
 
@@ -30,9 +40,17 @@ class StatsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
+    final showPj = matchesPlayed != null;
+
+    // "N°" y "Jugador" van primero; "PJ" (si corresponde) justo después.
     TableRow header() => TableRow(
           decoration: BoxDecoration(color: surfaceAltColor(context)),
-          children: [for (final h in statsTableHeaders) _H(h)],
+          children: [
+            for (var i = 0; i < statsTableHeaders.length; i++) ...[
+              _H(statsTableHeaders[i]),
+              if (showPj && i == 1) const _H('PJ'),
+            ],
+          ],
         );
 
     TableRow row(PlayerStatLine r, String label) => TableRow(children: [
@@ -41,6 +59,7 @@ class StatsTable extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
             child: Text(label, style: const TextStyle(fontSize: 12)),
           ),
+          if (showPj) _C('${matchesPlayed![r.playerId] ?? 0}'),
           ..._valueCells(r),
         ]);
 
@@ -62,6 +81,7 @@ class StatsTable extends StatelessWidget {
                   padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   child: Text('TOTAL EQUIPO', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
+                if (showPj) const _C(''),
                 ..._valueCells(total!),
               ],
             ),
