@@ -33,6 +33,11 @@ class LineupScreen extends StatefulWidget {
   final MatchConfig config;
   final List<Player> roster;
 
+  /// Fila del fixture (`FixtureEntry.id`) de la que sale este partido. Solo
+  /// aplica al crear un partido nuevo: se guarda en `VolleyMatch.fixtureEntryId`
+  /// y, una vez guardado, se vincula la fila (queda como "jugada").
+  final String? fixtureEntryId;
+
   // Si se pasa un [existingController], esta pantalla configura el
   // siguiente set de un partido ya en curso en lugar de crear uno nuevo.
   final MatchController? existingController;
@@ -56,6 +61,7 @@ class LineupScreen extends StatefulWidget {
     required this.date,
     required this.config,
     required this.roster,
+    this.fixtureEntryId,
     this.existingController,
     this.editCurrentSet = false,
   }) : assert(!editCurrentSet || existingController != null);
@@ -512,6 +518,7 @@ class _LineupScreenState extends State<LineupScreen> {
       rivalTeamName: widget.rivalTeamName,
       rivalTeamSourceId: widget.rivalTeamSourceId,
       config: widget.config,
+      fixtureEntryId: widget.fixtureEntryId,
     );
     final controller = MatchController(match);
     controller.startSet(
@@ -531,6 +538,13 @@ class _LineupScreenState extends State<LineupScreen> {
       if (!mounted) return;
       await showRallyStatsPaywall(context);
       return;
+    }
+
+    // Recién ahora (el partido ya quedó guardado, sin topar el límite del
+    // archivo) la fila del fixture pasa a "jugada".
+    final fixtureEntryId = widget.fixtureEntryId;
+    if (fixtureEntryId != null && mounted) {
+      await context.read<AppDataController>().linkFixtureEntryToMatch(fixtureEntryId, match.id);
     }
 
     if (!mounted) return;

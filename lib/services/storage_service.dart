@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../models/fixture_entry.dart';
 import '../models/play.dart';
 import '../models/team.dart';
 import '../models/visual_stats.dart';
@@ -18,6 +19,7 @@ class StorageService {
   static const _teamsBox = 'teams_box';
   static const _matchesBox = 'matches_box';
   static const _playsBox = 'plays_box';
+  static const _fixtureBox = 'fixture_box';
   static const _settingsBox = 'settings_box';
   static const _themeModeKey = 'theme_mode';
   static const _deviceIdKey = 'device_id';
@@ -32,6 +34,7 @@ class StorageService {
   late Box _teams;
   late Box _matches;
   late Box _plays;
+  late Box _fixture;
   late Box _settings;
   late String _deviceId;
 
@@ -46,6 +49,7 @@ class StorageService {
     _teams = await Hive.openBox(_teamsBox);
     _matches = await Hive.openBox(_matchesBox);
     _plays = await Hive.openBox(_playsBox);
+    _fixture = await Hive.openBox(_fixtureBox);
     _settings = await Hive.openBox(_settingsBox);
     _deviceId = await _resolveDeviceId();
     _ready = true;
@@ -102,6 +106,24 @@ class StorageService {
 
   Future<void> deletePlay(String playId) async {
     await _plays.delete(playId);
+  }
+
+  // ---------------- Fixture (partidos por jugar) ----------------
+
+  List<FixtureEntry> loadFixtureEntries() {
+    final list = _fixture.values
+        .map((v) => FixtureEntry.fromJson(Map<dynamic, dynamic>.from(v as Map)))
+        .toList();
+    list.sort((a, b) => a.date.compareTo(b.date));
+    return list;
+  }
+
+  Future<void> saveFixtureEntry(FixtureEntry entry) async {
+    await _fixture.put(entry.id, entry.toJson());
+  }
+
+  Future<void> deleteFixtureEntry(String entryId) async {
+    await _fixture.delete(entryId);
   }
 
   // ---------------- Settings (preferencias de la app) ----------------

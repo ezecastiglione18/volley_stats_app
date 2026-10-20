@@ -183,6 +183,26 @@ normalizados 0.0–1.0 para independizarse del tamaño de pantalla). Se guarda c
 `Team`/`VolleyMatch` (`toJson`/`fromJson` a mano, persistido en Hive vía `StorageService`/
 `AppDataController`). Accesible desde la pantalla principal, el encabezado de `LineupScreen` (formación
 previa al set) y el encabezado de `LiveMatchScreen` (carga en vivo).
+Reproducción animada (issue #51): `widgets/playback.dart` es la lógica pura (`visibleStrokes(strokes,
+progress)`: el progreso se reparte por cantidad total de puntos, el trazo en curso se corta interpolando y
+la flecha de un trazo con `arrow` aparece solo al completarse; `playbackDuration`: 8 ms por punto, entre 2 y
+12 s). `WhiteboardPainter` tiene un `progress` opcional (null = dibuja todo, igual que antes);
+`PlayPlaybackScreen` anima con un `AnimationController` (reiniciar, play/pausa, slider que pausa al
+arrastrar, 1×/2×) y dibuja los fichines siempre completos con el mismo `TokenCircle`
+(`widgets/token_circle.dart`, extraído de `whiteboard_screen.dart`). Se abre con "Reproducir" desde
+`PlaysArchiveScreen` (fuera de `pickMode`). No cambia el modelo `Play` ni su JSON. Tests:
+`test/playback_test.dart`.
+
+**Fixture (`lib/screens/fixture/`, issue #50)**: `FixtureEntry` (`models/fixture_entry.dart`, campos mutables
+como `Team`; `linkedMatchId` null = sin jugar) en su propia caja Hive `fixture_box` (`StorageService`),
+cargada en `AppDataController.fixtureEntries` (ordenada por fecha ascendente). Es local y gratis: sin sync ni
+gating. `VolleyMatch.fixtureEntryId` (opcional, null en partidos viejos). Flujo: `NewMatchScreen` →
+"Elegir del fixture" (`FixtureScreen(pickMode: true)`, solo filas sin jugar) autocompleta los controles y
+guarda `_pendingFixtureEntryId`, que viaja por `RosterScreen` → `LineupScreen`; ahí se setea
+`match.fixtureEntryId` y, **recién después de que `saveMatch` no tira `MatchArchiveLimitException`**, se llama
+`AppDataController.linkFixtureEntryToMatch`. `deleteMatch` desvincula las filas que apuntaban a ese partido
+(no las borra). Una fila cuyo `linkedMatchId` apunta a un partido que ya no está cuenta como "sin jugar"
+(`linkedMatchOf`). No toca `MatchController`. Tests: `test/fixture_test.dart`.
 
 **Manual de usuario**: `manual_usuario_rallystats.pdf` no tiene fuente editable de otro tipo; se genera
 por completo con `tool/generate_manual.dart` (usa `package:pdf`). Los números de página del índice están

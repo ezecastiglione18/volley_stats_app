@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/fixture_entry.dart';
 import '../models/play.dart';
 import '../models/team.dart';
 import '../models/volley_match.dart';
@@ -23,6 +24,9 @@ class AppDataController extends ChangeNotifier {
   List<VolleyMatch> matches = [];
   List<Play> plays = [];
 
+  /// Fixture (partidos por jugar), por fecha ascendente.
+  List<FixtureEntry> fixtureEntries = [];
+
   /// Id del partido que ya consumió el único cupo de estadística de la
   /// versión free (ver [registerFreeStatsUsage]). `null` si todavía no se
   /// generó ninguna.
@@ -33,6 +37,7 @@ class AppDataController extends ChangeNotifier {
     teams = StorageService.instance.loadTeams();
     matches = StorageService.instance.loadMatches();
     plays = StorageService.instance.loadPlays();
+    fixtureEntries = StorageService.instance.loadFixtureEntries();
     freeStatsMatchId = StorageService.instance.loadFreeStatsMatchId();
     notifyListeners();
   }
@@ -78,7 +83,56 @@ class AppDataController extends ChangeNotifier {
   Future<void> deleteMatch(String matchId) async {
     await StorageService.instance.deleteMatch(matchId);
     matches.removeWhere((m) => m.id == matchId);
+    // Si el partido salía de una fila del fixture, esa fila vuelve a quedar
+    // "sin jugar" (no se borra: el partido por jugar sigue existiendo).
+    for (final entry in fixtureEntries.where((e) => e.linkedMatchId == matchId)) {
+      entry.linkedMatchId = null;
+      await StorageService.instance.saveFixtureEntry(entry);
+    }
     notifyListeners();
+  }
+
+  // ---------------- Fixture ----------------
+
+  Future<void> saveFixtureEntry(FixtureEntry entry) async {
+    await StorageService.instance.saveFixtureEntry(entry);
+    final idx = fixtureEntries.indexWhere((e) => e.id == entry.id);
+    if (idx == -1) {
+      fixtureEntries.add(entry);
+    } else {
+      fixtureEntries[idx] = entry;
+    }
+    fixtureEntries.sort((a, b) => a.date.compareTo(b.date));
+    notifyListeners();
+  }
+
+  Future<void> deleteFixtureEntry(String entryId) async {
+    await StorageService.instance.deleteFixtureEntry(entryId);
+    fixtureEntries.removeWhere((e) => e.id == entryId);
+    notifyListeners();
+  }
+
+  /// Vincula la fila [entryId] del fixture con el partido [matchId] recién
+  /// creado a partir de ella (queda como "jugada"). No-op si la fila ya no
+  /// existe (se borró mientras se armaba el partido).
+  Future<void> linkFixtureEntryToMatch(String entryId, String matchId) async {
+    final idx = fixtureEntries.indexWhere((e) => e.id == entryId);
+    if (idx == -1) return;
+    fixtureEntries[idx].linkedMatchId = matchId;
+    await StorageService.instance.saveFixtureEntry(fixtureEntries[idx]);
+    notifyListeners();
+  }
+
+  /// El partido de la fila [entry], si todavía existe en el archivo. Una fila
+  /// cuyo `linkedMatchId` apunta a un partido que ya no está cuenta como
+  /// "sin jugar".
+  VolleyMatch? linkedMatchOf(FixtureEntry entry) {
+    final id = entry.linkedMatchId;
+    if (id == null) return null;
+    for (final m in matches) {
+      if (m.id == id) return m;
+    }
+    return null;
   }
 
   /// Marca [matchId] como el partido que gastó el único cupo de estadística

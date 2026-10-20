@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/fixture_entry.dart';
 import '../../models/match_config.dart';
 import '../../models/team.dart';
 import '../../state/app_data_controller.dart';
 import '../../widgets/theme_toggle_switch.dart';
+import '../fixture/fixture_screen.dart';
 import 'roster_screen.dart';
 
 class NewMatchScreen extends StatefulWidget {
@@ -24,6 +26,11 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
 
   Team? _ownTeam;
   Team? _rivalTeam;
+
+  /// Fila del fixture elegida con "Elegir del fixture": viaja por el asistente
+  /// (Roster → Lineup) hasta donde se guarda el partido por primera vez, para
+  /// vincularlos (ver `LineupScreen`).
+  String? _pendingFixtureEntryId;
   final MatchConfig _config = MatchConfig();
   bool _configExpanded = false;
 
@@ -44,6 +51,28 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
       lastDate: DateTime(2035),
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  /// Autocompleta rival, torneo, instancia, cancha, categoría y fecha con una
+  /// fila del fixture que todavía no se jugó. Los campos siguen siendo
+  /// editables después; el vínculo con la fila se mantiene igual.
+  Future<void> _pickFromFixture() async {
+    final entry = await Navigator.push<FixtureEntry>(
+      context,
+      MaterialPageRoute(builder: (_) => const FixtureScreen(pickMode: true)),
+    );
+    if (entry == null || !mounted) return;
+    final teams = context.read<AppDataController>().teams;
+    setState(() {
+      _pendingFixtureEntryId = entry.id;
+      _rivalNameCtrl.text = entry.rivalTeamName;
+      _tournamentCtrl.text = entry.tournament;
+      _roundCtrl.text = entry.round;
+      _courtCtrl.text = entry.court;
+      _categoryCtrl.text = entry.category;
+      _date = entry.date;
+      _rivalTeam = teams.where((t) => t.id == entry.rivalTeamSourceId).firstOrNull;
+    });
   }
 
   //bool get _canContinue => _ownTeam != null && _rivalNameCtrl.text.trim().isNotEmpty;
@@ -72,6 +101,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
           category: _categoryCtrl.text.trim(),
           date: _date,
           config: _config,
+          fixtureEntryId: _pendingFixtureEntryId,
         ),
       ),
     );
@@ -91,6 +121,14 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
         child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          OutlinedButton.icon(
+            onPressed: _pickFromFixture,
+            icon: const Icon(Icons.event_available),
+            label: Text(_pendingFixtureEntryId == null
+                ? 'Elegir del fixture'
+                : 'Elegido del fixture (tocá para cambiar)'),
+          ),
+          const SizedBox(height: 18),
           const Text('Mi equipo', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           DropdownButtonFormField<Team>(

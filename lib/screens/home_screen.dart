@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 import '../widgets/premium_gate.dart';
 import '../widgets/theme_toggle_switch.dart';
+import 'fixture/fixture_screen.dart';
 import 'matches/match_archive_screen.dart';
 import 'matches/player_impact_screen.dart';
 import 'matches/rival_scouting_screen.dart';
@@ -65,6 +66,17 @@ class HomeScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const MatchArchiveScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _HomeButton(
+                    icon: Icons.event_note,
+                    label: 'Fixture',
+                    subtitle: 'Tus próximos partidos y los ya jugados',
+                    color: scheme.secondary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FixtureScreen()),
                     ),
                   ),
                   const SizedBox(height: 12),

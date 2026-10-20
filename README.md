@@ -64,6 +64,10 @@ estadísticas exportable como reporte en PDF.
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
+- Fixture (gratis, local): la lista por fecha de los partidos por jugar, con rival, torneo, instancia y
+  notas. En "Nuevo Partido", "Elegir del fixture" autocompleta rival, torneo, instancia, cancha,
+  categoría y fecha, y al guardar el partido la fila queda como "Jugado X-Y" (si el partido se borra,
+  vuelve a "sin jugar").
 - Scouting de rivales: elegido un equipo propio, arma automáticamente la estadística acumulada contra
   cada rival ya enfrentado (récord, errores más frecuentes del rival y con qué toque suele ganar el
   punto), a partir de los partidos ya guardados en el archivo, sin tener que revisarlos uno por uno, con
@@ -76,7 +80,8 @@ estadísticas exportable como reporte en PDF.
 - Pizarra táctica: cancha dibujable a mano (formaciones, rotaciones, sistemas de ataque/defensa), con
   colores, modo flecha, fichines arrastrables para representar jugadores por puesto (armador, punta/
   receptor, central, opuesto, líbero) y archivo propio de jugadas guardadas, accesible desde la pantalla
-  principal, la formación previa al set y la carga en vivo.
+  principal, la formación previa al set y la carga en vivo. Cada jugada guardada se puede reproducir
+  animada (los trazos se dibujan en el orden en que se hicieron), con pausa, slider y velocidad 1×/2×.
 - Modo claro y modo oscuro.
 - Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
   hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra, zona de destino, elección de

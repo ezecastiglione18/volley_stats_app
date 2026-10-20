@@ -17,6 +17,9 @@ class RosterScreen extends StatefulWidget {
   final DateTime date;
   final MatchConfig config;
 
+  /// Fila del fixture a vincular con el partido (ver `NewMatchScreen`).
+  final String? fixtureEntryId;
+
   const RosterScreen({
     super.key,
     required this.ownTeam,
@@ -28,6 +31,7 @@ class RosterScreen extends StatefulWidget {
     required this.category,
     required this.date,
     required this.config,
+    this.fixtureEntryId,
   });
 
   @override
@@ -84,6 +88,7 @@ class _RosterScreenState extends State<RosterScreen> {
           date: widget.date,
           config: widget.config,
           roster: roster,
+          fixtureEntryId: widget.fixtureEntryId,
         ),
       ),
     );

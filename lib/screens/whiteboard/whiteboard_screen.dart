@@ -7,6 +7,7 @@ import '../../state/subscription_controller.dart';
 import '../../utils/id_gen.dart';
 import '../../widgets/premium_required_screen.dart';
 import 'plays_archive_screen.dart';
+import 'widgets/token_circle.dart';
 import 'widgets/whiteboard_painter.dart';
 
 /// Colores disponibles para dibujar (equipo propio, rival, genérico, etc.).
@@ -41,38 +42,6 @@ const _kTokenCatalog = [
   _TokenTemplate('O1', 'O', _kTokenColor),
   _TokenTemplate('L1', 'L', _kTokenColor),
 ];
-
-const double _kTokenSize = 40;
-
-/// Círculo con la letra del puesto, usado tanto en la bandeja de fichines
-/// disponibles como ya apoyado sobre la cancha.
-class _TokenCircle extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool dragging;
-  const _TokenCircle({required this.label, required this.color, this.dragging = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: _kTokenSize,
-      height: _kTokenSize,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: dragging
-            ? [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 3))]
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-      ),
-    );
-  }
-}
 
 /// Pizarra táctica: cancha dibujable a mano para armar formaciones y
 /// jugadas (saque, ataque, rotaciones), con guardado en un archivo propio
@@ -382,12 +351,12 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
                         Draggable<String>(
                           data: t.id,
                           dragAnchorStrategy: pointerDragAnchorStrategy,
-                          feedback: _TokenCircle(label: t.label, color: t.color, dragging: true),
+                          feedback: TokenCircle(label: t.label, color: t.color, dragging: true),
                           childWhenDragging: Opacity(
                             opacity: 0.3,
-                            child: _TokenCircle(label: t.label, color: t.color),
+                            child: TokenCircle(label: t.label, color: t.color),
                           ),
-                          child: _TokenCircle(label: t.label, color: t.color),
+                          child: TokenCircle(label: t.label, color: t.color),
                         ),
                     ],
                   ),
@@ -401,8 +370,8 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
   /// (soltándolo fuera de la cancha no hace nada, queda donde estaba) o
   /// tocarlo para sacarlo (vuelve a la bandeja de disponibles).
   Widget _buildPlacedToken(PlacedToken token, Size canvasSize) {
-    final left = (token.x * canvasSize.width - _kTokenSize / 2).clamp(0.0, canvasSize.width - _kTokenSize);
-    final top = (token.y * canvasSize.height - _kTokenSize / 2).clamp(0.0, canvasSize.height - _kTokenSize);
+    final left = (token.x * canvasSize.width - kTokenSize / 2).clamp(0.0, canvasSize.width - kTokenSize);
+    final top = (token.y * canvasSize.height - kTokenSize / 2).clamp(0.0, canvasSize.height - kTokenSize);
     final color = Color(token.colorValue);
     return Positioned(
       left: left,
@@ -410,11 +379,11 @@ class _WhiteboardScreenState extends State<WhiteboardScreen> {
       child: Draggable<String>(
         data: token.tokenId,
         dragAnchorStrategy: pointerDragAnchorStrategy,
-        feedback: _TokenCircle(label: token.label, color: color, dragging: true),
-        childWhenDragging: const SizedBox(width: _kTokenSize, height: _kTokenSize),
+        feedback: TokenCircle(label: token.label, color: color, dragging: true),
+        childWhenDragging: const SizedBox(width: kTokenSize, height: kTokenSize),
         child: GestureDetector(
           onTap: () => _removeToken(token.tokenId),
-          child: _TokenCircle(label: token.label, color: color),
+          child: TokenCircle(label: token.label, color: color),
         ),
       ),
     );

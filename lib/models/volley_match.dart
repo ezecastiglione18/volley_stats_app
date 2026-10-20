@@ -29,6 +29,11 @@ class VolleyMatch {
   /// campo.
   String? notes;
 
+  /// Fila del fixture (`FixtureEntry.id`) a partir de la cual se armó este
+  /// partido, si se eligió "del fixture" al crearlo. Null en partidos viejos
+  /// y en los armados a mano.
+  String? fixtureEntryId;
+
   VolleyMatch({
     required this.id,
     required this.date,
@@ -45,6 +50,7 @@ class VolleyMatch {
     List<MatchSet>? sets,
     this.status = MatchStatus.setup,
     this.notes,
+    this.fixtureEntryId,
   }) : sets = sets ?? [];
 
   int get ownSetsWon => sets.where((s) => s.finished && s.winner == TeamSide.own).length;
@@ -69,6 +75,7 @@ class VolleyMatch {
         'sets': sets.map((s) => s.toJson()).toList(),
         'status': status.name,
         'notes': notes,
+        'fixtureEntryId': fixtureEntryId,
       };
 
   factory VolleyMatch.fromJson(Map<dynamic, dynamic> json) {
@@ -111,6 +118,7 @@ class VolleyMatch {
         orElse: () => MatchStatus.setup,
       ),
       notes: json['notes'] as String?,
+      fixtureEntryId: json['fixtureEntryId'] as String?,
     );
   }
 }

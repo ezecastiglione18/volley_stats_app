@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../models/play.dart';
+import 'playback.dart';
 
 /// Dibuja la cancha de vóley (dos mitades separadas por la red, con las
 /// líneas de ataque a 3m) y encima los trazos guardados/en curso, todo en
@@ -15,6 +16,11 @@ class WhiteboardPainter extends CustomPainter {
   final Color courtColor;
   final Color lineColor;
 
+  /// Avance de la reproducción de la jugada (0 a 1), o null para dibujar
+  /// todos los trazos completos (el modo normal de la pizarra). Con valor,
+  /// se dibuja solo lo que corresponde a ese instante (ver [visibleStrokes]).
+  final double? progress;
+
   WhiteboardPainter({
     required this.strokes,
     required this.courtColor,
@@ -22,6 +28,7 @@ class WhiteboardPainter extends CustomPainter {
     this.livePoints,
     this.liveColor,
     this.liveArrow = false,
+    this.progress,
   });
 
   @override
@@ -51,14 +58,27 @@ class WhiteboardPainter extends CustomPainter {
     canvas.drawLine(Offset(0, topAttackY), Offset(size.width, topAttackY), attackDash);
     canvas.drawLine(Offset(0, bottomAttackY), Offset(size.width, bottomAttackY), attackDash);
 
-    for (final stroke in strokes) {
-      _drawStroke(
-        canvas,
-        size,
-        _denormalize(stroke.pointsX, stroke.pointsY, size),
-        Color(stroke.colorValue),
-        stroke.arrow,
-      );
+    final p = progress;
+    if (p == null) {
+      for (final stroke in strokes) {
+        _drawStroke(
+          canvas,
+          size,
+          _denormalize(stroke.pointsX, stroke.pointsY, size),
+          Color(stroke.colorValue),
+          stroke.arrow,
+        );
+      }
+    } else {
+      for (final v in visibleStrokes(strokes, p)) {
+        _drawStroke(
+          canvas,
+          size,
+          _denormalize(v.xs, v.ys, size),
+          Color(v.source.colorValue),
+          v.showArrow,
+        );
+      }
     }
     if (livePoints != null && livePoints!.length > 1 && liveColor != null) {
       _drawStroke(canvas, size, livePoints!, liveColor!, liveArrow);
@@ -103,6 +123,7 @@ class WhiteboardPainter extends CustomPainter {
     return oldDelegate.strokes != strokes ||
         oldDelegate.livePoints != livePoints ||
         oldDelegate.liveColor != liveColor ||
-        oldDelegate.liveArrow != liveArrow;
+        oldDelegate.liveArrow != liveArrow ||
+        oldDelegate.progress != progress;
   }
 }
