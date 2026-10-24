@@ -15,15 +15,18 @@ formulario real antes de enviarlo: Play cambia los nombres de las opciones cada 
 
 ## Tipos de datos
 
-| Categoría → tipo | Recopilado | Compartido | ¿Opcional? | Finalidad |
-|---|---|---|---|---|
-| Información personal → Nombre | Sí | No | Requerido (cuenta) / **opcional (nombres de jugadores, solo con la nube)** | Funcionalidad de la app, Administración de la cuenta |
-| Información personal → Dirección de correo electrónico | Sí | No | Requerido | Administración de la cuenta |
-| Información personal → IDs de usuario | Sí | No | Requerido | Administración de la cuenta |
-| **Información personal → Otra información** (fechas de nacimiento, edad, número, posición, medidas y mano hábil de los jugadores) | **Sí** | No | **Opcional** (solo si se activa la nube) | Funcionalidad de la app |
-| **Actividad en la app → Otro contenido generado por el usuario** (partidos: registro jugada por jugada y notas; equipos) | **Sí** | No | **Opcional** (solo si se activa la nube) | Funcionalidad de la app |
-| Dispositivo u otros IDs | Sí | No | Requerido | Administración de la cuenta (límite de dispositivos) |
-| Información financiera → Historial de compras | (como hoy) | No | — | Funcionalidad de la app (estado de la suscripción) |
+Respuestas cargadas en Play (secciones 3 y 4, 24/10/2026). En los 7 tipos: **Recopilados** (no
+"Compartidos"), **no** efímeros; la pregunta "¿Para qué se comparten?" no aparece porque no se comparte nada.
+
+| Categoría → tipo | ¿Necesario u opcional? | ¿Por qué se recopilan? |
+|---|---|---|
+| Información personal → Nombre | Necesario (nombre y apellido de la cuenta; los nombres de jugadores con la nube son el uso opcional) | Funciones de la app, Administración de la cuenta |
+| Información personal → Dirección de correo electrónico | Necesario | Funciones de la app, Administración de la cuenta |
+| Información personal → ID de usuario | Necesario | Funciones de la app, Administración de la cuenta |
+| **Información personal → Otra información** (fechas de nacimiento, edad, número, posición, medidas y mano hábil de los jugadores) | **Opcional** (solo si se activa la nube) | Funciones de la app |
+| Información financiera → Historial de compras | Necesario | Funciones de la app (estado de la suscripción) |
+| **Actividad en apps → Otro contenido generado por usuarios** (partidos: registro jugada por jugada y notas; equipos) | **Opcional** (solo si se activa la nube) | Funciones de la app |
+| Dispositivo u otros IDs | Necesario | Administración de la cuenta; Seguridad, cumplimiento y prevención de fraudes (límite de dispositivos) |
 
 - Firebase (Google) y RevenueCat son **proveedores de servicios**: para Play eso no cuenta como "compartir".
 - Las fotos de los jugadores **no** se recopilan (nunca salen del dispositivo).
