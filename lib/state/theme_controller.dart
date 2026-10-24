@@ -14,7 +14,7 @@ class ThemeController extends ChangeNotifier {
   bool get isDark => _mode == ThemeMode.dark;
 
   /// Carga el modo guardado. Se llama una vez al arrancar la app, antes de
-  /// runApp, igual que AppDataController.loadAll().
+  /// runApp (después de `StorageService.init`: el tema es del dispositivo).
   Future<void> load() async {
     await StorageService.instance.init();
     _mode = StorageService.instance.loadThemeMode();

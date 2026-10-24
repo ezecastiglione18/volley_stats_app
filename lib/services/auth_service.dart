@@ -79,6 +79,25 @@ class AuthService {
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _deviceDocSub;
   String? _watchedUid;
 
+  /// Lo registra `main.dart`: se corre justo antes de cerrar la sesión local
+  /// por cualquier camino ([signOut], [deleteAccount], [_forceSignOutLocally]
+  /// —cuenta borrada desde otro dispositivo, lugar perdido, autoexpulsión
+  /// por baja de plan— y el login rechazado por el límite de dispositivos).
+  /// `_AuthGate` solo reemplaza el home: sin esto, las pantallas que
+  /// estaban encima (carga en vivo, resumen, pizarra, fixture) seguirían
+  /// abiertas y guardando. Vuelve a la primera ruta, vacía los datos en
+  /// memoria y cierra los cajones de la cuenta (sin borrar nada).
+  Future<void> Function()? beforeLocalSignOut;
+
+  Future<void> _runBeforeLocalSignOut() async {
+    try {
+      await beforeLocalSignOut?.call();
+    } catch (e, st) {
+      // Nunca bloquea el cierre de sesión.
+      debugPrint('AuthService: falló beforeLocalSignOut ($e)\n$st');
+    }
+  }
+
   /// Colección con un documento por usuario (id = uid de Firebase Auth),
   /// con el mapa `devices` de los dispositivos que tienen la sesión activa
   /// (deviceId -> {label, loggedInAt}).
@@ -165,6 +184,7 @@ class AuthService {
       await action();
     } on DeviceConflictException catch (e) {
       lastLoginError.value = e.toString();
+      await _runBeforeLocalSignOut();
       await _auth.signOut();
       rethrow;
     } finally {
@@ -232,15 +252,37 @@ class AuthService {
     _stopWatchingDeviceSlot();
     _watchedUid = uid;
     _deviceDocSub = _devices.doc(uid).snapshots().listen((snap) {
-      if (!snap.exists) {
-        _forceSignOutLocally();
-        return;
-      }
-      final devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
-      if (!devices.containsKey(_thisDeviceId)) {
+      if (slotLost(
+        exists: snap.exists,
+        fromCache: snap.metadata.isFromCache,
+        devices: snap.data()?['devices'] as Map?,
+        deviceId: _thisDeviceId,
+      )) {
         _forceSignOutLocally();
       }
     });
+  }
+
+  /// Si un snapshot de `account_devices/{uid}` dice que este dispositivo
+  /// perdió su lugar (el documento no existe o el mapa `devices` ya no lo
+  /// incluye). Solo cuenta lo que viene del **servidor**: lo primero que
+  /// entrega la escucha es la copia en caché, y tras volver a entrar esa
+  /// copia es vieja — el cierre de sesión anterior sacó este `deviceId` con
+  /// un `update` (que sí va a la caché) y el reclamo nuevo de
+  /// [_claimDeviceSlot] es una transacción (que no la actualiza). Con la
+  /// caché, el login recién hecho se cerraba solo, sin ningún mensaje, y
+  /// recién entraba al segundo intento. Tampoco se cierra la sesión sin red
+  /// por una copia local: se espera a poder confirmarlo.
+  @visibleForTesting
+  static bool slotLost({
+    required bool exists,
+    required bool fromCache,
+    required Map<dynamic, dynamic>? devices,
+    required String deviceId,
+  }) {
+    if (fromCache) return false;
+    if (!exists) return true;
+    return !(devices?.containsKey(deviceId) ?? false);
   }
 
   void _stopWatchingDeviceSlot() {
@@ -264,6 +306,7 @@ class AuthService {
         // Defensivo: no bloquear el signOut si RevenueCat no responde.
       }
     }
+    await _runBeforeLocalSignOut();
     await _auth.signOut();
   }
 
@@ -315,6 +358,7 @@ class AuthService {
         // Defensivo: no bloquear el signOut si RevenueCat no responde.
       }
     }
+    await _runBeforeLocalSignOut();
     await _auth.signOut();
   }
 
@@ -353,6 +397,13 @@ class AuthService {
     if (uid == null) return true;
     final snap = await _devices.doc(uid).get();
     var devices = Map<String, dynamic>.from(snap.data()?['devices'] as Map? ?? {});
+    if (snap.metadata.isFromCache && !devices.containsKey(_thisDeviceId)) {
+      // Sin red, `get` devuelve la caché, que puede estar vieja (ver
+      // [slotLost]): no se cierra la sesión por eso. La escucha en vivo lo
+      // confirma contra el servidor apenas vuelve la conexión.
+      _watchDeviceSlot(uid);
+      return true;
+    }
     if (!devices.containsKey(_thisDeviceId)) {
       final legacyId = _legacyDeviceId;
       final migrated = legacyId == null
@@ -440,10 +491,14 @@ class AuthService {
   }
 
   /// Elimina la cuenta actual de forma permanente: el usuario de Firebase
-  /// Auth y el documento `account_devices/{uid}` (dispositivos, nombre y
-  /// consentimiento). No toca los datos locales de equipos/partidos/pizarra
-  /// en Hive: no están asociados a la cuenta (ver `StorageService`), así que
-  /// siguen disponibles en este dispositivo aunque la cuenta se borre.
+  /// Auth y el documento `account_devices/{uid}` (dispositivos, nombre,
+  /// consentimiento y cupo free de estadística), los partidos y equipos de
+  /// la nube ([deleteCloudData]) y, en este dispositivo, los cajones de
+  /// equipos/partidos/jugadas/fixture de esa cuenta
+  /// (`StorageService.deleteUserData`) — por eso el diálogo ofrece "Exportar
+  /// todo" antes de confirmar. En los otros dispositivos solo se cierra la
+  /// sesión. Si era el dueño de los cajones de siempre, `legacy_owner_uid` no
+  /// cambia.
   ///
   /// Firebase exige una sesión reciente para operaciones sensibles como
   /// borrar el usuario, así que primero se reautentica con [password]; eso
@@ -463,6 +518,11 @@ class AuthService {
     await user.reauthenticateWithCredential(
       EmailAuthProvider.credential(email: user.email!, password: password),
     );
+    final uid = user.uid;
+    // Primero los partidos y equipos de la nube (`matches/{uid}`,
+    // `teams/{uid}`): las reglas exigen seguir autenticado como esa cuenta.
+    // Si falla (sin red), no se borra nada más y se informa el error.
+    await deleteCloudData?.call(uid);
     // Se corta la escucha propia antes de borrar el documento: si no, este
     // mismo dispositivo reacciona a su propia escucha en vivo y compite con
     // el resto de este método por cerrar la sesión de un `user` que está a
@@ -476,6 +536,27 @@ class AuthService {
         // Defensivo: no bloquear el borrado de cuenta si RevenueCat no responde.
       }
     }
-    await user.delete();
+    await _runBeforeLocalSignOut();
+    try {
+      await user.delete();
+    } catch (_) {
+      // El documento ya no existe y los datos locales ya se cerraron: no
+      // queda una sesión usable. Se cierra la local y se informa el error.
+      // Los cajones locales no se borran: la cuenta no terminó de borrarse.
+      await _auth.signOut();
+      rethrow;
+    }
+    // Recién con la cuenta borrada: sus cajones de este dispositivo (en los
+    // otros solo se cierra la sesión, por su escucha en vivo).
+    try {
+      await StorageService.instance.deleteUserData(uid);
+    } catch (e, st) {
+      debugPrint('AuthService: no se pudieron borrar los datos locales de la cuenta ($e)\n$st');
+    }
   }
+
+  /// Lo registra `main.dart`: borra los partidos y equipos de la cuenta en la
+  /// nube (`MatchSyncService.deleteAllRemote`) al eliminarla, antes que
+  /// `account_devices/{uid}` y el usuario.
+  Future<void> Function(String uid)? deleteCloudData;
 }

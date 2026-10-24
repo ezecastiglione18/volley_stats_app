@@ -13,3 +13,9 @@ import 'package:flutter/foundation.dart';
 /// esa expresión en absoluto en ese target, aunque este proyecto no se
 /// distribuye para Web (sólo APK y ejecutable de Windows).
 bool get isRevenueCatSupported => !kIsWeb && !Platform.isWindows;
+
+/// Sync de partidos y equipos con la nube (`MatchSyncService`): solo en
+/// Android/iOS. FlutterFire no soporta Windows en producción (el sync en
+/// Windows es la etapa W5 de `documents/RallyStats-Windows-Comercial.pdf`):
+/// ahí el interruptor no aparece y no se sincroniza nada.
+bool get isCloudSyncSupported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);

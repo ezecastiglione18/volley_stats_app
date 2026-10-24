@@ -8,7 +8,8 @@ RallyStats (paquete Dart `rally_stats`) es una app Flutter para anotar en vivo e
 (saque, recepción, ataque, contraataque, bloqueo, errores) jugada por jugada, aplicando las reglas
 oficiales de la FIVB para cambios de jugador y de líbero. Genera reportes en PDF, incluye una pizarra
 táctica para dibujar formaciones/jugadas, y es offline para todos los datos de juego (equipos, jugadores,
-partidos, jugadas de pizarra: todo se persiste localmente en Hive, sin backend). Dos excepciones dependen
+partidos, jugadas de pizarra: todo se persiste localmente en Hive; si la cuenta activa la nube, los
+partidos terminados y los equipos se copian además a Firestore, ver Arquitectura). Dos excepciones dependen
 de un backend: el inicio de sesión (Firebase, ver más abajo), para controlar que una cuenta no se use en
 más de un dispositivo a la vez, y en Android la suscripción premium mensual (Google Play Billing vía
 RevenueCat, ver Arquitectura), que limita ciertas funciones en la versión gratuita. Se distribuye y
@@ -42,6 +43,99 @@ cuando cambian sus campos. `VolleyMatch.fromJson` incluye migraciones manuales p
 guardados con versiones anteriores del modelo (ver el comentario sobre `defensiveLiberoId`/
 `receptionLiberoId` legacy) — al agregar un campo nuevo a un modelo persistido, seguir ese mismo patrón
 en vez de asumir que los partidos ya guardados lo van a tener.
+
+**Datos locales por cuenta (Etapa 1 de la sección 3 de `documents/RallyStats-Funcionalidades-Pendientes.pdf`)**:
+`settings_box` es del dispositivo (deviceId, `legacy_device_id`, `theme_mode`, preferencias de estadística
+visual) y es lo único que abre `StorageService.init()` (antes de `runApp`). Equipos, partidos, jugadas y
+fixture son de la cuenta: `openUserBoxes(uid)` los abre recién cuando `_AuthGate` tiene sesión y
+`revalidateThisDevice()` dio true (`_AccountDataGate` en `main.dart` → `AppDataController.openAccount` →
+`loadAll`), y `closeUserBoxes()` los cierra al cerrar sesión, **nunca los borra**. Los cajones de siempre
+(`teams_box`, `matches_box`, `plays_box`, `fixture_box`) no se migran ni renombran: son de la cuenta dueña
+(`legacy_owner_uid` en `settings_box`, fijado una sola vez: la sesión abierta en el primer arranque —
+`main()`— o, si no había, el primer uid que abre sus cajones). Cualquier otra cuenta usa
+`<caja>_<boxSuffixFor(uid)>`: base32 en minúsculas del uid, porque Hive pasa los nombres a minúsculas y los
+uid distinguen mayúsculas (base32 y no hex para que hasta un uid de 128 caracteres entre en los 255 de
+Hive). Mismo criterio para las dos claves de `settings_box` que dependen de la cuenta
+(`subscription_cache`, `free_stats_match_id`): el dueño legacy usa la de siempre, el resto `_<sufijo>`.
+Límites aceptados (documentados en `StorageService`): el primer uid que entra tras actualizar queda como
+dueño aunque sea otra persona, y si dos cuentas ya compartían el dispositivo sus datos quedan mezclados con
+el dueño; ambos se corrigen con Exportar todo / Importar copia completa. Sin cajones abiertos, cualquier
+acceso tira `UserDataClosedError` (un `StateError` con mensaje). Otras piezas:
+
+- Copia previa: en el primer arranque de esta versión `init()` vuelca los 4 cajones de siempre a
+  `<documentos de la app>/rallystats_backups/rallystats_backup_<yyyyMMdd>.json` (formato `FullBackup` de
+  `lib/services/full_backup.dart`, el mismo de Exportar todo) y marca `pre_account_backup_done`; si falla,
+  sigue y reintenta en el próximo arranque.
+- Cierre de sesión con pantallas abiertas: todos los caminos (`signOut`, `deleteAccount`,
+  `_forceSignOutLocally` y el login rechazado) llaman a `AuthService.beforeLocalSignOut` justo antes de
+  `_auth.signOut()`/`user.delete()`. `main.dart` lo registra: `navigatorKey.popUntil(isFirst)` → reset de
+  `SubscriptionController` → `AppDataController.closeAccount()`. `MatchController` captura
+  `StorageService.userDataToken` al crearse y lo pasa a `saveMatch`: un guardado tardío de una sesión ya
+  cerrada falla (se loguea) en vez de caer en el cajón de otra cuenta.
+- Cupo free de estadística: uno por cuenta en todos sus dispositivos. Fuente de verdad
+  `account_devices/{uid}.freeStatsMatchId` (`FreeStatsQuotaStore` / `FirestoreFreeStatsQuotaStore`,
+  transacción "solo si no existe": gana el primero); `settings_box` es solo caché por cuenta. Registrarlo
+  (`registerFreeStatsUsage`) necesita red (`FreeStatsOfflineException`); al loguearse
+  `syncFreeStatsQuota` trae el campo y migra la caché vieja si el campo no existe. No se libera aunque se
+  borre el partido. `firestore.rules` ya deja al dueño escribir su documento: no hizo falta cambiarla.
+- Copia completa (Configuración, `lib/widgets/full_backup_actions.dart` + `full_backup_service.dart`):
+  Exportar todo; Importar copia completa (`AppDataController.importBackup`: agrega por id, nunca pisa, tope
+  de 3 sin premium; rechaza otro `format` o una `version` mayor); Restaurar copia automática (lista
+  `rallystats_backups/`, sin tope). El diálogo de borrar cuenta ofrece Exportar todo: los cajones de la
+  cuenta borrada quedan en disco sin acceso (y `legacy_owner_uid` no cambia).
+- `appVersion` de la copia sale de `kAppVersion` (`lib/utils/app_version.dart`), escrita a mano para no
+  sumar `package_info_plus`; `test/app_version_test.dart` falla si no coincide con `pubspec.yaml`.
+- Tests: `test/account_storage_test.dart` (Hive en un directorio temporal por test, con
+  `StorageService.resetForTest()`, y un fake del cupo). Cualquier test que use datos tiene que llamar a
+  `openUserBoxes('test-uid')` después de `init()`.
+
+**Sync con la nube y papelera (Etapa 2 de la sección 3, `lib/services/match_sync_service.dart`)**:
+viajan los partidos **terminados** y los equipos con sus jugadores (propios y rivales), sin fotos; jugadas,
+fixture y partidos en curso no (para eso, Exportar todo / Exportar). Firestore:
+`matches/{uid}/user_matches/{matchId}` y `teams/{uid}/user_teams/{teamId}` = `toJson()` con las fechas
+como `Timestamp` y `photoPath` en null (`matchToFirestoreJson`/`teamToFirestoreJson`, nunca el JSON de
+Hive; no hay listas dentro de listas, y un partido de 5 sets con 9 zonas y notas largas mide ~190 KB),
+más `updatedAt` (reloj del dispositivo, resuelve conflictos), `serverUpdatedAt` (solo cursor del pull) y
+`deletedAt`. Reglas en `firestore.rules` del backend (solo el dueño del uid). Puntos no obvios:
+
+- Interruptor por cuenta: `account_devices/{uid}.cloudSync` (ausente = nunca se preguntó → aviso único
+  en `_SubscriptionGateState`, `lib/widgets/cloud_sync_dialogs.dart`), caché por cuenta en
+  `settings_box` (`StorageService.loadAccountValue`/`saveAccountValue`, claves `cloud*Key`, con el
+  mismo sufijo que `subscription_cache`). Activarlo guarda `cloudConsent` con `kPrivacyPolicyVersion`.
+  Free y premium por igual. En Windows (`isCloudSyncSupported`) no aparece ni hace nada.
+- `AppDataController` es el único disparador: `saveMatch`/`saveTeam` estampan `updatedAt` y llaman a
+  `sync.push`/`pushTeam` (sin await; el SDK encola sin red); con `syncToCloud: false` (lo que baja del
+  pull) conservan el `updatedAt` remoto, no suben y `saveMatch` no aplica el tope de 3.
+  `MatchController._persist` guarda directo en `StorageService` (no estampa ni sube): no hace falta,
+  porque los partidos en curso no viajan y al terminar `LiveMatchScreen` pasa por `saveMatch`.
+- Pull (`_SubscriptionGateState.initState` → `onAccountReady`, y al volver a primer plano): primero
+  equipos, después partidos, de a páginas, `Source.server`, cursor = mayor `serverUpdatedAt` recibido
+  con 2 min de margen. Gana el `updatedAt` más nuevo (null = el más viejo, empate = no se toca). Si lo
+  local es más nuevo **se vuelve a subir**: el push escribe sin mirar lo que hay, y una escritura vieja
+  encolada en otro dispositivo podría dejar la nube atrás sin que nadie converja. Un `deletedAt` que gana
+  manda a la papelera / oculta; que algo falte en la nube nunca borra nada. Saltea (sin pasar el
+  cursor) un partido con la carga en vivo abierta (`MatchController.isOpen`, lo marca
+  `_LiveMatchBodyState`). Todo lo que escribe en Hive pasa `sessionToken` y se corta si cambió la cuenta.
+- `uploadAll` (al activar): pull completo primero, después todo sin tope, anotando cada documento
+  confirmado (`cloud_uploaded`) para reanudar; se retoma en `onAccountReady` si quedó a medias. Un
+  partido de más de 700 KB no sube y se cuenta en Configuración (`cloud_oversize`). "Hacer una copia
+  ahora" (`backupNow`, debajo del interruptor) borra esas marcas y vuelve a correr `uploadAll`; sin red
+  (`readFlag` = unknown) devuelve false enseguida en vez de esperar el timeout de cada subida.
+- Papelera (con o sin nube): `trashMatch` setea `deletedAt` **y** `updatedAt` (si no, la marca llega
+  empatada y no se aplica); `matches` no la incluye (`trashedMatches` aparte), así que el archivo,
+  scouting, temporada, impacto, comparador, CSV, fixture (`linkedMatchOf`) y el tope la ignoran sin
+  tocar cada pantalla. `restoreMatch` respeta el tope en free. `deleteMatch` = "Eliminar
+  definitivamente" (local + nube; desvincula el fixture). Equipos borrados: `deletedAt`, salen de `teams`
+  a `hiddenTeams`. `purgeExpired` (en `openAccount`) borra lo de más de 30 días; `purgeRemote`, en la
+  nube. "Abandonar partido" también va a la papelera. Exportar todo incluye papelera y ocultos.
+- Equipo de ejemplo con ids fijos (`kSampleTeamId`) y `updatedAt` null: no sube hasta que se edita.
+- Borrar cuenta: `AuthService.deleteCloudData` (lo registra `main.dart`) borra `matches/{uid}` y
+  `teams/{uid}` en batches de 400 antes que `account_devices` y el usuario; después
+  `StorageService.deleteUserData` borra los 4 cajones y las claves de la cuenta en este dispositivo.
+- Política de privacidad 2.0 y Términos 1.1 (23/10/2026). El artifact publicado de la política
+  (link en `privacy_policy_text.dart`) quedó en la 1.0: actualizarlo antes de publicar.
+- Tests: `test/cloud_sync_test.dart`, con `_FakeCloudStore` (implementa `CloudSyncStore`; no hay
+  `fake_cloud_firestore`).
 
 **Modelo de datos, de arriba hacia abajo**: `VolleyMatch` (un partido) contiene `List<MatchSet>` (un set
 cada uno), y cada `MatchSet` contiene `List<RallyEvent>` (cada toque/punto cargado) y
@@ -118,8 +212,12 @@ pero nunca las claves del Keystore, así que tras reinstalar la app quedaba un k
 login fallaba al cifrar la sesión (logcat: `FirebearStorageCryptoHelper: KeysetManager failed to initialize -
 unable to encrypt data`) y la sesión sólo vivía en memoria — se perdía al cerrar la app desde recientes,
 con cualquier cuenta. Dos piezas lo resuelven: `android/app/src/main/res/xml/backup_rules.xml` +
-`data_extraction_rules.xml` excluyen esos dos archivos del backup (el resto, Hive incluido, se sigue
-respaldando; el sufijo del nombre depende del appId de Android — actualizarlo si cambia), y
+`data_extraction_rules.xml` excluyen esos dos archivos del backup (el resto, Hive incluido —también los
+cajones por cuenta, que viven en la misma carpeta `app_flutter/`—, se sigue respaldando; el sufijo del
+nombre depende del appId de Android — actualizarlo si cambia). La única otra exclusión es
+`domain="root" path="app_flutter/rallystats_backups/"` (la copia previa de los datos), para no pasar el tope
+de 25 MB del respaldo en la nube: está en `backup_rules.xml` y en `<cloud-backup>`, no en
+`<device-transfer>` (sin tope; así la copia viaja a un equipo nuevo). La segunda pieza:
 `MainActivity.resetOrphanedFirebaseAuthKeyset()` repara al arrancar las instalaciones que ya quedaron así
 (borra el keyset huérfano para que Firebase genere uno nuevo; el usuario inicia sesión una vez más y desde
 ahí queda persistida). Si vuelve a aparecer "pide login cada vez que se reabre la app", buscar primero ese
@@ -130,7 +228,8 @@ mensaje en logcat antes de sospechar de `revalidateThisDevice`/`_watchDeviceSlot
 Android usa RevenueCat (`purchases_flutter`) sobre Google Play Billing; `isRevenueCatSupported`
 (`lib/utils/platform_support.dart`) lo desactiva por completo en Windows y fuerza `isPremium = true` (no
 hay Play Billing fuera de Android). `SubscriptionController` (`ChangeNotifier`) cachea `isPremium`/
-`deviceLimit` en Hive (para resolver algo sin red al abrir la app) y los revalida contra RevenueCat en
+`deviceLimit` en Hive, por cuenta (para resolver algo sin red al abrir la app; `loadCachedFor(uid)` al
+loguearse, `reset()` al cerrar sesión) y los revalida contra RevenueCat en
 `refresh()` (al loguearse y cada vez que la app vuelve a primer plano). No hay bloqueo total de la app en
 ningún caso: sin `isPremium`, la app se puede seguir usando de forma gratuita e indefinida; las
 restricciones puntuales (pizarra, estadísticas, zona de destino, tope de 3 partidos en el archivo, tope de
@@ -194,7 +293,8 @@ arrastrar, 1×/2×) y dibuja los fichines siempre completos con el mismo `TokenC
 `test/playback_test.dart`.
 
 **Fixture (`lib/screens/fixture/`, issue #50)**: `FixtureEntry` (`models/fixture_entry.dart`, campos mutables
-como `Team`; `linkedMatchId` null = sin jugar) en su propia caja Hive `fixture_box` (`StorageService`),
+como `Team`; `linkedMatchId` null = sin jugar) en su propia caja Hive `fixture_box` (`StorageService`; por
+cuenta como el resto, ver Persistencia),
 cargada en `AppDataController.fixtureEntries` (ordenada por fecha ascendente). Es local y gratis: sin sync ni
 gating. `VolleyMatch.fixtureEntryId` (opcional, null en partidos viejos). Flujo: `NewMatchScreen` →
 "Elegir del fixture" (`FixtureScreen(pickMode: true)`, solo filas sin jugar) autocompleta los controles y
@@ -205,7 +305,13 @@ guarda `_pendingFixtureEntryId`, que viaja por `RosterScreen` → `LineupScreen`
 (`linkedMatchOf`). No toca `MatchController`. Tests: `test/fixture_test.dart`.
 
 **Manual de usuario**: `manual_usuario_rallystats.pdf` no tiene fuente editable de otro tipo; se genera
-por completo con `tool/generate_manual.dart` (usa `package:pdf`). Los números de página del índice están
+por completo con `tool/generate_manual.dart` (usa `package:pdf`). Dentro de la app (Configuración →
+"Manual de usuario", premium con `runIfPremium`) lo muestra `UserManualScreen`
+(`lib/screens/settings/user_manual_screen.dart`): baja `kUserManualUrl` (Firebase Hosting, configurado en
+`firebase.json` + `.firebaserc` de este repo, con `Cache-Control: no-cache`) cada vez que se abre, lo
+muestra con `PdfPreview` de `printing` (compartir/imprimir) y guarda la última copia para verlo sin red.
+Hosting está **solo** en este repo: si algún día el backend suma `hosting` a su `firebase.json`, los dos
+deploys se pisarían. Los números de página del índice están
 escritos a mano ahí mismo (`_pIntroduccion`, `_pFaq`, etc.) porque `package:pdf` no expone en qué página
 cayó cada sección durante el mismo armado — después de generar, hay que revisar el PDF resultante
 (con la herramienta de lectura de PDF, pidiendo todas las páginas) y corregir esas constantes si algún
@@ -262,8 +368,8 @@ publicar todavía. Dónde quedó cada cosa:
 
 **Tanda 1 de `documents/RallyStats-Funcionalidades-Pendientes.pdf` (secciones 1, 2 y 4): implementada el
 04/10/2026**, con manual (secciones 9.3, 14.3, 16.3, 16.4, glosario, 19.1 y FAQ; 30 páginas) y README
-actualizados. Va en la versión **1.2.0+16** (builds de APK, .aab, Windows, zip e instalador preparados el
-04/10/2026, sin publicar todavía):
+actualizados. Va en la versión **1.2.0+16** (builds preparados el 04/10/2026; es la versión publicada en
+Play al 23/10/2026):
 
 - Notas de scouting: `VolleyMatch.notes` (opcional, null en partidos viejos), tarjeta + diálogo en la
   pestaña Tabla del resumen (gratis), debajo de cada partido en `RivalScoutingDetailScreen` y sección al
@@ -298,6 +404,32 @@ actualizados. Va en la versión **1.2.0+16** (builds de APK, .aab, Windows, zip 
 Pospuesto: Etapa 3 (cancha tocable con destino exacto y origen opcional). No retomarla sin que el usuario
 lo pida: se descartó para no complicar la carga en vivo.
 
+**Sección 3 (sync), Etapa 1 — datos locales por cuenta: implementada el 23/10/2026**, sin commit ni
+publicar (la versión se sube en el release; base de la prueba "actualizar encima": 1.2.0 de Play). Detalle
+en Arquitectura → Datos locales por cuenta. Manual (secciones 1, 2.1, 2.2, 3, 16, 19.1 y FAQ; 32 páginas) y
+README actualizados. Prueba manual en dispositivo aprobada el 23/10/2026.
+
+**Sección 3, Etapa 2 — sync de partidos y equipos con la nube + papelera: implementada el 23/10/2026**,
+sin commit ni publicar, con las reglas nuevas en `volley_stats_app_backend/firestore.rules` **sin
+desplegar**. Detalle en Arquitectura → Sync con la nube y papelera. Manual (secciones 1, 2, 2.2, 2.3
+nueva, 3, 5, 12, 14, 14.4 nueva, 17, 19.1 y FAQ; 33 páginas) y README actualizados. Falta: desplegar las
+reglas, actualizar el artifact de la política, la prueba manual con dos dispositivos y el texto de
+"Seguridad de los datos" en Play Console (`documents/Play-Seguridad-de-los-datos.md`).
+
+Estado al 23/10/2026: reglas desplegadas; prueba manual con dos celulares aprobada (pasos 0 a 9; el
+"partido abierto en la carga en vivo" queda cubierto solo por test); artifact de la política actualizado
+a la 2.0 (hay que mover el pin de "compartir" para que el link público la muestre). Las Etapas 1 y 2 salen
+juntas en la **1.3.0+18**, con el arreglo del login de abajo. Falta: el formulario de Play y el commit.
+
+**Login que no entraba al primer intento (arreglado el 23/10/2026)**: tras cerrar sesión y volver a
+entrar en el mismo dispositivo, la escucha en vivo de `account_devices/{uid}` (`_watchDeviceSlot`)
+entregaba primero la copia en **caché**, vieja: el `signOut` anterior había sacado este `deviceId` con un
+`update` (que va a la caché) y el reclamo nuevo es una transacción (que no la actualiza). La app creía
+haber perdido el lugar y cerraba la sesión sin mensaje; al segundo intento la caché ya estaba al día.
+Ahora `AuthService.slotLost` ignora los snapshots de caché, y `revalidateThisDevice` no cierra sesión por
+una lectura de caché (sin red). Test: `test/auth_slot_test.dart`. El arreglo anterior (tecla "Listo" del
+teclado, `unfocus`) era de otra hipótesis; se dejó porque igual sirve.
+
 ## Proceso de release (después de cargar ajustes nuevos)
 
 Cuando se termina de implementar uno o varios cambios y hay que dejar todo listo para el usuario final,
@@ -313,7 +445,14 @@ seguir este orden. No todos los pasos aplican siempre — evaluar cada uno:
      paginación total cambió.
    - Si el cambio también aplica al README (nueva funcionalidad en la lista de "Funcionalidades", nuevo
      requisito de plataforma, nuevo comando de build), actualizar `README.md` en la misma pasada.
-2. **Verificar que compila**: `flutter analyze` sin errores nuevos.
+   - **Siempre que se regenere el manual: `firebase deploy --only hosting`** (desde la raíz de este repo;
+     lo corre Eze, Claude no despliega). `generate_manual.dart` deja una copia en `hosting/manual.pdf`
+     (ignorada por git) y Configuración → "Manual de usuario" muestra la que está publicada en
+     `https://volleystatsapp-be835.web.app/manual.pdf`: sin este deploy, la app sigue mostrando el manual
+     viejo. No hace falta publicar otra versión de la app para actualizar el manual.
+2. **Verificar que compila**: `flutter analyze` sin errores nuevos. Si se subió `version:` en
+   `pubspec.yaml`, actualizar también `kAppVersion` (`lib/utils/app_version.dart`; `flutter test` lo
+   chequea).
 3. **Generar el APK**: `flutter build apk --release`. Ver la sección de abajo si falla con
    `Gradle task assembleRelease failed` sin más detalle.
 4. **Generar el .aab (Android App Bundle) para Play Console**: `flutter build appbundle --release`.

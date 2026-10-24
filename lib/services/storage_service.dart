@@ -1,20 +1,82 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:android_id/android_id.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../models/fixture_entry.dart';
 import '../models/play.dart';
 import '../models/team.dart';
 import '../models/visual_stats.dart';
 import '../models/volley_match.dart';
+import '../utils/app_version.dart';
 import '../utils/id_gen.dart';
+import 'full_backup.dart';
+
+/// Se lanza al usar equipos/partidos/jugadas/fixture sin los cajones de una
+/// cuenta abiertos (antes del login, después de cerrar sesión), o al guardar
+/// con un [StorageService.userDataToken] de una sesión que ya terminó. Es un
+/// [StateError] con un mensaje claro en vez del `LateInitializationError`
+/// que daría un `late Box` sin abrir.
+class UserDataClosedError extends StateError {
+  UserDataClosedError(super.message);
+}
+
+/// Sufijo de los cajones de una cuenta que no es la dueña de los datos
+/// legacy (ver [StorageService.openUserBoxes]). Hive pasa los nombres de caja
+/// a minúsculas y los uid de Firebase distinguen mayúsculas, así que el uid
+/// no se puede usar tal cual: se codifica en base32 (RFC 4648, alfabeto en
+/// minúsculas `a-z2-7`, sin relleno), que es inyectivo y no depende de
+/// mayúsculas. Base32 y no hex porque un uid de Firebase puede tener hasta
+/// 128 caracteres: en hex serían 256 y `fixture_box_` + 256 se pasa de los
+/// 255 que acepta Hive; en base32 son 205 como máximo (217 con el prefijo
+/// más largo). Un uid de email/contraseña (28 caracteres) da 45.
+String boxSuffixFor(String uid) {
+  if (uid.isEmpty) throw ArgumentError.value(uid, 'uid', 'no puede estar vacío');
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+  final out = StringBuffer();
+  var buffer = 0;
+  var bits = 0;
+  for (final byte in utf8.encode(uid)) {
+    buffer = (buffer << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      out.write(alphabet[(buffer >> bits) & 31]);
+    }
+    buffer &= (1 << bits) - 1;
+  }
+  if (bits > 0) out.write(alphabet[(buffer << (5 - bits)) & 31]);
+  return out.toString();
+}
 
 /// Guarda Equipos y Partidos como Map<String,dynamic> planos dentro de Hive,
 /// sin necesidad de generar TypeAdapters (evita build_runner).
+///
+/// Datos por cuenta: `settings_box` es del dispositivo (deviceId, tema,
+/// preferencias de estadística visual) y se abre en [init]. Equipos,
+/// partidos, jugadas y fixture son de la cuenta logueada y se abren con
+/// [openUserBoxes] recién cuando hay sesión (ver `_AccountDataGate` en
+/// `main.dart`); al cerrar sesión se cierran con [closeUserBoxes], nunca se
+/// borran.
+///
+/// Los cajones de siempre (`teams_box`, `matches_box`, `plays_box`,
+/// `fixture_box`) no se migran ni se renombran: pasan a ser de la cuenta
+/// dueña ([legacyOwnerUid]), y cualquier otra cuenta estrena los suyos con
+/// el sufijo de [boxSuffixFor]. Así no hay ninguna migración que se pueda
+/// cortar a la mitad. Dos casos aceptados a propósito (se corrigen con
+/// Exportar todo / Importar copia completa, o partido por partido):
+///
+/// - Actualizar sin sesión: el primer uid que inicia sesión después de
+///   actualizar queda como dueño, aunque sea otra persona.
+/// - Si antes de esta versión dos cuentas ya usaron el mismo dispositivo,
+///   sus datos están mezclados en los cajones de siempre y quedan todos con
+///   el dueño. No hay forma de separarlos, pero no se pierden.
 class StorageService {
   static const _teamsBox = 'teams_box';
   static const _matchesBox = 'matches_box';
@@ -24,6 +86,8 @@ class StorageService {
   static const _themeModeKey = 'theme_mode';
   static const _deviceIdKey = 'device_id';
   static const _legacyDeviceIdKey = 'legacy_device_id';
+  static const _legacyOwnerUidKey = 'legacy_owner_uid';
+  static const _preAccountBackupDoneKey = 'pre_account_backup_done';
   static const _subscriptionCacheKey = 'subscription_cache';
   static const _freeStatsMatchIdKey = 'free_stats_match_id';
   static const _pdfVisualChartsKey = 'pdf_visual_charts';
@@ -31,99 +95,312 @@ class StorageService {
   static const _screenVisualChartsKey = 'screen_visual_charts';
   static const _screenCourtMapsKey = 'screen_court_maps';
 
-  late Box _teams;
-  late Box _matches;
-  late Box _plays;
-  late Box _fixture;
+  /// Carpeta (dentro del directorio de documentos de la app) de la copia
+  /// previa automática. En Android queda excluida del Auto Backup en la nube
+  /// (ver `backup_rules.xml`/`data_extraction_rules.xml`).
+  static const backupsFolderName = 'rallystats_backups';
+
+  Box? _teams;
+  Box? _matches;
+  Box? _plays;
+  Box? _fixture;
   late Box _settings;
   late String _deviceId;
+
+  /// Cuenta cuyos cajones están abiertos, o `null` si no hay ninguna.
+  String? _openUid;
+
+  /// Cambia cada vez que se abren o cierran los cajones de una cuenta (ver
+  /// [userDataToken]).
+  int _sessionToken = 0;
+
+  /// Cola de aperturas/cierres: un login rechazado o un cierre forzado
+  /// pueden cruzarse con una apertura en curso, y nunca tienen que quedar
+  /// a medio hacer uno encima del otro.
+  Future<void> _boxOps = Future<void>.value();
 
   static final StorageService instance = StorageService._();
   StorageService._();
 
+  Future<void>? _initFuture;
   bool _ready = false;
 
+  /// Dónde se escribe la copia previa. Se puede reemplazar en tests (por
+  /// ejemplo, para simular que falla).
+  @visibleForTesting
+  Future<Directory> Function() backupsDirectoryResolver = _defaultBackupsDirectory;
+
+  static Future<Directory> _defaultBackupsDirectory() async {
+    final docs = await getApplicationDocumentsDirectory();
+    return Directory('${docs.path}${Platform.pathSeparator}$backupsFolderName');
+  }
+
+  /// Carpeta de las copias automáticas (puede no existir todavía).
+  Future<Directory> backupsDirectory() => backupsDirectoryResolver();
+
+  /// Abre `settings_box`, hace la copia previa si todavía no se hizo y
+  /// resuelve el deviceId. No abre los datos de ninguna cuenta (ver
+  /// [openUserBoxes]). Se puede llamar más de una vez.
   Future<void> init() async {
+    // Atajo sin esperar ningún Future si ya terminó: esperar el Future
+    // memorizado (creado en otra zona) cuelga a quien llama dentro del tiempo
+    // simulado de un testWidgets.
     if (_ready) return;
-    await Hive.initFlutter();
-    _teams = await Hive.openBox(_teamsBox);
-    _matches = await Hive.openBox(_matchesBox);
-    _plays = await Hive.openBox(_playsBox);
-    _fixture = await Hive.openBox(_fixtureBox);
-    _settings = await Hive.openBox(_settingsBox);
-    _deviceId = await _resolveDeviceId();
+    await (_initFuture ??= _init());
     _ready = true;
   }
 
-  // ---------------- Teams ----------------
-
-  List<Team> loadTeams() {
-    return _teams.values
-        .map((v) => Team.fromJson(Map<dynamic, dynamic>.from(v as Map)))
-        .toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  Future<void> _init() async {
+    await Hive.initFlutter();
+    _settings = await Hive.openBox(_settingsBox);
+    // Antes que cualquier otra cosa: la copia de los datos tal como estaban.
+    await _ensurePreAccountBackup();
+    _deviceId = await _resolveDeviceId();
   }
 
-  Future<void> saveTeam(Team team) async {
-    await _teams.put(team.id, team.toJson());
+  /// Cierra todo y vuelve al estado de recién creado, para que cada test
+  /// arranque de cero con su propio directorio temporal.
+  @visibleForTesting
+  Future<void> resetForTest() async {
+    await Hive.close();
+    _teams = _matches = _plays = _fixture = null;
+    _openUid = null;
+    _sessionToken++;
+    _boxOps = Future<void>.value();
+    _initFuture = null;
+    _ready = false;
+    backupsDirectoryResolver = _defaultBackupsDirectory;
+  }
+
+  // ---------------- Copia previa ----------------
+
+  /// En el primer arranque de la versión con datos por cuenta escribe un
+  /// JSON con todo el contenido de los 4 cajones de siempre (formato de
+  /// [FullBackup], el mismo que "Exportar todo") en
+  /// `rallystats_backups/rallystats_backup_<yyyyMMdd>.json`. Si los 4 están
+  /// vacíos (instalación nueva) solo se marca como hecha. Si falla, se
+  /// registra y el arranque sigue (los pasos siguientes no mueven datos);
+  /// sin la marca, se reintenta en el próximo arranque.
+  Future<void> _ensurePreAccountBackup() async {
+    if (_settings.get(_preAccountBackupDoneKey) == true) return;
+    final opened = <Box>[];
+    try {
+      Future<Box> open(String name) async {
+        final b = await Hive.openBox(name);
+        opened.add(b);
+        return b;
+      }
+
+      final teams = _decodeTeams(await open(_teamsBox));
+      final matches = _decodeMatches(await open(_matchesBox));
+      final plays = _decodePlays(await open(_playsBox));
+      final fixture = _decodeFixture(await open(_fixtureBox));
+      if (teams.isNotEmpty || matches.isNotEmpty || plays.isNotEmpty || fixture.isNotEmpty) {
+        final now = DateTime.now();
+        final json = FullBackup.buildJson(
+          teams: teams,
+          matches: matches,
+          plays: plays,
+          fixture: fixture,
+          createdAt: now,
+          appVersion: kAppVersion,
+        );
+        final dir = await backupsDirectoryResolver();
+        await dir.create(recursive: true);
+        final name = 'rallystats_backup_${DateFormat('yyyyMMdd').format(now)}.json';
+        final target = File('${dir.path}${Platform.pathSeparator}$name');
+        // Se escribe a un temporal y se renombra: un corte a la mitad nunca
+        // deja un archivo truncado con el nombre definitivo.
+        final tmp = File('${target.path}.tmp');
+        await tmp.writeAsString(jsonEncode(json), flush: true);
+        await tmp.rename(target.path);
+      }
+      await _settings.put(_preAccountBackupDoneKey, true);
+    } catch (e, st) {
+      debugPrint('StorageService: no se pudo hacer la copia previa ($e). Se reintenta en el próximo arranque.\n$st');
+    } finally {
+      for (final b in opened) {
+        await b.close();
+      }
+    }
+  }
+
+  // ---------------- Cajones por cuenta ----------------
+
+  /// Uid de la cuenta dueña de los cajones de siempre, o `null` si todavía
+  /// no se fijó (ver [ensureLegacyOwner]).
+  String? get legacyOwnerUid => _settings.get(_legacyOwnerUidKey) as String?;
+
+  /// Fija [uid] como dueño de los cajones de siempre si todavía no hay uno.
+  /// Se fija una sola vez y nunca cambia: con la sesión ya abierta en el
+  /// primer arranque (`main.dart`) o, si no había, con el primer uid que
+  /// entra (lo llama [openUserBoxes]).
+  Future<void> ensureLegacyOwner(String uid) async {
+    if (legacyOwnerUid != null) return;
+    await _settings.put(_legacyOwnerUidKey, uid);
+  }
+
+  /// Cuenta cuyos cajones están abiertos, o `null`.
+  String? get openUid => _openUid;
+
+  /// Identifica la sesión de datos abierta: cambia en cada [openUserBoxes] y
+  /// [closeUserBoxes]. Quien guarda desde algo que puede sobrevivir a un
+  /// cierre de sesión (`MatchController`) lo captura al crearse y lo pasa al
+  /// guardar, para que un guardado tardío nunca caiga en el cajón de otra
+  /// cuenta.
+  int get userDataToken => _sessionToken;
+
+  Future<void> _serialized(Future<void> Function() op) {
+    final result = _boxOps.then((_) => op());
+    _boxOps = result.catchError((_) {});
+    return result;
+  }
+
+  /// Abre equipos, partidos, jugadas y fixture de [uid]. El dueño legacy
+  /// abre los cajones de siempre; cualquier otra cuenta,
+  /// `<caja>_<boxSuffixFor(uid)>`. Si había otra cuenta abierta, primero la
+  /// cierra.
+  Future<void> openUserBoxes(String uid) => _serialized(() async {
+        await init();
+        if (_openUid == uid) return;
+        await _closeUserBoxesNow();
+        await ensureLegacyOwner(uid);
+        final suffix = uid == legacyOwnerUid ? null : boxSuffixFor(uid);
+        String name(String base) => suffix == null ? base : '${base}_$suffix';
+        final opened = <Box>[];
+        try {
+          for (final base in [_teamsBox, _matchesBox, _playsBox, _fixtureBox]) {
+            opened.add(await Hive.openBox(name(base)));
+          }
+        } catch (_) {
+          for (final b in opened) {
+            await b.close();
+          }
+          rethrow;
+        }
+        _teams = opened[0];
+        _matches = opened[1];
+        _plays = opened[2];
+        _fixture = opened[3];
+        _openUid = uid;
+        _sessionToken++;
+      });
+
+  /// Cierra los cajones de la cuenta abierta (al cerrar sesión). Nunca los
+  /// borra: los datos se vuelven a ver al entrar otra vez con esa cuenta.
+  Future<void> closeUserBoxes() => _serialized(_closeUserBoxesNow);
+
+  Future<void> _closeUserBoxesNow() async {
+    final boxes = [_teams, _matches, _plays, _fixture].whereType<Box>().toList();
+    // Primero se sueltan las referencias, para que cualquier guardado que
+    // llegue mientras se cierra falle con el error claro.
+    _teams = _matches = _plays = _fixture = null;
+    _openUid = null;
+    _sessionToken++;
+    // `close` espera a que terminen las escrituras pendientes.
+    for (final b in boxes) {
+      await b.close();
+    }
+  }
+
+  Box _box(Box? box, String what) {
+    if (box == null) {
+      throw UserDataClosedError(
+          'No hay una cuenta con los datos abiertos: no se puede acceder a $what antes de '
+          'iniciar sesión ni después de cerrarla (StorageService.openUserBoxes).');
+    }
+    return box;
+  }
+
+  Box get _teamsBoxOpen => _box(_teams, 'los equipos');
+  Box get _matchesBoxOpen => _box(_matches, 'los partidos');
+  Box get _playsBoxOpen => _box(_plays, 'las jugadas');
+  Box get _fixtureBoxOpen => _box(_fixture, 'el fixture');
+
+  /// Clave de `settings_box` que depende de la cuenta: el dueño legacy usa la
+  /// de siempre (así conserva lo que ya tenía), las demás `<clave>_<sufijo>`.
+  String _accountKey(String base, String uid) =>
+      uid == legacyOwnerUid ? base : '${base}_${boxSuffixFor(uid)}';
+
+  // ---------------- Teams ----------------
+
+  static List<Team> _decodeTeams(Box box) => box.values
+      .map((v) => Team.fromJson(Map<dynamic, dynamic>.from(v as Map)))
+      .toList()
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  List<Team> loadTeams() => _decodeTeams(_teamsBoxOpen);
+
+  /// [sessionToken]: igual que en [saveMatch].
+  Future<void> saveTeam(Team team, {int? sessionToken}) async {
+    _checkSession(sessionToken, 'El equipo ${team.id}');
+    await _teamsBoxOpen.put(team.id, team.toJson());
   }
 
   Future<void> deleteTeam(String teamId) async {
-    await _teams.delete(teamId);
+    await _teamsBoxOpen.delete(teamId);
   }
 
   // ---------------- Matches ----------------
 
-  List<VolleyMatch> loadMatches() {
-    final list = _matches.values
-        .map((v) => VolleyMatch.fromJson(Map<dynamic, dynamic>.from(v as Map)))
-        .toList();
-    list.sort((a, b) => b.date.compareTo(a.date));
-    return list;
+  static List<VolleyMatch> _decodeMatches(Box box) => box.values
+      .map((v) => VolleyMatch.fromJson(Map<dynamic, dynamic>.from(v as Map)))
+      .toList()
+    ..sort((a, b) => b.date.compareTo(a.date));
+
+  List<VolleyMatch> loadMatches() => _decodeMatches(_matchesBoxOpen);
+
+  /// [sessionToken]: si se pasa (ver [userDataToken]) y la sesión de datos
+  /// ya no es la misma, falla con [UserDataClosedError] en vez de escribir.
+  Future<void> saveMatch(VolleyMatch match, {int? sessionToken}) async {
+    _checkSession(sessionToken, 'El partido ${match.id}');
+    await _matchesBoxOpen.put(match.id, match.toJson());
   }
 
-  Future<void> saveMatch(VolleyMatch match) async {
-    await _matches.put(match.id, match.toJson());
+  void _checkSession(int? sessionToken, String what) {
+    if (sessionToken != null && sessionToken != _sessionToken) {
+      throw UserDataClosedError(
+          '$what es de una sesión que ya se cerró: no se guarda en los datos de la cuenta '
+          'abierta ahora.');
+    }
   }
 
   Future<void> deleteMatch(String matchId) async {
-    await _matches.delete(matchId);
+    await _matchesBoxOpen.delete(matchId);
   }
 
   // ---------------- Plays (jugadas de la pizarra táctica) ----------------
 
-  List<Play> loadPlays() {
-    final list = _plays.values
-        .map((v) => Play.fromJson(Map<dynamic, dynamic>.from(v as Map)))
-        .toList();
-    list.sort((a, b) => b.date.compareTo(a.date));
-    return list;
-  }
+  static List<Play> _decodePlays(Box box) => box.values
+      .map((v) => Play.fromJson(Map<dynamic, dynamic>.from(v as Map)))
+      .toList()
+    ..sort((a, b) => b.date.compareTo(a.date));
+
+  List<Play> loadPlays() => _decodePlays(_playsBoxOpen);
 
   Future<void> savePlay(Play play) async {
-    await _plays.put(play.id, play.toJson());
+    await _playsBoxOpen.put(play.id, play.toJson());
   }
 
   Future<void> deletePlay(String playId) async {
-    await _plays.delete(playId);
+    await _playsBoxOpen.delete(playId);
   }
 
   // ---------------- Fixture (partidos por jugar) ----------------
 
-  List<FixtureEntry> loadFixtureEntries() {
-    final list = _fixture.values
-        .map((v) => FixtureEntry.fromJson(Map<dynamic, dynamic>.from(v as Map)))
-        .toList();
-    list.sort((a, b) => a.date.compareTo(b.date));
-    return list;
-  }
+  static List<FixtureEntry> _decodeFixture(Box box) => box.values
+      .map((v) => FixtureEntry.fromJson(Map<dynamic, dynamic>.from(v as Map)))
+      .toList()
+    ..sort((a, b) => a.date.compareTo(b.date));
+
+  List<FixtureEntry> loadFixtureEntries() => _decodeFixture(_fixtureBoxOpen);
 
   Future<void> saveFixtureEntry(FixtureEntry entry) async {
-    await _fixture.put(entry.id, entry.toJson());
+    await _fixtureBoxOpen.put(entry.id, entry.toJson());
   }
 
   Future<void> deleteFixtureEntry(String entryId) async {
-    await _fixture.delete(entryId);
+    await _fixtureBoxOpen.delete(entryId);
   }
 
   // ---------------- Settings (preferencias de la app) ----------------
@@ -201,29 +478,86 @@ class StorageService {
     return generated;
   }
 
-  /// Última caché conocida del estado de la suscripción (ver
+  /// Última caché conocida del estado de la suscripción de [uid] (ver
   /// `SubscriptionController`), para poder resolver algo razonable al abrir
-  /// la app sin depender de una llamada de red a RevenueCat. `null` si
-  /// todavía no se guardó nunca (primera vez que se abre la app).
-  Map<String, dynamic>? loadSubscriptionCache() {
-    final raw = _settings.get(_subscriptionCacheKey) as String?;
+  /// la app sin depender de una llamada de red a RevenueCat. `null` si esa
+  /// cuenta todavía no guardó ninguna. Es por cuenta: si fuera una sola, al
+  /// cambiar de cuenta sin red la nueva arrancaría con el premium de la
+  /// anterior.
+  Map<String, dynamic>? loadSubscriptionCache(String uid) {
+    final raw = _settings.get(_accountKey(_subscriptionCacheKey, uid)) as String?;
     if (raw == null || raw.isEmpty) return null;
     return jsonDecode(raw) as Map<String, dynamic>;
   }
 
-  Future<void> saveSubscriptionCache(Map<String, dynamic> json) async {
-    await _settings.put(_subscriptionCacheKey, jsonEncode(json));
+  Future<void> saveSubscriptionCache(String uid, Map<String, dynamic> json) async {
+    await _settings.put(_accountKey(_subscriptionCacheKey, uid), jsonEncode(json));
   }
 
-  /// Id del único partido para el que una cuenta free ya generó estadística
-  /// (ver `AppDataController.registerFreeStatsUsage`). `null` si todavía no
-  /// gastó ese cupo. Se mantiene aunque el partido se borre del archivo,
-  /// para que borrar y crear uno nuevo no lo esquive.
-  String? loadFreeStatsMatchId() => _settings.get(_freeStatsMatchIdKey) as String?;
+  /// Caché local del único partido para el que [uid] (cuenta free) ya generó
+  /// estadística. La fuente de verdad es `account_devices/{uid}` en
+  /// Firestore (ver `FreeStatsQuotaStore`); esto es solo para leerlo sin
+  /// red. Se mantiene aunque el partido se borre del archivo, para que
+  /// borrar y crear uno nuevo no lo esquive.
+  String? loadFreeStatsMatchId(String uid) =>
+      _settings.get(_accountKey(_freeStatsMatchIdKey, uid)) as String?;
 
-  Future<void> saveFreeStatsMatchId(String matchId) async {
-    await _settings.put(_freeStatsMatchIdKey, matchId);
+  Future<void> saveFreeStatsMatchId(String uid, String matchId) async {
+    await _settings.put(_accountKey(_freeStatsMatchIdKey, uid), matchId);
   }
+
+  // Estado del sync con la nube (ver `MatchSyncService`), por cuenta.
+  static const cloudSyncKey = 'cloud_sync';
+  static const cloudCursorMatchesKey = 'cloud_cursor_matches';
+  static const cloudCursorTeamsKey = 'cloud_cursor_teams';
+  static const cloudUploadedKey = 'cloud_uploaded';
+  static const cloudUploadDoneKey = 'cloud_upload_done';
+  static const cloudOversizeKey = 'cloud_oversize';
+  static const cloudLastSyncKey = 'cloud_last_sync';
+
+  static const _accountValueKeys = {
+    cloudSyncKey,
+    cloudCursorMatchesKey,
+    cloudCursorTeamsKey,
+    cloudUploadedKey,
+    cloudUploadDoneKey,
+    cloudOversizeKey,
+    cloudLastSyncKey,
+  };
+
+  /// Valor de `settings_box` que es de la cuenta [uid], con la misma regla
+  /// de clave que la caché de la suscripción (el dueño legacy usa [base] tal
+  /// cual, el resto `<base>_<sufijo>`). [base] es una de las claves
+  /// `cloud*Key` de arriba, así [deleteUserData] la borra.
+  Object? loadAccountValue(String base, String uid) {
+    assert(_accountValueKeys.contains(base), 'Clave por cuenta no registrada: $base');
+    return _settings.get(_accountKey(base, uid));
+  }
+
+  /// [value] null borra la clave.
+  Future<void> saveAccountValue(String base, String uid, Object? value) async {
+    assert(_accountValueKeys.contains(base), 'Clave por cuenta no registrada: $base');
+    if (value == null) {
+      await _settings.delete(_accountKey(base, uid));
+    } else {
+      await _settings.put(_accountKey(base, uid), value);
+    }
+  }
+
+  /// Al eliminar la cuenta [uid] (ver `AuthService.deleteAccount`): borra del
+  /// disco sus 4 cajones y sus claves de `settings_box`. Si estaban abiertos,
+  /// primero los cierra. `legacy_owner_uid` no cambia: si era el dueño de los
+  /// cajones de siempre, esos quedan vacíos.
+  Future<void> deleteUserData(String uid) => _serialized(() async {
+        await init();
+        if (_openUid == uid) await _closeUserBoxesNow();
+        for (final base in [_teamsBox, _matchesBox, _playsBox, _fixtureBox]) {
+          await Hive.deleteBoxFromDisk(_accountKey(base, uid));
+        }
+        for (final base in {..._accountValueKeys, _subscriptionCacheKey, _freeStatsMatchIdKey}) {
+          await _settings.delete(_accountKey(base, uid));
+        }
+      });
 
   // Qué estadística visual se muestra (Configuración → Estadística visual en
   // pantalla / del PDF, funciones premium). Si nunca se eligió nada, todo.

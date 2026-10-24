@@ -40,6 +40,9 @@ void main() {
       },
     );
     await StorageService.instance.init();
+    // Los datos (equipos, partidos...) son por cuenta: se abren los de una
+    // cuenta de prueba, como hace `_AccountDataGate` después del login.
+    await StorageService.instance.openUserBoxes('test-uid');
   });
 
   // Monta HomeScreen directamente (con los mismos providers que arma

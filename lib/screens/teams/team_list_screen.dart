@@ -23,19 +23,13 @@ class _TeamListScreenState extends State<TeamListScreen> {
   bool _busy = false;
 
   Future<void> _loadSampleTeam() async {
-    final appData = context.read<AppDataController>();
-    if (appData.teams.any((t) => t.name == 'Club Atlético Central')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El equipo de ejemplo "Club Atlético Central" ya existe')),
-      );
-      return;
-    }
-    await appData.saveTeam(buildSampleTeam());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Equipo de ejemplo "Club Atlético Central" agregado')),
-      );
-    }
+    final added = await context.read<AppDataController>().addSampleTeam();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(added
+          ? 'Equipo de ejemplo "$kSampleTeamName" agregado'
+          : 'El equipo de ejemplo "$kSampleTeamName" ya existe'),
+    ));
   }
 
   Future<void> _importTeam() async {
@@ -49,7 +43,7 @@ class _TeamListScreenState extends State<TeamListScreen> {
       // Si el id ya existe localmente, se importa como copia con id nuevo
       // para no pisar el equipo que ya estaba guardado en este dispositivo
       // (mismo criterio que ya usa la importación de partidos).
-      if (appData.teams.any((t) => t.id == teamJson['id'])) {
+      if (appData.findTeam(teamJson['id'] as String? ?? '') != null) {
         teamJson['id'] = generateId('team_');
       }
       final team = Team.fromJson(teamJson);
@@ -66,7 +60,7 @@ class _TeamListScreenState extends State<TeamListScreen> {
         // hace que estos partidos cuenten en la estadística acumulada del
         // equipo importado.
         matchJson['ownTeamSourceId'] = team.id;
-        if (appData.matches.any((m) => m.id == matchJson['id'])) {
+        if (appData.findMatch(matchJson['id'] as String? ?? '') != null) {
           matchJson['id'] = generateId('match_');
         }
         final match = VolleyMatch.fromJson(matchJson);

@@ -83,6 +83,9 @@ void main() {
           methodCall.method == 'getApplicationDocumentsDirectory' ? tempDir.path : null,
     );
     await StorageService.instance.init();
+    // Los datos (equipos, partidos...) son por cuenta: se abren los de una
+    // cuenta de prueba, como hace `_AccountDataGate` después del login.
+    await StorageService.instance.openUserBoxes('test-uid');
   });
 
   group('Rotación manual', () {

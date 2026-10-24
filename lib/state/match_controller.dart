@@ -53,6 +53,32 @@ class MatchController extends ChangeNotifier {
 
   MatchController(this.match);
 
+  /// Partidos con la carga en vivo abierta (nuevo o retomado), por id, con
+  /// cuántas pantallas lo tienen abierto. `MatchSyncService.pull` no los
+  /// toca: si los pisara, el próximo guardado de este controlador volvería a
+  /// escribir la versión vieja. Lo mantiene `LiveMatchScreen` con
+  /// [markOpen]/[markClosed].
+  static final Map<String, int> _openMatches = {};
+
+  static bool isOpen(String matchId) => (_openMatches[matchId] ?? 0) > 0;
+
+  void markOpen() => _openMatches[match.id] = (_openMatches[match.id] ?? 0) + 1;
+
+  void markClosed() {
+    final n = (_openMatches[match.id] ?? 0) - 1;
+    if (n > 0) {
+      _openMatches[match.id] = n;
+    } else {
+      _openMatches.remove(match.id);
+    }
+  }
+
+  /// Sesión de datos (ver `StorageService.userDataToken`) en la que se creó
+  /// este controlador. Si se cierra la sesión con la carga en vivo abierta,
+  /// un guardado tardío falla en vez de caer en el cajón de otra cuenta.
+  final int _storageToken = StorageService.instance.userDataToken;
+  bool _loggedClosedSession = false;
+
   /// Reconstruye el estado en memoria (rotación, quién saca, etapa de la
   /// jugada) a partir del log de eventos del último set, para poder seguir
   /// cargando un partido que ya estaba en curso.
@@ -1523,6 +1549,13 @@ class MatchController extends ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    await StorageService.instance.saveMatch(match);
+    try {
+      await StorageService.instance.saveMatch(match, sessionToken: _storageToken);
+    } on UserDataClosedError catch (e) {
+      // La sesión de este partido ya se cerró (la pantalla ya no está): lo
+      // guardado hasta la acción anterior sigue en el cajón de su cuenta.
+      if (!_loggedClosedSession) debugPrint('MatchController: no se guardó ($e)');
+      _loggedClosedSession = true;
+    }
   }
 }

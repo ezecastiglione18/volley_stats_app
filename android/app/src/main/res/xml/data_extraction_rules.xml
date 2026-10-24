@@ -2,11 +2,17 @@
 <!-- Auto Backup / transferencia entre equipos en Android 12+. Mismo criterio
      que backup_rules.xml (ver el comentario ahí): todo salvo la sesión de
      Firebase Auth, cuya clave del Keystore no viaja ni en la nube ni al pasar
-     a un equipo nuevo. -->
+     a un equipo nuevo.
+     En cloud-backup también se excluye rallystats_backups/ (la copia previa
+     de los datos, ver backup_rules.xml): cuenta contra el tope de 25 MB y, si
+     se pasa, Android deja de respaldar todo. En device-transfer no hay ese
+     tope, así que se deja: al pasar a un equipo nuevo, la copia viaja y se
+     puede usar con "Restaurar copia automática". -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="com.google.firebase.auth.api.crypto.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
         <exclude domain="sharedpref" path="com.google.firebase.auth.api.Store.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />
+        <exclude domain="root" path="app_flutter/rallystats_backups/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="com.google.firebase.auth.api.crypto.W0RFRkFVTFRd+MToxMDgyMzU2OTM0ODkyOmFuZHJvaWQ6ZmRjZjFjN2Q1ODcxYTc2NTI5OWRjOQ.xml" />

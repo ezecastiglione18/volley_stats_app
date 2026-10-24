@@ -15,6 +15,7 @@ import '../../widgets/theme_toggle_switch.dart';
 import '../live/live_match_screen.dart';
 import 'match_compare_screen.dart';
 import 'match_summary_screen.dart';
+import 'trash_screen.dart';
 
 class MatchArchiveScreen extends StatefulWidget {
   const MatchArchiveScreen({super.key});
@@ -66,7 +67,7 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
       if (json == null) return; // cancelado
       // Si el id ya existe localmente, se importa como copia con id nuevo
       // para no pisar el partido que ya estaba guardado en este dispositivo.
-      if (appData.matches.any((m) => m.id == json['id'])) {
+      if (appData.findMatch(json['id'] as String? ?? '') != null) {
         json['id'] = generateId('match_');
       }
       final match = VolleyMatch.fromJson(json);
@@ -88,9 +89,35 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
     }
   }
 
+  /// "Eliminar": manda el partido a la papelera (30 días), previa
+  /// confirmación. Con la nube activada, va a la papelera en todos los
+  /// dispositivos de la cuenta.
+  Future<void> _trashMatch(VolleyMatch match) async {
+    final appData = context.read<AppDataController>();
+    final cloud = appData.sync?.enabled ?? false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar partido'),
+        content: Text(
+          'El partido va a la papelera: lo podés restaurar durante 30 días desde la papelera del '
+          'archivo.${cloud ? ' Como tenés la nube activada, va a la papelera en todos tus dispositivos.' : ''}',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await appData.trashMatch(match.id);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final matches = context.watch<AppDataController>().matches;
+    final appData = context.watch<AppDataController>();
+    final matches = appData.matches;
+    final trashCount = appData.trashedMatches.length;
     final df = DateFormat('dd/MM/yyyy');
 
     return Scaffold(
@@ -104,6 +131,18 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
                 : const Icon(Icons.file_upload_outlined),
             tooltip: 'Importar partido',
             onPressed: _busy ? null : _importMatch,
+          ),
+          IconButton(
+            icon: Badge(
+              isLabelVisible: trashCount > 0,
+              label: Text('$trashCount'),
+              child: const Icon(Icons.delete_outline),
+            ),
+            tooltip: 'Papelera',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TrashScreen()),
+            ),
           ),
           const ThemeToggleSwitch(),
         ],
@@ -141,7 +180,7 @@ class _MatchArchiveScreenState extends State<MatchArchiveScreen> {
                     trailing: PopupMenuButton<String>(
                       onSelected: (v) async {
                         if (v == 'delete') {
-                          await context.read<AppDataController>().deleteMatch(m.id);
+                          await _trashMatch(m);
                         } else if (v == 'export') {
                           await _exportMatch(m);
                         } else if (v == 'compare') {

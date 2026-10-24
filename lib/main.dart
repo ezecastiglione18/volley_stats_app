@@ -10,17 +10,24 @@ import 'firebase_options.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
+import 'services/match_sync_service.dart';
+import 'services/storage_service.dart';
 import 'state/app_data_controller.dart';
 import 'state/subscription_controller.dart';
 import 'state/theme_controller.dart';
 import 'utils/platform_support.dart';
 import 'utils/theme.dart';
+import 'widgets/cloud_sync_dialogs.dart';
 
 /// API key pública de RevenueCat (proyecto Android de RallyStats). No es un
 /// secreto en el sentido tradicional — está pensada para viajar embebida en
 /// el cliente, es lo mismo que hace `firebase_options.dart` con la de
 /// Firebase.
 const _revenueCatApiKey = 'goog_sjVcBJpFjdArStnNfqwNQrhzcZX';
+
+/// Navigator de la app, para poder volver a la primera pantalla desde fuera
+/// del árbol de widgets al cerrar la sesión (ver `AuthService.beforeLocalSignOut`).
+final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,12 +61,47 @@ Future<void> main() async {
     }
   }
 
+  // Solo `settings_box` (deviceId, tema, preferencias) y la copia previa de
+  // los datos: los de la cuenta se abren después del login (`_AccountDataGate`).
+  await StorageService.instance.init();
+  String? sessionUid;
+  if (firebaseReady) {
+    sessionUid = FirebaseAuth.instance.currentUser?.uid;
+    // Si al actualizar a la versión con datos por cuenta ya había una sesión
+    // abierta, esa cuenta es la dueña de los datos de siempre (aunque después
+    // no pase la revalidación del dispositivo). Ver `StorageService`.
+    if (sessionUid != null) await StorageService.instance.ensureLegacyOwner(sessionUid);
+  }
+
   final appData = AppDataController();
+  // Sync de partidos y equipos con la nube (si la cuenta lo activó): se
+  // engancha solo a appData (ver AppDataController.sync), que lo dispara.
+  final cloudSync = MatchSyncService(appData: appData);
+  AuthService.instance.deleteCloudData = (uid) async {
+    try {
+      await cloudSync.deleteAllRemote(uid);
+    } catch (e) {
+      // Donde hay sync, sin poder borrar la nube no se borra la cuenta (los
+      // datos quedarían huérfanos). En Windows (sin sync) solo se intenta.
+      if (cloudSync.supported) rethrow;
+      debugPrint('No se pudo borrar la copia de la nube desde esta plataforma: $e');
+    }
+  };
   final themeController = ThemeController();
   final subscriptionController = SubscriptionController();
-  await appData.loadAll();
   await themeController.load();
-  await subscriptionController.init();
+  await subscriptionController.init(uid: sessionUid);
+
+  // Cualquier cierre de sesión (manual, cuenta borrada acá o desde otro
+  // dispositivo, autoexpulsión): primero se vuelve a la primera ruta, para
+  // que no quede abierta ninguna pantalla con datos (la carga en vivo guarda
+  // cada acción), y recién después se vacía la memoria y se cierran los
+  // cajones. Nada se borra del disco.
+  AuthService.instance.beforeLocalSignOut = () async {
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    subscriptionController.reset();
+    await appData.closeAccount();
+  };
   runApp(RallyStatsApp(
     appData: appData,
     themeController: themeController,
@@ -93,6 +135,7 @@ class RallyStatsApp extends StatelessWidget {
         builder: (context, theme, _) {
           return MaterialApp(
             title: 'RallyStats',
+            navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
             theme: buildLightTheme(),
             darkTheme: buildDarkTheme(),
@@ -174,11 +217,90 @@ class _AuthGateState extends State<_AuthGate> with WidgetsBindingObserver {
               // se va a reconstruir solo con `snapshot.data == null`.
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
             }
-            return const _SubscriptionGate();
+            final uid = snapshot.data!.uid;
+            return _AccountDataGate(key: ValueKey(uid), uid: uid);
           },
         );
       },
     );
+  }
+}
+
+/// Abre los datos de la cuenta (equipos, partidos, jugadas, fixture: ver
+/// `StorageService.openUserBoxes`) recién con la sesión ya validada, carga
+/// la caché de la suscripción de esa cuenta y sincroniza en segundo plano el
+/// cupo free de estadística. Hasta que los datos están abiertos no se
+/// muestra ninguna pantalla con datos.
+class _AccountDataGate extends StatefulWidget {
+  final String uid;
+  const _AccountDataGate({super.key, required this.uid});
+
+  @override
+  State<_AccountDataGate> createState() => _AccountDataGateState();
+}
+
+class _AccountDataGateState extends State<_AccountDataGate> {
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    final appData = context.read<AppDataController>();
+    final subscription = context.read<SubscriptionController>();
+    try {
+      await appData.openAccount(widget.uid);
+      // La sesión pudo cerrarse mientras se abrían los datos (login
+      // rechazado, cuenta borrada desde otro dispositivo): no quedan abiertos
+      // para una cuenta que ya no está.
+      if (AuthService.instance.currentUser?.uid != widget.uid) {
+        await appData.closeAccount();
+        return;
+      }
+      subscription.loadCachedFor(widget.uid);
+      appData.syncFreeStatsQuota();
+    } catch (e, st) {
+      debugPrint('No se pudieron abrir los datos de la cuenta: $e\n$st');
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appData = context.watch<AppDataController>();
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('No se pudieron abrir los datos guardados en este dispositivo.',
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () {
+                    setState(() => _error = null);
+                    _open();
+                  },
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    // Mientras se abren, y después de que el cierre de sesión los cerró (el
+    // stream de login todavía no avisó), nada de datos en pantalla.
+    if (appData.accountUid != widget.uid) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return const _SubscriptionGate();
   }
 }
 
@@ -194,11 +316,48 @@ class _SubscriptionGate extends StatefulWidget {
   State<_SubscriptionGate> createState() => _SubscriptionGateState();
 }
 
-class _SubscriptionGateState extends State<_SubscriptionGate> {
+class _SubscriptionGateState extends State<_SubscriptionGate> with WidgetsBindingObserver {
+  /// Recién acá los cajones de la cuenta ya están abiertos (lo garantiza
+  /// `_AccountDataGate`), así que es el lugar del pull y de la subida inicial
+  /// pendiente; también al volver a primer plano. Sin await: el sync nunca
+  /// demora la pantalla.
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<SubscriptionController>().refresh();
+    final sync = context.read<AppDataController>().sync;
+    if (sync != null && sync.supported) {
+      sync.onAccountReady();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _askCloudSyncOnce(sync));
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<AppDataController>().sync?.pull();
+    }
+  }
+
+  /// Aviso único: si la cuenta nunca contestó si quiere la nube (campo
+  /// `cloudSync` ausente en `account_devices/{uid}`). Sin red y sin caché no
+  /// pregunta: lo hace la próxima vez.
+  Future<void> _askCloudSyncOnce(MatchSyncService sync) async {
+    final flag = await sync.refreshFlag();
+    if (flag != CloudSyncFlag.unset || !mounted) return;
+    // Que la pantalla de Inicio ya esté (no el indicador de carga).
+    while (mounted && context.read<SubscriptionController>().isLoading) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    if (!mounted) return;
+    await showCloudSyncPrompt(context, sync);
   }
 
   @override

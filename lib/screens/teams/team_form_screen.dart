@@ -210,11 +210,14 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
   }
 
   Future<void> _deleteTeam() async {
+    final cloud = context.read<AppDataController>().sync?.enabled ?? false;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar equipo'),
-        content: Text('¿Seguro que querés eliminar "${_team.name}"?'),
+        content: Text('¿Seguro que querés eliminar "${_team.name}"? Los partidos ya jugados con este '
+            'equipo no cambian.${cloud ? ' Como tenés la nube activada, se elimina en todos tus '
+                'dispositivos.' : ''}'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar')),

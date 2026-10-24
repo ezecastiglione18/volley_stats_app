@@ -40,6 +40,21 @@ class _LiveMatchBody extends StatefulWidget {
 class _LiveMatchBodyState extends State<_LiveMatchBody> {
   bool _handledEnd = false;
   int? _infoShownForSet;
+  late final MatchController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Mientras esta pantalla está abierta, el sync con la nube no toca este
+    // partido (ver MatchController.isOpen).
+    _controller = context.read<MatchController>()..markOpen();
+  }
+
+  @override
+  void dispose() {
+    _controller.markClosed();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +271,7 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
       builder: (ctx) => AlertDialog(
         title: const Text('Abandonar partido'),
         content: const Text(
-            'Se va a borrar todo lo cargado de este partido y no se puede deshacer. ¿Confirmás?'),
+            'El partido va a la papelera: lo podés restaurar desde el archivo durante 30 días. ¿Confirmás?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -272,7 +287,7 @@ class _LiveMatchBodyState extends State<_LiveMatchBody> {
     );
     if (confirmed != true) return;
     _handledEnd = true;
-    await context.read<AppDataController>().deleteMatch(matchId);
+    await context.read<AppDataController>().trashMatch(matchId);
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

@@ -46,9 +46,21 @@ service cloud.firestore {
     match /account_devices/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+    match /matches/{uid}/user_matches/{matchId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /teams/{uid}/user_teams/{teamId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }
 ```
+
+Las dos últimas son del sync de partidos y equipos con la nube
+(`MatchSyncService`). La fuente de verdad de las reglas del proyecto es
+`firestore.rules` del repo `volley_stats_app_backend` (incluye además las de
+`promo_codes`): desplegarlas desde ahí con
+`firebase deploy --only firestore:rules`, no pegar solo este bloque encima.
 
 ## 4. Crear las cuentas
 

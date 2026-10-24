@@ -63,7 +63,19 @@ estadísticas exportable como reporte en PDF.
   muestra todo. Funciona también con los partidos guardados antes de esta versión.
 - Exportar un partido guardado (no solo el PDF) para pasarlo a otro dispositivo e importarlo ahí,
   conservando todos sus datos.
-- Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó.
+- Copia completa (Configuración): "Exportar todo" guarda en un archivo los equipos, partidos, jugadas y
+  fixture de la cuenta; "Importar copia completa" agrega a la cuenta abierta lo que no tenga (sin pisar
+  nada; sin premium, respetando el tope de 3 partidos); "Restaurar copia automática" recupera la copia
+  que la app guarda sola de todos los datos al actualizarse a la versión con datos por cuenta.
+- Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó, y papelera
+  de 30 días (eliminar un partido lo manda ahí; se restaura o se elimina definitivamente).
+- Partidos y equipos en la nube (opcional, free y premium; Android): con el interruptor de Configuración
+  (o el aviso que aparece una vez después del login), los partidos terminados y los equipos con sus
+  jugadores (sin fotos) se guardan en Firestore y aparecen en todos los dispositivos de la cuenta. Las
+  jugadas, el fixture y los partidos en curso no viajan. "Hacer una copia ahora" vuelve a subir todo en
+  el momento. No disponible en Windows.
+- Manual de usuario dentro de la app (premium, Configuración): siempre la versión publicada más reciente,
+  con compartir e imprimir; sin red muestra la última copia bajada.
 - Fixture (gratis, local): la lista por fecha de los partidos por jugar, con rival, torneo, instancia y
   notas. En "Nuevo Partido", "Elegir del fixture" autocompleta rival, torneo, instancia, cancha,
   categoría y fecha, y al guardar el partido la fila queda como "Jugado X-Y" (si el partido se borra,
@@ -97,8 +109,13 @@ estadísticas exportable como reporte en PDF.
   otorgarlo a mano por cuenta. Depende del backend en `volley_stats_app_backend` (ver esa sección más
   abajo); se publica por primera vez con la versión 1.1.0.
 - En Android, la app se usa solo en orientación vertical.
-- Los datos de juego (equipos, jugadores, partidos y jugadas de pizarra) se guardan solo en el
-  dispositivo (Hive), sin backend. El inicio de sesión es la excepción: usa Firebase Authentication +
+- Los datos de juego (equipos, jugadores, partidos, jugadas de pizarra y fixture) se guardan en el
+  dispositivo (Hive), separados por cuenta: otra cuenta que entra en el mismo dispositivo no ve los de
+  la anterior, y cerrar sesión no borra nada. Si la cuenta activa la nube, los partidos terminados y los
+  equipos se copian además a Firestore (`matches/{uid}`, `teams/{uid}`; reglas en
+  `volley_stats_app_backend/firestore.rules`). El cupo gratis de estadística (un partido) es
+  uno por cuenta en todos sus dispositivos y se registra en Firestore, así que elegirlo necesita
+  conexión. El inicio de sesión es la otra excepción: usa Firebase Authentication +
   Firestore para controlar cuántos dispositivos pueden tener la cuenta abierta a la vez (1 por defecto,
   hasta 4 sumando complementos de dispositivo adicional — ver [`SETUP_FIREBASE.md`](SETUP_FIREBASE.md)),
   así que necesita conexión a internet para validarse. Si la cuenta baja de plan con más dispositivos
@@ -195,6 +212,11 @@ El manual completo de uso de la app está en [`manual_usuario_rallystats.pdf`](m
 Se genera con el script [`tool/generate_manual.dart`](tool/generate_manual.dart) (`dart run
 tool/generate_manual.dart`), así que se puede volver a producir o actualizar sin depender de una
 herramienta externa.
+
+El script deja también una copia en `hosting/manual.pdf`, que se publica con **`firebase deploy --only
+hosting`** (desde la raíz de este repo) en `https://volleystatsapp-be835.web.app/manual.pdf`. Es lo que
+abre Configuración → "Manual de usuario" (premium) dentro de la app, así que hay que hacer ese deploy cada
+vez que se regenera el manual. La misma carpeta publica `eliminar-cuenta.html` (la página de "Eliminar cuenta" que pide Play en Seguridad de los datos).
 
 ## Contacto
 

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/rally_event.dart';
 import '../../models/volley_match.dart';
 import '../../services/csv_export_service.dart';
+import '../../services/free_stats_quota_store.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/stats_engine.dart';
 import '../../state/app_data_controller.dart';
@@ -413,10 +414,22 @@ class _FreeStatsConfirmScreen extends StatefulWidget {
 
 class _FreeStatsConfirmScreenState extends State<_FreeStatsConfirmScreen> {
   bool _confirming = false;
+  String? _error;
 
+  /// El cupo es uno por cuenta en todos sus dispositivos y se registra en
+  /// Firestore: sin conexión no se registra nada y se avisa acá.
   Future<void> _confirm() async {
-    setState(() => _confirming = true);
-    await widget.onConfirm();
+    setState(() {
+      _confirming = true;
+      _error = null;
+    });
+    try {
+      await widget.onConfirm();
+    } on FreeStatsOfflineException catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } catch (_) {
+      if (mounted) setState(() => _error = 'No se pudo registrar la estadística gratis. Probá de nuevo.');
+    }
     if (mounted) setState(() => _confirming = false);
   }
 
@@ -440,11 +453,20 @@ class _FreeStatsConfirmScreenState extends State<_FreeStatsConfirmScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Vas a usar ese cupo en "${widget.matchLabel}". No vas a poder generar '
-                  'estadística para ningún otro partido hasta que te suscribas a premium.',
+                  'Vas a usar ese cupo en "${widget.matchLabel}". Es uno por cuenta, en todos '
+                  'tus dispositivos: no vas a poder generar estadística para ningún otro partido '
+                  'hasta que te suscribas a premium. Para usarlo hace falta conexión a internet.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.grey),
                 ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: _confirming ? null : _confirm,

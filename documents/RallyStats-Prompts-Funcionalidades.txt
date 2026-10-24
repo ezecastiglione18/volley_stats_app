@@ -1,0 +1,425 @@
+RALLYSTATS - PROMPTS POR FUNCIONALIDAD PENDIENTE
+=================================================
+Complemento de documents/RallyStats-Funcionalidades-Pendientes.pdf (03/10/2026;
+sección 3 revisada el 14/10/2026 y de nuevo el 22/10/2026: prompts 3A y 3B
+reescritos para el estado actual del código).
+Cada prompt se pega tal cual en Claude Code. Las líneas "Decisión:" fijan una
+decisión de producto: si se decide otra cosa, cambiarlas antes de usar el prompt.
+Dependencias: el 5 requiere el 4 (StatsTable compartida). El 3B requiere el 3A
+(Hive por cuenta). El 8 asume que el 3B ya actualizó la política de privacidad
+(si no, la propone). El 6 (fixture) se implementó antes que el 3A, así que el
+3A ya incluye fixture_box; toda box nueva que se agregue después sigue el mismo
+esquema por cuenta que matches_box.
+Ya implementados: 1, 2, 4, 5, 6 y 7. Sus prompts quedan como referencia.
+Al final está la serie W (versión comercial de Windows), que sigue después del 3B.
+
+
+-------------------------------------------------
+1 · NOTAS DE SCOUTING POR PARTIDO
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 1 de documents/RallyStats-Funcionalidades-Pendientes.pdf.
+Implementá "Notas de scouting por partido":
+1. lib/models/volley_match.dart: campo opcional `String? notes` en toJson/fromJson. Un JSON viejo sin la clave da null (mismo patrón que targetZone/missType en RallyEvent).
+2. match_summary_screen.dart, pestaña "Tabla": tarjeta "Notas de scouting" arriba de la tarjeta del rival. Si está vacía, mostrar "Sin notas · tocá ✎ para agregar". El ✎ abre un diálogo con TextField multilínea (máx. 1000 caracteres) y botones Cancelar/Guardar. Guardar llama a AppDataController.saveMatch(match, isPremium: ...). Texto vacío o solo espacios se guarda como null.
+3. rival_scouting_screen.dart: debajo de cada partido de la lista, las notas en máx. 3 líneas con ellipsis, solo si existen.
+4. pdf_report_service.dart: sección "Notas de scouting" al final del reporte, solo si hay notas.
+Decisión: es gratis, sin runIfPremium.
+No tocar MatchController ni la carga en vivo.
+Tests: round-trip toJson/fromJson con y sin notes, y fromJson de un JSON sin la clave.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+2 · EXPORTAR ESTADÍSTICAS A CSV
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 2 de documents/RallyStats-Funcionalidades-Pendientes.pdf.
+Implementá "Exportar estadísticas a CSV":
+1. Nuevo lib/services/csv_export_service.dart, calcado de match_export_service.dart (share_plus en Android/iOS, FilePicker.saveFile en desktop). API: `static Future<void> exportMatchStats(VolleyMatch match, {int? setNumber})`. Separá el armado del texto en una función pura `static String buildCsv(MatchStats stats)` para poder testearla.
+2. Contenido: StatsEngine.compute(match, setNumber: setNumber).orderedRows, con las mismas 33 columnas, en el mismo orden y con los mismos encabezados que _StatsTable de match_summary_screen.dart. Mismas filas que muestra la tabla. Si conviene, extraé la lista de encabezados a una constante compartida para no duplicarla.
+3. Formato: separador `;`, BOM UTF-8 (\uFEFF) al inicio, fin de línea \r\n. Porcentajes como enteros sin el signo % ("-" pasa a celda vacía). Los campos con ; " o salto de línea van entre comillas, con las comillas internas duplicadas.
+4. Nombre del archivo: estadisticas_yyyyMMdd_<rival>[_setN].csv, con el mismo saneo de MatchExportService._fileName.
+5. match_summary_screen.dart: IconButton (Icons.table_chart_outlined, tooltip "Exportar a Excel (CSV)") entre ThemeToggleSwitch y el botón de PDF. Exporta el set elegido en _selectedSet. Envolverlo en runIfPremium (lib/widgets/premium_gate.dart): la pantalla NO está gateada para free (freeStatsMatchId).
+Sin paquetes nuevos. Tests de buildCsv: BOM, separador, encabezados, escape y porcentajes.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+3A · DATOS LOCALES POR CUENTA (HIVE)
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 3 de documents/RallyStats-Funcionalidades-Pendientes.pdf (revisada el 22/10/2026), sobre todo la Etapa 1.
+Antes de escribir código, presentame un plan breve para aprobar.
+Objetivo: que cada cuenta tenga su propio archivo local. Hoy teams_box, matches_box, plays_box y fixture_box son uno por instalación y signOut no los toca, así que otra cuenta que inicia sesión en el mismo dispositivo ve los datos de la anterior. Es un bug actual y es la base del sync (3B). Se puede publicar sola.
+Requisito no negociable: no se puede perder ningún partido, equipo, jugada ni fila del fixture ya guardados. Ningún dato existente se copia, se renombra ni se borra.
+
+1. Copia previa: en el primer arranque de esta versión, antes de cualquier otro cambio, escribí un JSON con todo el contenido de teams_box, matches_box, plays_box y fixture_box (con los toJson existentes) en <directorio de documentos de la app>/rallystats_backups/rallystats_backup_<yyyyMMdd>.json.
+   Formato (es el mismo que usa "Exportar todo" del punto 8): {"format": "rallystats_backup", "version": 1, "createdAt": ISO-8601, "appVersion": "<version de pubspec>", "teams": [...], "matches": [...], "plays": [...], "fixture": [...]}.
+   Marcá en settings_box que ya se hizo, para no repetirla. Si falla, se registra el error, el arranque sigue (los pasos siguientes no mueven datos) y se reintenta en el próximo arranque.
+   Auto Backup: esa carpeta queda dentro de lo que Android respalda y cuenta contra el tope de 25 MB por app (si se pasa, Android deja de respaldar todo, Hive incluido). Excluí la carpeta rallystats_backups/ en android/app/src/main/res/xml/backup_rules.xml y data_extraction_rules.xml. Verificá qué domain/path corresponde al directorio que devuelve getApplicationDocumentsDirectory en Android (probablemente domain="root" path="app_flutter/rallystats_backups/") y no toques las exclusiones de Firebase Auth que ya están.
+2. Dueño de los datos actuales: clave legacy_owner_uid en settings_box. Se fija una sola vez y nunca cambia: con el uid de la sesión ya abierta en el primer arranque de esta versión o, si no hay sesión, con el primer uid que inicie sesión.
+3. Cajones por cuenta. settings_box sigue global y se abre en init() como hoy (deviceId, tema y preferencias de estadística visual son del dispositivo). teams, matches, plays y fixture se abren con un método nuevo openUserBoxes(uid):
+   - Si uid == legacy_owner_uid, abre los cajones actuales con sus nombres de siempre (teams_box, matches_box, plays_box, fixture_box), sin mover nada.
+   - Para cualquier otra cuenta, abre teams_box_<sufijo>, matches_box_<sufijo>, plays_box_<sufijo> y fixture_box_<sufijo>.
+   - Hive pasa los nombres de caja a minúsculas y los uid de Firebase distinguen mayúsculas: el sufijo tiene que salir de una función pura boxSuffixFor(uid) que no dependa de mayúsculas (por ejemplo, el uid en hexadecimal). Verificá que el nombre resultante entre en el límite de Hive.
+   - closeUserBoxes() al cerrar sesión: cierra los cajones, nunca los borra.
+   - Si se llama a un método de equipos/partidos/jugadas/fixture sin cajones abiertos, que falle con un error claro (StateError con mensaje), no con un LateInitializationError.
+4. main.dart y AppDataController: hoy loadAll() corre en main() antes de runApp. Separalo: StorageService.init() sigue antes de runApp pero solo abre settings_box y resuelve el deviceId (lo necesitan AuthService, ThemeController.load() y SubscriptionController.init()). Los cajones de la cuenta se abren cuando _AuthGate ya tiene usuario y revalidateThisDevice() dio true, y recién después loadAll(). Ninguna pantalla con datos se muestra antes de que estén abiertos. Si Firebase no está configurado (_FirebaseNotConfiguredScreen), el comportamiento no cambia.
+5. Cierre de sesión con pantallas abiertas. La sesión se puede cerrar desde varios lugares: signOut, deleteAccount, y _forceSignOutLocally (que dispara _watchDeviceSlot cuando borran la cuenta desde otro dispositivo, y la autoexpulsión por baja de plan). _AuthGate solo reemplaza el home: las rutas que estaban encima (carga en vivo, resumen, pizarra, fixture) siguen abiertas, y MatchController guarda cada acción en Hive. En todos esos caminos:
+   - Primero volver a la primera ruta (navigatorKey global en MaterialApp + popUntil(isFirst)).
+   - Después vaciar las listas en memoria de AppDataController y cerrar los cajones (closeUserBoxes). Nunca borrar nada del disco.
+   - Ningún guardado puede caer en un cajón cerrado ni en el de otra cuenta.
+   Un partido en curso no se pierde: ya está guardado acción por acción en el cajón de su cuenta y se retoma al volver a entrar con esa cuenta.
+6. Claves de settings_box que dependen de la cuenta (buscá todos los _settings.get/put para no dejar ninguna):
+   - free_stats_match_id: ver el punto 7.
+   - subscription_cache: hoy hay una sola. Si se cambia de cuenta sin red, la cuenta nueva arranca con el premium cacheado de la anterior. Guardala por cuenta (subscription_cache_<sufijo>, el dueño legacy con la clave actual) y hacé que SubscriptionController la relea al loguearse.
+   - device_id, legacy_device_id, theme_mode y las preferencias de estadística visual quedan globales.
+7. Cupo free de estadística por cuenta, no por dispositivo.
+   Decisión: el cupo es uno por cuenta en todos sus dispositivos. Hoy free_stats_match_id vive en settings_box, así que una cuenta free lo recupera al entrar en otro dispositivo (o al reinstalar).
+   - Fuente de verdad: campo freeStatsMatchId en account_devices/{uid}. Localmente queda solo como caché por cuenta (el dueño legacy con la clave actual free_stats_match_id, las demás con free_stats_match_id_<sufijo>) para leerlo sin red.
+   - Registrar el cupo (AppDataController.registerFreeStatsUsage) escribe en Firestore dentro de una transacción "solo si no existe": si ya hay otro id, gana el que estaba y la app usa ese. Registrar necesita red: sin conexión, la pantalla de confirmación del cupo dice que hace falta conexión para usarlo y no registra nada.
+   - Ver la estadística del partido ya registrado funciona sin red (usa la caché).
+   - Al loguearse (después de abrir los cajones) se lee el campo y se actualiza la caché. Migración: si el campo no existe pero la caché local tiene un id (instalaciones viejas), se sube con la misma transacción "solo si no existe".
+   - Se mantiene la regla actual: el cupo no se libera aunque el partido se borre. No uses "si el partido no existe, cuenta como sin elegir".
+   - Verificá que firestore.rules (repo volley_stats_app_backend) deje al dueño escribir ese campo en account_devices/{uid}. Si no, pasame el cambio de la regla sin desplegarlo.
+   - Premium no usa el cupo; no toques ese flujo.
+8. Decisión: el tope de 3 partidos de la versión free pasa a ser por cuenta, porque cada cuenta tiene su archivo. Se acepta que una cuenta free nueva en el mismo dispositivo arranque con el archivo vacío.
+9. Borrar cuenta. Hoy delete_account_dialog.dart dice que los equipos, jugadores y partidos siguen disponibles en el dispositivo aunque se borre la cuenta. Con cajones por cuenta eso deja de ser cierto: quedan en disco, pero ninguna otra cuenta los ve.
+   Decisión:
+   - Antes de confirmar, el diálogo ofrece "Exportar todo": un JSON con el formato del punto 1, compartido como hace match_export_service.dart (share_plus en Android/iOS, FilePicker.saveFile en desktop).
+   - El texto del diálogo pasa a decir que los equipos, partidos, jugadas y fixture de esa cuenta dejan de estar accesibles en este dispositivo, y que conviene exportarlos antes si se quieren pasar a otra cuenta.
+   - En esta versión los cajones de la cuenta borrada no se borran ni se reasignan a otra cuenta (si la cuenta borrada era el dueño legacy, legacy_owner_uid no cambia).
+   - Decisión: en los otros dispositivos de la cuenta solo se cierra la sesión (como hoy, por _watchDeviceSlot y el punto 5), sin ofrecer exportar. Sus datos locales quedan en disco sin acceso. El diálogo de borrar lo avisa: "Si usás esta cuenta en otros dispositivos, ahí se va a cerrar la sesión y sus datos dejan de estar accesibles. Si los querés conservar, usá Exportar todo en cada uno antes de borrar".
+   - Nueva opción "Importar copia completa" en AccountSettingsScreen: lee un archivo con ese formato (rechaza otro format o una version mayor) y agrega por id lo que no existe en la cuenta abierta. Nunca pisa ni borra. A los partidos se les aplica el tope de 3 en free igual que al crear uno; al final muestra un resumen ("se importaron X; Y quedaron afuera por el tope; Z ya existían").
+   - En la misma pantalla, "Restaurar copia automática" lista los archivos de rallystats_backups/ (en Android el usuario no tiene otra forma de llegar a esa carpeta) y los importa con la misma lógica pero sin tope: son datos que ya estaban en este dispositivo.
+10. signOut y deleteAccount no borran nada local.
+11. Verificá que los cajones nuevos queden incluidos en el Auto Backup (hoy las reglas solo excluyen los dos archivos de Firebase Auth, así que deberían entrar solos) y que la única exclusión nueva sea rallystats_backups/.
+Decisión (actualizar sin sesión): el primer uid que inicia sesión después de actualizar queda como dueño, aunque sea otra persona. Se acepta; se corrige con Exportar todo / Importar copia completa. Documentalo en el mismo comentario que el límite de abajo.
+Límite aceptado (documentalo en un comentario): si hoy dos cuentas ya usaron el mismo dispositivo, sus datos están mezclados en los cajones actuales y quedan todos con el dueño. No hay forma de separarlos, pero no se pierden: se pueden pasar a la otra cuenta con Exportar todo / Importar copia completa (o partido por partido).
+Tests con Hive en un directorio temporal (mismo armado que test/season_engine_test.dart), sin Firebase real (para el cupo, una interfaz con un fake propio, o fake_cloud_firestore si ya está):
+(a) datos existentes con sesión abierta: el dueño es esa cuenta y ve todo, fixture incluido;
+(b) datos existentes sin sesión: el primer login es el dueño;
+(c) una segunda cuenta ve el archivo y el fixture vacíos, crea un partido, y al volver el dueño ve solo lo suyo;
+(d) la copia previa contiene todo (los 4 cajones) y se hace una sola vez; si falla, se reintenta;
+(e) cerrar sesión no borra nada;
+(f) boxSuffixFor: dos uid que solo difieren en mayúsculas dan sufijos distintos;
+(g) subscription_cache es por cuenta; el cupo free se conserva aunque se borre el partido;
+(g2) cupo free con un fake de Firestore: registrar escribe solo si no existe; si ya había otro id, gana el existente; sin red no registra; la migración sube la caché local solo si el campo no existe;
+(h) Importar copia completa: agrega por id sin pisar, aplica el tope en free, rechaza un format desconocido; Restaurar copia automática no aplica el tope;
+(i) con los cajones cerrados, un guardado falla con el error claro del punto 3.
+Actualizá CLAUDE.md (Arquitectura → Persistencia, y el párrafo de Auto Backup) con el esquema nuevo. Según el proceso de release, actualizá el manual (diálogo de borrar cuenta, Exportar todo, Importar copia completa) y el README si corresponde.
+Al terminar, dame los pasos de la prueba manual de "actualizar encima" partiendo de la versión que está publicada en Play: instalarla, cargar partidos, equipos, jugadas y fixture, actualizar sin desinstalar y verificar todo, con sesión abierta, sin sesión y con una segunda cuenta. Sumá un caso de borrar la cuenta desde otro dispositivo mientras este está en la carga en vivo, y uno de cupo free: gastarlo en un dispositivo y verificar que en otro (o tras reinstalar) no se puede usar otra vez.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+3B · SINCRONIZACIÓN DE PARTIDOS Y EQUIPOS A FIRESTORE
+-------------------------------------------------
+Repos: C:\Users\Usuario\volley_stats_app (frontend) y C:\Users\Usuario\volley_stats_app_backend (reglas). Leé el CLAUDE.md de ambos y la sección 3 de documents/RallyStats-Funcionalidades-Pendientes.pdf (revisada el 22/10/2026), sobre todo la Etapa 2. Requiere el 3A: si los cajones de Hive (fixture_box incluido) todavía no son por cuenta, o no existen Exportar todo / Importar copia completa, pará y avisame. La spec vieja RallyStats-Spec-Sync-Partidos-Firestore.pdf quedó obsoleta: no la uses.
+Antes de escribir código, presentame un plan breve para aprobar.
+Requisito no negociable: no se puede perder ningún partido archivado ni ningún equipo. La sincronización nunca borra ni manda a la papelera un partido o un equipo local salvo por una acción explícita del usuario (en este dispositivo o en otro de la cuenta).
+Decisión: viajan los partidos terminados y los equipos con sus jugadores (propios y rivales precargados), sin las fotos. Las jugadas de pizarra y el fixture quedan para el backup manual (8).
+Decisión: un interruptor de nube por cuenta, no por partido. Apagado hasta que el usuario acepte el aviso.
+Decisión: la nube es para free y premium por igual. Ni la subida ni la bajada aplican el tope de 3; el tope sigue aplicando al crear un partido nuevo y al restaurar uno de la papelera.
+Decisión: los partidos en curso no se suben (para eso sigue Exportar/Importar).
+
+0. Antes de diseñar, verificá dos límites de Firestore y contame qué encontraste:
+   - Firestore no acepta listas dentro de listas. Revisá VolleyMatch.toJson(), Team.toJson() y todos los modelos que cuelgan de ellos (MatchSet, RallyEvent, SubstitutionEvent, SanctionEvent, ManualRotationEvent, MatchConfig, Player). Si hay alguna, convertila en _toFirestoreJson/_fromFirestoreJson, nunca en el toJson de Hive.
+   - Un documento puede pesar hasta 1 MiB. Medí el JSON de un partido de 5 sets completo (cargado con "Simular resto del set", con zonas y notas largas). Si pasa los 700 KB, pará y avisame antes de seguir.
+1. Firestore: matches/{uid}/user_matches/{matchId}. El documento es VolleyMatch.toJson() con date como Timestamp, más:
+   - updatedAt: Timestamp con la hora del dispositivo de la última edición. Se usa para resolver conflictos.
+   - serverUpdatedAt: FieldValue.serverTimestamp(). Se usa solo como cursor del pull (no depende del reloj de cada dispositivo).
+   - deletedAt: Timestamp o null.
+   Conversiones en _toFirestoreJson/_fromFirestoreJson, expuestas con @visibleForTesting.
+1b. Equipos: teams/{uid}/user_teams/{teamId}. El documento es Team.toJson() (con sus jugadores) con el photoPath de cada jugador en null, más updatedAt, serverUpdatedAt y deletedAt con el mismo significado que en los partidos.
+   - Team suma `DateTime? updatedAt` y `DateTime? deletedAt`, opcionales y null en equipos viejos. AppDataController.saveTeam setea updatedAt = ahora salvo cuando viene del pull (mismo parámetro syncToCloud).
+   - Decisión: en un conflicto gana el equipo entero con el updatedAt más nuevo. Se acepta que, si el mismo equipo se edita sin señal en dos dispositivos, quede solo la última edición.
+   - Fotos: nunca se suben. Al bajar un equipo, cada jugador que ya existe localmente (mismo Player.id) conserva su photoPath si el archivo existe en este dispositivo; los jugadores nuevos quedan sin foto.
+   - Decisión: borrar un equipo setea deletedAt (no hay pantalla de papelera para equipos): el equipo desaparece de la lista en todos los dispositivos y se purga a los 30 días, local y remoto. AppDataController.teams deja de incluir los equipos con deletedAt. Los partidos no se ven afectados porque guardan su propia copia del plantel (ownRoster).
+   - Revisá lib/utils/sample_team.dart: si la app crea un equipo de ejemplo automáticamente en cada instalación con un id nuevo, se duplicaría en la nube. Proponé cómo evitarlo (id fijo o no subirlo hasta que se edite) y mostrámelo antes de implementarlo.
+   - Si existe algún tope de equipos en la versión free, no aplica al bajar.
+2. Modelo: VolleyMatch suma `DateTime? updatedAt` y `DateTime? deletedAt` (papelera). Los dos son opcionales y null en partidos viejos (mismo patrón que notes y fixtureEntryId). AppDataController.saveMatch setea updatedAt = ahora, salvo cuando el guardado viene del pull (parámetro nuevo `{bool syncToCloud = true}`, en false desde el pull): ahí conserva el updatedAt remoto.
+3. Nuevo lib/services/match_sync_service.dart:
+   - push(match) y pushTeam(team): fire-and-forget (unawaited), solo partidos terminados (los equipos siempre) y con la nube activada. Sin cola propia: el SDK de Firestore encola offline. Si el documento supera el límite del punto 0, no se sube y queda anotado para mostrarlo en Cuenta ("N partidos no se pudieron subir").
+   - uploadAll(): subida inicial de todos los equipos y después de todos los partidos terminados locales al activar la nube, con progreso ("Subiendo X de N"). Tiene que poder reanudarse si se corta: la próxima vez sube solo los que faltan.
+   - pull(): incremental, primero equipos y después partidos, cada colección con su propio cursor. Solo documentos con serverUpdatedAt posterior al cursor. El cursor es el mayor serverUpdatedAt recibido (nunca la hora del dispositivo), guardado por cuenta en settings_box (clave con el sufijo del 3A), con un margen hacia atrás: aplicar dos veces el mismo documento no cambia nada.
+     - Partido que no existe local: se guarda con saveMatch(syncToCloud: false).
+     - Si existe en los dos lados, gana el updatedAt más nuevo; null cuenta como el más viejo; empate, no se toca.
+     - deletedAt no nulo: manda el partido local a la papelera, no lo borra. En un equipo, lo oculta (deletedAt local), sin borrarlo hasta la purga.
+     - Que un partido falte en Firestore nunca significa borrarlo.
+     - Decisión: el pull no toca un partido que esté abierto en un MatchController (carga en vivo o retomado). Lo saltea sin mover el cursor para ese documento y lo aplica en el próximo pull, cuando ya no está abierto. Hace falta para el caso de un partido en curso exportado a otro dispositivo y terminado allá: si el pull lo pisara, el próximo guardado del controlador volvería a escribir la versión vieja con un updatedAt más nuevo.
+   - Al cerrar sesión (cualquiera de los caminos del punto 5 del 3A), push, pull y uploadAll se cortan. Antes de escribir en Hive, chequean que la cuenta abierta siga siendo la misma que los lanzó.
+4. Papelera de 30 días (aplica con o sin nube):
+   - Eliminar un partido setea deletedAt en vez de borrarlo (también los partidos en curso, que no se suben).
+   - AppDataController.matches deja de incluir los partidos en la papelera, que pasan a una lista aparte (trashedMatches). Así lo ignora todo lo que hoy lee matches: archivo, scouting, panel de temporada, impacto en cancha, comparador, CSV, fixture (linkedMatchOf), cupo free de estadística y tope de 3. Buscá todos los usos de matches y de StorageService.loadMatches() para confirmar que nadie lee los partidos por otro lado.
+   - Fixture: mandar a la papelera no toca linkedMatchId. Mientras está en la papelera, la fila cuenta como "sin jugar" (linkedMatchOf no encuentra el partido); al restaurarlo vuelve a figurar como jugada. "Eliminar definitivamente" hace lo que hace hoy deleteMatch: pone el linkedMatchId en null. Si mientras tanto esa fila se usó para otro partido, al restaurar el viejo no se re-vincula.
+   - Pantalla "Papelera" accesible desde el archivo, con los días que le quedan a cada partido, Restaurar y "Eliminar definitivamente" (con confirmación).
+   - Restaurar en free respeta el tope de 3: si el archivo está lleno, lo avisa y el partido sigue en la papelera.
+   - Purga automática de lo que tenga más de 30 días al arrancar, después de abrir los cajones de la cuenta, local y remota.
+   - Con la nube activada, el diálogo de Eliminar avisa que el partido va a la papelera en todos los dispositivos.
+5. Interruptor y aviso:
+   - Valor por cuenta en account_devices/{uid} (campo cloudSync: true/false; ausente = nunca se preguntó), con caché por cuenta en settings_box para leerlo sin red.
+   - Si está ausente, un aviso único después del login: "¿Querés guardar tus partidos y equipos en la nube para verlos en todos tus dispositivos?", con link a la política de privacidad. "Sí" activa y lanza uploadAll(); "Ahora no" guarda false.
+   - En AccountSettingsScreen: switch "Partidos y equipos en la nube", fecha del último sync, progreso de la subida inicial y partidos que no se pudieron subir.
+   - Apagarlo deja de subir y de bajar. Pregunta aparte si borrar la copia de la nube, partidos y equipos (por defecto no). Nunca toca lo local.
+6. Disparadores: push desde AppDataController.saveMatch y al mandar a la papelera o restaurar; pushTeam desde saveTeam (incluido el equipo que entra por team_export_service al importar) y deleteTeam. pull en _SubscriptionGateState.initState y en didChangeAppLifecycleState(resumed), sin await y siempre después de que estén abiertos los cajones de la cuenta (ver dónde los abre el 3A).
+7. Borrar cuenta: el 3A ya ofrece Exportar todo antes de confirmar.
+   Decisión: al borrar la cuenta se borran matches/{uid} y teams/{uid} (en batches de 400 operaciones; antes de borrar account_devices/{uid} y el usuario, porque las reglas exigen seguir autenticado) y los cajones locales de esa cuenta en este dispositivo (Hive.deleteBoxFromDisk). En los otros dispositivos solo se cierra la sesión, como decide el 3A. El diálogo lo dice.
+8. Política de privacidad: redactá el texto nuevo de lib/legal/privacy_policy_text.dart y el de la sección "Seguridad de los datos" de Play. Tiene que decir qué sube (el partido completo y los equipos, con nombres y fechas de nacimiento de los jugadores, sin fotos), que solo sube si el usuario activa la nube, para qué se usa y cómo borrarlo. Mostrámelos para aprobar ANTES de dejarlos en el archivo. Si ya existe un mecanismo de versión de la política (privacyPolicyVersion o similar), usalo; si no, proponé cómo pedir que se acepte la versión nueva.
+9. Plataformas: en Windows el interruptor no aparece y no se sincroniza nada (FlutterFire no soporta Windows en producción; el sync en Windows es la etapa W5 de documents/RallyStats-Windows-Comercial.pdf). Sin errores.
+10. Backend: agregá a firestore.rules las reglas de matches/{uid}/user_matches/{matchId} y teams/{uid}/user_teams/{teamId}, con acceso solo del dueño del uid y sin tocar las existentes. NO despliegues: el deploy lo hago yo. Si no tenés acceso a volley_stats_app_backend, pasame la regla para pegarla yo.
+Tests sin red (con fake_cloud_firestore si ya está en el proyecto; si no, con una interfaz y un fake propio):
+- conversiones, incluida la de listas anidadas si el punto 0 encontró alguna;
+- push solo con partido terminado y nube activa;
+- pull incremental, con el cursor tomado de serverUpdatedAt y sin re-subida;
+- pull con deletedAt manda a la papelera;
+- pull nunca borra lo que falta en Firestore;
+- gana el updatedAt más nuevo y el empate no toca nada;
+- uploadAll reanudable;
+- push/pull no escriben si cambió la cuenta abierta;
+- la papelera queda fuera de AppDataController.matches (y por lo tanto del archivo, la temporada, el comparador y el tope);
+- restaurar respeta el tope en free; restaurar re-vincula la fila del fixture;
+- purga a los 30 días;
+- fromJson de un partido viejo sin updatedAt ni deletedAt;
+- el pull saltea un partido abierto en un MatchController y lo aplica en el pull siguiente;
+- equipos: conversión sin fotos; pull conserva el photoPath local de los jugadores existentes; gana el equipo con updatedAt más nuevo; deletedAt oculta sin borrar y la purga lo borra a los 30 días; un equipo borrado no afecta a los partidos que lo usaron; fromJson de un equipo viejo sin updatedAt ni deletedAt.
+Actualizá CLAUDE.md y el manual según el proceso de release.
+Terminar con flutter analyze y flutter test en verde, sin desplegar nada. No hagas commit.
+
+
+-------------------------------------------------
+4 · COMPARADOR DE DOS PARTIDOS
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 4 de documents/RallyStats-Funcionalidades-Pendientes.pdf.
+1. Refactor sin cambios visuales: mové _StatsTable, _H y _C de match_summary_screen.dart a lib/screens/matches/widgets/stats_table.dart como `StatsTable({required List<PlayerStatLine> rows, List<String>? rowLabels})`. Si viene rowLabels, reemplaza el texto de la columna "Jugador". match_summary_screen la usa con stats.orderedRows y tiene que verse idéntica.
+2. Lógica pura en lib/services/match_compare.dart: a partir de dos MatchStats arma filas (métrica, valor A, valor B, delta, ¿mejora?).
+   Métricas de equipo, todas sacadas de StatsEngine/MatchStats sin recalcular a mano: sets ganados-perdidos, puntos totales, puntos de saque, ataque, contra y bloqueo, errores de saque, de ataque y generales, eficacia de ataque, eficacia de recepción, errores totales del rival.
+   Delta = B − A; los porcentajes, en puntos porcentuales. En las métricas de error, bajar cuenta como mejora.
+3. Nueva lib/screens/matches/match_compare_screen.dart: MatchCompareScreen({required VolleyMatch initialA}). Selector de A y de B (solo partidos terminados; B excluye a A), partido completo, sin selector de set. Toggle Equipo/Jugador.
+   Equipo: tabla Métrica | A | B | Δ, en verde si mejora y en rojo si empeora.
+   Jugador: dropdown con los jugadores presentes en ambos ownRoster (por Player.id) y debajo StatsTable con 2 filas, con rowLabels "A · dd/MM" y "B · dd/MM". Si no comparten jugadores: "Estos partidos no comparten jugadores (planteles cargados a mano)".
+4. match_archive_screen.dart: ítem "Comparar con…" en el PopupMenu de cada partido terminado, envuelto en runIfPremium. Si hay menos de 2 partidos terminados, SnackBar explicándolo.
+Tests de match_compare.dart: deltas, sentido de mejora en errores y porcentajes.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+5 · PANEL DE TEMPORADA
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 5 de documents/RallyStats-Funcionalidades-Pendientes.pdf. Requiere la funcionalidad 4: si no existe lib/screens/matches/widgets/stats_table.dart, hacé primero ese refactor (punto 1 del prompt 4).
+1. Sacá _accumulate y _accumulateRecepcion de StatsEngine como métodos `addFrom(other)` de TouchStats y ReceptionStats en stat_line.dart. StatsEngine pasa a usarlos, sin cambio de comportamiento (los tests existentes tienen que seguir en verde).
+2. Nuevo lib/services/season_engine.dart, en el estilo de scouting_engine.dart:
+   `SeasonReport buildSeason(List<VolleyMatch> all, {required String teamKey, String? tournament, DateTimeRange? range})`.
+   Solo partidos terminados. teamKey = ownTeamSourceId, o "name:<ownTeamName>" para los partidos sin ownTeamSourceId.
+   Suma con StatsEngine.compute() por partido y agrupa por Player.id: saque, ataque, contra, recepción, bloqueoPts, errGen y tarjetas. Nombre y dorsal: los del partido más reciente. Incluí las filas "No Asignado" y "Total Equipo" igual que la tabla del partido.
+   SeasonReport expone: partidos, ganados y perdidos, sets a favor y en contra, filas, y matchesPlayed por jugador.
+   Los porcentajes salen de los conteos sumados, nunca promediando porcentajes.
+3. StatsTable: parámetro opcional `Map<String,int>? matchesPlayed`. Si viene, agrega la columna "PJ" después de "Jugador".
+4. Nueva lib/screens/matches/season_stats_screen.dart con filtros: equipo (opciones = teamKeys distintos de los partidos), torneo ("Todos" + valores distintos) y rango de fechas opcional con showDateRangePicker. Debajo, 4 indicadores (Partidos, G-P, Sets, Ef. recepción del equipo) y la StatsTable con PJ. El reporte se calcula al cambiar un filtro, nunca dentro de build. Estado vacío si no hay partidos.
+5. Home: tile "Mi temporada" entre "Scouting de rivales" y "Pizarra", con runIfPremium.
+Tests: season_engine con 3 partidos sintéticos (mismo jugador en varios, un torneo distinto, un partido en curso que se excluye).
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+6 · FIXTURE CON AUTOCOMPLETADO
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 6 de documents/RallyStats-Funcionalidades-Pendientes.pdf.
+Decisión: el fixture es gratis y sin tope, y queda local, sin sync.
+1. lib/models/fixture_entry.dart con los campos de la sección 6: id, date, tournament, round, court, category, rivalTeamName, rivalTeamSourceId?, notes?, linkedMatchId?. toJson/fromJson manual y id con generateId('fixture_').
+2. storage_service.dart: box 'fixture_box' con loadFixtureEntries/saveFixtureEntry/deleteFixtureEntry, calcadas de plays_box. AppDataController: `List<FixtureEntry> fixtureEntries` cargada en loadAll y ordenada por fecha ascendente, con save/delete que llaman a notifyListeners.
+3. VolleyMatch: `String? fixtureEntryId` opcional en toJson/fromJson.
+4. lib/screens/fixture/fixture_screen.dart (con parámetro pickMode, igual que PlaysArchiveScreen):
+   Lista por fecha. Cada fila muestra fecha, rival y torneo · instancia, con un chip "Jugado X-Y" si linkedMatchId apunta a un partido existente, o "Próximo" en la primera fila futura sin jugar.
+   Tocar una fila jugada abre MatchSummaryScreen; tocar una sin jugar abre el formulario de edición. FAB "+".
+   En pickMode solo se listan las filas sin jugar y tocar una hace Navigator.pop(context, entry).
+5. lib/screens/fixture/fixture_entry_form_screen.dart: mismos campos y widgets que NewMatchScreen (fecha con showDatePicker, combo de rival precargado + nombre libre), más notas. Botón eliminar al editar.
+6. new_match_screen.dart: botón "Elegir del fixture" arriba de todo que autocompleta los controles (ver _pickFromFixture en la sección 6 del roadmap) y guarda _pendingFixtureEntryId. Llevá ese id por el wizard (Roster → Lineup) hasta el punto donde el VolleyMatch se guarda por primera vez (buscalo). Ahí se setea match.fixtureEntryId y se actualiza entry.linkedMatchId.
+7. Al borrar un partido que tiene fixtureEntryId, poné en null el linkedMatchId de esa fila para que vuelva a "sin jugar".
+8. Home: tile "Fixture" después de "Archivo de Partidos".
+No tocar MatchController.
+Tests: JSON de FixtureEntry, JSON viejo de VolleyMatch sin fixtureEntryId, y el vínculo y desvínculo en AppDataController.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+7 · ANIMAR JUGADA DE PIZARRA
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y la sección 7 de documents/RallyStats-Funcionalidades-Pendientes.pdf.
+1. Lógica pura (por ejemplo en lib/screens/whiteboard/widgets/playback.dart): dado List<PlayStroke> y progress de 0 a 1, devuelve qué dibujar.
+   El progreso se reparte por cantidad total de puntos: los trazos completos hasta N y el trazo N+1 cortado en el punto proporcional.
+   La flecha de un trazo con arrow == true aparece solo cuando ese trazo está completo.
+2. WhiteboardPainter: parámetro opcional `double? progress`. Con null dibuja todo como hoy, sin cambio visual; con valor usa la lógica del punto 1. Las fichas (PlacedToken) se dibujan siempre completas.
+3. Nueva PlayPlaybackScreen(play) con un AnimationController:
+   Duración a 1×: totalPuntos × 8 ms, acotada entre 2 y 12 s.
+   Controles: reiniciar, play/pausa, slider para adelantar o retroceder (pausa al arrastrar) y velocidad 1×/2×. Arranca reproduciendo.
+4. PlaysArchiveScreen, solo fuera de pickMode: acción "Reproducir" en cada jugada.
+No cambiar el modelo Play ni su JSON. Sin gating nuevo: la pizarra ya es premium.
+Tests de la lógica del punto 1: progress 0, 0.5, 1, trazo de un solo punto y flecha que aparece solo al completarse.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+8 · BACKUP EN LA NUBE (JUGADAS Y FIXTURE)
+-------------------------------------------------
+Repos: C:\Users\Usuario\volley_stats_app y C:\Users\Usuario\volley_stats_app_backend. Leé ambos CLAUDE.md y la sección 8 de documents/RallyStats-Funcionalidades-Pendientes.pdf. Antes de escribir código, presentame un plan breve para aprobar.
+Decisión: backup MANUAL (opción B), premium, solo jugadas de pizarra y fixture. Partidos y equipos no (los cubre el sync del 3B) y fotos no.
+1. Firestore: backups/{uid} (documento meta con createdAt, appVersion y conteos) y las subcolecciones backups/{uid}/plays/{playId} y fixture/{entryId}, con un documento por elemento usando el toJson existente. Batches de 400 operaciones como máximo.
+2. "Hacer backup ahora": reemplaza el backup remoto. Escribe todo lo local y borra los documentos remotos que ya no existen en local.
+3. "Restaurar": diálogo con dos opciones.
+   "Combinar": por id; si existe en los dos lados, gana la nube.
+   "Reemplazar todo": borra lo local de esos tipos y escribe lo de la nube.
+   Confirmación explícita antes de reemplazar.
+4. Nuevo lib/services/cloud_backup_service.dart y una tarjeta "Copia de seguridad" en account_settings_screen.dart con fecha del último backup y los dos botones, envueltos en runIfPremium. Estados de carga y error claros y mensaje si no hay conexión (acá sí se espera la red, porque es una acción explícita del usuario).
+5. Backend: regla en firestore.rules para backups/{uid}/{document=**} con acceso solo del dueño del uid. NO despliegues.
+6. Si la política de privacidad todavía no menciona datos en la nube (ver prompt 3B), proponé el texto y mostrámelo antes de aplicarlo.
+Tests: serialización y lógica de combinar y reemplazar con fakes, sin red.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.
+
+
+-------------------------------------------------
+9 · SCOUTING FASE 2 + CARGA PRECISA (ETAPA 3)
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md, documents/spec-estadistica-visual.md (sobre todo §6, Etapa 3) y la sección 9 de documents/RallyStats-Funcionalidades-Pendientes.pdf.
+Esto toca la carga en vivo: antes de escribir código, presentame un plan para aprobar. Hacelo en dos pasadas, con analyze y tests en verde al final de cada una.
+Pasada 1 (scouting fase 2):
+- RallyEvent: `int? rivalTargetZone`, opcional y null en partidos viejos. Usa el mismo esquema de zonas del partido (6 o 9, como StatsEngine.zoneCenter/nineZones).
+- rival_action_dialog.dart: cuando el rival gana el punto con ataque o contraataque y el registro de zonas está activo (mismo ajuste y gating que la zona propia), un paso opcional "¿A qué zona atacó?" con la cancha tocable y un botón "Omitir" que no frena la carga.
+- MatchController._addEvent lo guarda. No cambiar ninguna otra regla de juego.
+- scouting_engine.dart: conteo de zonas por rival. rival_scouting_screen.dart: mapa de calor con zone_heatmap.dart, más la cantidad de ataques con zona y sin zona.
+- "Simular resto del set" también carga la zona a veces, igual que hace con missType.
+Pasada 2 (Etapa 3): implementar spec-estadistica-visual.md §6 tal como está escrita.
+Tests: JSON con y sin campos nuevos, captura con y sin "Omitir", agregación del scouting, y un partido simulado completo sin regresiones en las estadísticas existentes.
+No hagas commit.
+
+
+-------------------------------------------------
+10 · CHATBOT CONVERSACIONAL (IA)
+-------------------------------------------------
+Repos: C:\Users\Usuario\volley_stats_app y C:\Users\Usuario\volley_stats_app_backend. Leé ambos CLAUDE.md, la sección 10 de documents/RallyStats-Funcionalidades-Pendientes.pdf y la sección 7 del roadmap premium. Antes de escribir código, presentame un plan para aprobar, incluyendo modelo, costo estimado por consulta y system prompt (usá el skill claude-api para precios y modelos vigentes).
+Alcance v1, cerrado: preguntas sobre el partido ABIERTO y sobre reglas o uso de la app según el manual. Sin comparar partidos ni hacer lectura táctica.
+Backend:
+- functions/src/askCoach.ts: onCall con la API key en defineSecret('ANTHROPIC_API_KEY'). Verifica sesión y premium del lado del servidor con el mismo mecanismo de entitlements que redeemPromoCode/revenuecat.ts.
+- Cupo de 50 consultas por mes por cuenta, en ai_usage/{uid}/months/{yyyy-MM}, incrementado dentro de una transacción. Devuelve las consultas restantes.
+- Texto del manual: copia en functions/src/manualText.ts generada desde tool/generate_manual.dart; documentá cómo regenerarla.
+- System prompt: no inventar números que no estén en el contexto, responder en español rioplatense y usar terminología FIVB. Si el dato no está en el contexto, decirlo.
+- NO despliegues ni configures el secreto: eso lo hago yo.
+Frontend:
+- Contexto: JSON armado desde MatchStats/visual_stats del partido (no el log crudo), con los jugadores anonimizados como "Jugador #<dorsal>". El mapeo queda en el cliente y la respuesta se re-mapea a los nombres reales.
+- lib/screens/chatbot/match_assistant_screen.dart: historial solo en memoria (no se persiste), estados de carga y error, mensaje claro sin conexión (patrón del login) y "Consultas este mes: X/50".
+- Entrada: ícono en el AppBar de MatchSummaryScreen con runIfPremium.
+- Privacidad: proponé el texto para privacy_policy_text.dart y para la ficha de Play y mostrámelo antes de aplicarlo.
+Tests: anonimización y re-mapeo, armado del contexto, y la función con el emulador de Firebase si es viable.
+Terminar con flutter analyze y flutter test en verde, y npm run build en functions. No hagas commit.
+
+
+=================================================
+W · VERSIÓN COMERCIAL DE WINDOWS
+=================================================
+Complemento de documents/RallyStats-Windows-Comercial.pdf (23/10/2026).
+Orden: 3A → 3B → W1 → W2 → (W3 o W3b) + W4 → W5. W3b solo si Paddle no aprueba la cuenta.
+
+
+-------------------------------------------------
+W1 · BASE DE FIREBASE SOPORTADA EN WINDOWS
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y documents/RallyStats-Windows-Comercial.pdf (secciones 3 y 4).
+Antes de escribir código, presentame un plan breve para aprobar.
+Contexto: en el README de FlutterFire, firebase_core, firebase_auth y cloud_firestore figuran en Windows como "(*) for development only. Production on Windows is not supported", y cloud_functions como N/A. Para vender la versión de Windows, la app no puede depender de eso.
+Decisión: en Android no cambia nada (siguen FlutterFire y el SDK de RevenueCat). En Windows, Auth, Firestore y las Cloud Functions se usan por sus APIs REST públicas, detrás de una interfaz común.
+1. Inventario: listá cada uso de FirebaseAuth, FirebaseFirestore y FirebaseFunctions en lib/ (auth_service.dart, redeem_code_service.dart y lo que hayan sumado 3A y 3B) y mostrámelo antes de seguir.
+2. Interfaces, elegidas en un solo lugar según la plataforma (lib/utils/platform_support.dart):
+   - AuthGateway: signIn, register, signOut, sendPasswordResetEmail, reauthenticate, deleteUser, currentUser (uid, email), authStateChanges, getIdToken.
+   - AccountDevicesStore: get, la transacción de reclamo de lugar, actualizar un campo, borrar el documento y watch.
+   - FunctionsGateway: call(nombre, data).
+   La implementación FlutterFire es la de hoy, sin cambios de comportamiento. La implementación REST es solo para Windows.
+3. REST en Windows:
+   - Auth: Identity Toolkit (accounts:signInWithPassword, accounts:signUp, accounts:sendOobCode, accounts:delete) y renovación del token con securetoken.googleapis.com. Reautenticar = volver a llamar a signInWithPassword. El refresh token se guarda cifrado (verificá que flutter_secure_storage en Windows use DPAPI o el Credential Manager), nunca en Hive en claro. authStateChanges es un Stream propio. Los errores (EMAIL_NOT_FOUND, INVALID_PASSWORD, EMAIL_EXISTS, etc.) se traducen a los mismos mensajes que hoy.
+   - Firestore: API REST v1 (documents get, patch, delete, y beginTransaction + commit para el reclamo de lugar y para freeStatsMatchId del 3A), autenticada con el ID token: las reglas de seguridad aplican igual. watch = sondeo cada 30 s con la app en primer plano y al volver a primer plano, cortado al cerrar sesión, con el mismo comportamiento de cierre que hoy tiene _watchDeviceSlot.
+   - Functions: protocolo HTTPS de las callables: POST a https://southamerica-east1-<proyecto>.cloudfunctions.net/<nombre> con {"data": ...} y Authorization: Bearer <ID token>; respuesta {"result": ...} o {"error": ...}. Con esto "Tengo un código" (redeemPromoCode) pasa a funcionar en Windows.
+   - apiKey y projectId salen de firebase_options.dart para Windows (verificá que exista esa entrada; si no, decime de dónde tomarlos).
+   - Sin red: los mismos mensajes que hoy (patrón del login).
+4. En Windows no se inicializa ni se llama a firebase_auth, cloud_firestore ni cloud_functions. Verificá si el build de Windows igual necesita los plugins registrados; si se pueden excluir de Windows sin romper Android, excluilos.
+5. Decisión: al actualizar, los usuarios de Windows inician sesión una vez más (la sesión de FlutterFire no se migra). El lugar de dispositivo se conserva porque el deviceId no cambia en este prompt (eso es W2).
+Tests con un cliente HTTP falso: login correcto y con cada error; refresh de un token vencido; transacción de reclamo con lugar libre, con el mismo dispositivo y con el límite lleno (DeviceConflictException); sondeo que detecta el documento borrado o el dispositivo quitado y cierra la sesión; callable con resultado y con error.
+Terminar con flutter analyze y flutter test en verde y flutter build windows --release. Dame los pasos para probar en la PC: login, cierre de sesión, cierre remoto, borrar cuenta y "Tengo un código". No hagas commit.
+
+
+-------------------------------------------------
+W2 · ESTADO PREMIUM REAL Y DEVICEID ESTABLE EN WINDOWS
+-------------------------------------------------
+Repos: C:\Users\Usuario\volley_stats_app y C:\Users\Usuario\volley_stats_app_backend. Leé el CLAUDE.md de ambos y documents/RallyStats-Windows-Comercial.pdf (secciones 4, 5 y 12). Requiere el 3A (caché de la suscripción por cuenta) y el W1: si falta alguno, pará y avisame.
+Antes de escribir código, presentame un plan breve para aprobar.
+Backend:
+1. Nueva Cloud Function onCall getSubscriptionStatus (southamerica-east1, mismo proyecto): verifica la sesión, llama a GET https://api.revenuecat.com/v1/subscribers/{uid} con la clave secreta que ya usa redeemPromoCode y devuelve {activeEntitlementIds, activeSubscriptionProductIds, premiumStore, premiumExpiresAt, managementUrl}. "Activo" = expires_date nula o futura. Sin caché propio. NO despliegues.
+Frontend:
+2. platform_support.dart: reemplazá isRevenueCatSupported por dos getters: canUseRevenueCatSdk (Android/iOS) y canReadSubscriptionStatus (todas las plataformas: por SDK o por la función). Revisá cada uso actual y elegí el que corresponde.
+3. SubscriptionController en Windows: refresh() llama a getSubscriptionStatus por FunctionsGateway (W1). isPremium = rallystats_pro activo; deviceLimit = deviceLimitFrom(...) con las listas que devuelve la función (no dupliques esa lógica en TypeScript). Se elimina el isPremium = true forzado. Sin red, la caché por cuenta del 3A, igual que en Android.
+4. auth_service.dart: _computeDeviceLimit y _computeConfirmedDeviceLimit usan la misma fuente en Windows y dejan de caer a 1 o a null por ser Windows. Se mantiene la regla: _computeConfirmedDeviceLimit devuelve null ante cualquier duda (sin red, error de la función).
+5. Windows, hasta que exista W3: si la cuenta no es premium, el paywall dice que la suscripción se contrata desde la app de Android y no ofrece comprar. "Restaurar compras" se reemplaza por "Actualizar estado". Si la cuenta es premium, SubscriptionScreen muestra de qué tienda viene (premiumStore).
+6. deviceId estable en Windows (storage_service.dart, _resolveDeviceId): usar el Device ID del sistema (device_info_plus, WindowsDeviceInfo.deviceId = HKLM\SOFTWARE\Microsoft\SQMClient\MachineId) y, si no está, HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid. Mismo esquema de legacy_device_id que ya existe para ANDROID_ID, para migrar el lugar reclamado con el id al azar viejo sin perderlo contra el límite. Si no se puede leer ninguno, el esquema de hoy.
+7. Decisión: las builds de Windows ya repartidas (con premium forzado) se aceptan como están; no se bloquean.
+Tests: deviceLimitFrom con las listas del backend; refresh sin red usa la caché; una cuenta free en Windows ve las restricciones; una cuenta premium de Play es premium en Windows; resolución del deviceId en Windows y migración del legacy.
+Actualizá CLAUDE.md (Suscripción premium, Login y control de dispositivos) y el manual según el proceso de release.
+Terminar con flutter analyze y flutter test en verde (y npm run build en functions). No despliegues. No hagas commit.
+
+
+-------------------------------------------------
+W3 · COBRO EN WINDOWS CON PADDLE (VÍA REVENUECAT)
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y documents/RallyStats-Windows-Comercial.pdf (secciones 6, 7, 9 y 10). Requiere W2. Antes de empezar confirmame que ya están hechos los pasos manuales de la sección 16 (cuenta de Paddle aprobada, productos en Paddle y en RevenueCat, integración Paddle en RevenueCat y el Web Purchase Link); si no, pará.
+Antes de escribir código, presentame un plan breve para aprobar.
+Decisión: Paddle es el merchant of record. En Windows se vende solo el plan base, mensual y anual; los complementos de dispositivo siguen siendo solo de Play por ahora.
+1. Paywall y SubscriptionScreen en Windows: botones "Mensual" y "Anual" que abren en el navegador (url_launcher) el Web Purchase Link de RevenueCat con el uid de Firebase como app user id, en el formato que indica su documentación. Nunca se abre un link sin uid.
+2. Al volver a la app (didChangeAppLifecycleState resumed) y con un botón "Ya pagué", refresh(). Si la compra todavía no figura, reintentar a los 5, 15 y 30 s (el webhook de Paddle a RevenueCat puede tardar) con un mensaje claro, y después dejar el botón para reintentar a mano.
+3. Si la cuenta ya es premium por cualquier tienda, no se ofrece comprar: se muestra de dónde viene. Así nadie paga dos veces.
+4. Gestionar en Windows: si premiumStore es Paddle, abrir managementUrl (de getSubscriptionStatus). Si es Play, decir que se gestiona desde Google Play en el celular.
+5. Android: si la suscripción activa es de Paddle (la tienda del entitlement en CustomerInfo), SubscriptionScreen muestra "Tu suscripción se gestiona desde RallyStats para Windows o desde el mail de Paddle", sin links ni precios. En Android no se agrega ningún link ni mención para comprar fuera de Google Play (política de pagos de Play).
+6. subscription_tiers.dart: sumá los ids de los productos de Paddle tal como los configures en RevenueCat, sin tocar los de Play. El entitlement sigue siendo rallystats_pro.
+7. Legales: redactá los cambios de lib/legal (términos y política de privacidad) para sumar a Paddle como vendedor y procesador de pagos en Windows, con su política de reembolsos. Mostrámelos para aprobar ANTES de aplicarlos y usá el mecanismo de versión de la política que exista.
+Tests: el link lleva el uid y sin uid no se abre; una cuenta premium no ve la compra; los reintentos después de volver; Android con un entitlement de Paddle no muestra links.
+Actualizá CLAUDE.md, el manual y el README según el proceso de release.
+Terminar con flutter analyze y flutter test en verde. Dame los pasos para probar una compra en el sandbox de Paddle de punta a punta (compra, renovación, cancelación y reembolso) y verla en Android. No hagas commit.
+
+
+-------------------------------------------------
+W3b · ALTERNATIVA: COBRO EN WINDOWS CON MERCADO PAGO
+-------------------------------------------------
+Usar solo si Paddle no aprueba la cuenta. Repos: C:\Users\Usuario\volley_stats_app y C:\Users\Usuario\volley_stats_app_backend. Leé el CLAUDE.md de ambos y documents/RallyStats-Windows-Comercial.pdf (sección 8). Requiere W2.
+Antes de escribir código, presentame un plan breve para aprobar.
+Decisión: precio en pesos, solo para Argentina. Mercado Pago no tiene integración con RevenueCat: cada pago aprobado otorga el entitlement por la API de RevenueCat, con el mismo mecanismo que redeemPromoCode.
+Backend (secretos con defineSecret; NO despliegues):
+1. createMpSubscription (onCall): crea una suscripción (preapproval) para el uid con el plan elegido, external_reference = uid y back_url, y devuelve el init_point.
+2. mpWebhook (onRequest): valida la firma x-signature con el secreto de Mercado Pago; ante un pago aprobado de una suscripción, busca el uid por external_reference y otorga rallystats_pro por el período del plan + 3 días de gracia. Idempotente: cada payment id se guarda en mp_payments/{paymentId} y no se aplica dos veces. Un pago rechazado o una suscripción cancelada no extienden nada; el entitlement vence solo.
+3. cancelMpSubscription (onCall): cancela el preapproval del uid.
+4. Estado en mp_subscriptions/{uid} (preapproval id, plan, estado, próximo cobro). Reglas: solo lectura del dueño; escritura solo desde las funciones.
+Frontend Windows:
+5. Paywall: botón que llama a createMpSubscription y abre el init_point en el navegador; al volver, refresh() con los mismos reintentos que W3.
+6. Gestionar: muestra el estado de mp_subscriptions y un botón Cancelar con confirmación.
+7. Legales: igual que W3 pero con Mercado Pago; mostrámelos antes de aplicarlos.
+Tests con el emulador de functions: webhook con firma inválida rechazado, pago repetido sin doble otorgamiento, duración del otorgamiento, cancelación.
+Terminar con flutter analyze, flutter test y npm run build en verde. No despliegues. No hagas commit.
+
+
+-------------------------------------------------
+W4 · DISTRIBUCIÓN EN MICROSOFT STORE (MSIX)
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y documents/RallyStats-Windows-Comercial.pdf (sección 11). Puede hacerse en paralelo con W3.
+1. Paquete msix (pub.dev) configurado en pubspec.yaml con la identidad de Partner Center (identity_name, publisher, publisher_display_name: te los paso yo) y la capability internetClient. Versión tomada de pubspec.
+2. Datos: verificá dónde quedan las cajas de Hive en una instalación MSIX y en una de Inno Setup (getApplicationDocumentsDirectory) y que pasar de una a la otra no pierda datos. Si la ruta cambia, proponé una migración con el mismo cuidado que el 3A (copia previa, nada se borra) y mostrámela antes de implementarla.
+3. Nada de autoactualización propia: la Store actualiza.
+4. Proceso de release del CLAUDE.md: sumá el paso "dart run msix:create" (con store: true) y la subida a Partner Center. Inno Setup y el .zip quedan como alternativa.
+5. Redactá el texto de la ficha de la Store (descripción corta, larga, novedades) en español, sin mencionar precios de Google Play.
+Terminar con flutter analyze en verde y el .msix generado. No publiques nada. No hagas commit.
+
+
+-------------------------------------------------
+W5 · SYNC DE PARTIDOS Y EQUIPOS EN WINDOWS (DESPUÉS DEL 3B)
+-------------------------------------------------
+Repo: C:\Users\Usuario\volley_stats_app. Leé CLAUDE.md y documents/RallyStats-Windows-Comercial.pdf (secciones 3 y 15). Requiere 3B y W1.
+Antes de escribir código, presentame un plan breve para aprobar.
+Contexto: por REST no hay cola offline ni escuchas en vivo, así que en Windows el MatchSyncService del 3B necesita una implementación propia detrás de la misma interfaz.
+1. Cola de salida en Hive por cuenta (outbox_box_<sufijo>): cada push pendiente (colección, id del partido o del equipo y updatedAt) se guarda antes de intentar subirlo y se borra solo cuando Firestore confirma. Se procesa al abrir, al volver a primer plano y cada 60 s mientras haya pendientes.
+2. Pull por runQuery: serverUpdatedAt > cursor, para partidos y equipos, con las mismas reglas del 3B (gana el updatedAt más nuevo, deletedAt manda el partido a la papelera y oculta el equipo, nunca se borra lo que falta, no se toca un partido abierto, las fotos no viajan y se conserva el photoPath local).
+3. Subida inicial reanudable con el mismo progreso que en Android.
+4. El switch "Partidos y equipos en la nube" aparece en Windows.
+Tests con un Firestore REST falso: push sin red queda en la cola y se envía al volver; la cola sobrevive a cerrar la app; pull incremental; mismas reglas de conflicto y papelera que el 3B; cambio de cuenta corta la cola sin escribir en la otra.
+Terminar con flutter analyze y flutter test en verde. No hagas commit.

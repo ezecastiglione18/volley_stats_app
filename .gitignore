@@ -49,3 +49,7 @@ app.*.map.json
 
 # Instalador de Windows generado con Inno Setup
 /installer/Output/
+
+# Firebase Hosting: copia del manual que regenera tool/generate_manual.dart, y caché del CLI
+/hosting/manual.pdf
+.firebase/

@@ -1,17 +1,21 @@
 import '../models/player.dart';
 import '../models/team.dart';
-import 'id_gen.dart';
 
 /// Equipo de ejemplo ("Club Atlético Central") con 35 jugadores repartidos
 /// en partes iguales entre las 5 posiciones (7 jugadores por posición). La
 /// edad está cargada de las dos formas que admite la app: en algunos
 /// jugadores a mano (`age`) y en otros a partir de la fecha de nacimiento
 /// (`birthDate`), para que el equipo de ejemplo muestre ambos casos.
+///
+/// Ids fijos (equipo y jugadores) a propósito: si se carga en dos
+/// dispositivos de la misma cuenta, en la nube queda un solo documento en vez
+/// de dos copias. Se crea con `updatedAt` null y no se sube hasta que se
+/// edite (ver `AppDataController.addSampleTeam` y `MatchSyncService.pushTeam`).
 Team buildSampleTeam() {
   final players = <Player>[
     // Armadores
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_01',
       firstName: 'Lucas',
       lastName: 'Fernández',
       number: 1,
@@ -22,7 +26,7 @@ Team buildSampleTeam() {
       age: 24,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_02',
       firstName: 'Tomás',
       lastName: 'Gómez',
       number: 7,
@@ -33,7 +37,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1999, 5, 10),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_03',
       firstName: 'Bruno',
       lastName: 'Sosa',
       number: 10,
@@ -44,7 +48,7 @@ Team buildSampleTeam() {
       age: 21,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_04',
       firstName: 'Nicolás',
       lastName: 'Herrera',
       number: 14,
@@ -55,7 +59,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2003, 2, 18),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_05',
       firstName: 'Mateo',
       lastName: 'Villalba',
       number: 21,
@@ -66,7 +70,7 @@ Team buildSampleTeam() {
       age: 19,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_06',
       firstName: 'Dante',
       lastName: 'Ponce',
       number: 26,
@@ -77,7 +81,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1996, 7, 22),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_07',
       firstName: 'Lautaro',
       lastName: 'Cabrera',
       number: 31,
@@ -90,7 +94,7 @@ Team buildSampleTeam() {
 
     // Opuestos
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_08',
       firstName: 'Franco',
       lastName: 'Medina',
       number: 2,
@@ -101,7 +105,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2000, 3, 12),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_09',
       firstName: 'Agustín',
       lastName: 'Ríos',
       number: 8,
@@ -112,7 +116,7 @@ Team buildSampleTeam() {
       age: 28,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_10',
       firstName: 'Ezequiel',
       lastName: 'Torres',
       number: 11,
@@ -123,7 +127,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1997, 6, 5),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_11',
       firstName: 'Matías',
       lastName: 'Álvarez',
       number: 17,
@@ -134,7 +138,7 @@ Team buildSampleTeam() {
       age: 22,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_12',
       firstName: 'Elías',
       lastName: 'Godoy',
       number: 22,
@@ -145,7 +149,7 @@ Team buildSampleTeam() {
       age: 20,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_13',
       firstName: 'Bautista',
       lastName: 'Juárez',
       number: 27,
@@ -156,7 +160,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2002, 4, 14),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_14',
       firstName: 'Simón',
       lastName: 'Peralta',
       number: 32,
@@ -169,7 +173,7 @@ Team buildSampleTeam() {
 
     // Centrales
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_15',
       firstName: 'Federico',
       lastName: 'Molina',
       number: 3,
@@ -180,7 +184,7 @@ Team buildSampleTeam() {
       age: 27,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_16',
       firstName: 'Joaquín',
       lastName: 'Ibáñez',
       number: 9,
@@ -191,7 +195,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1998, 1, 20),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_17',
       firstName: 'Ramiro',
       lastName: 'Acosta',
       number: 13,
@@ -202,7 +206,7 @@ Team buildSampleTeam() {
       age: 23,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_18',
       firstName: 'Ignacio',
       lastName: 'Paz',
       number: 18,
@@ -213,7 +217,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2004, 5, 9),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_19',
       firstName: 'Renzo',
       lastName: 'Ortiz',
       number: 23,
@@ -224,7 +228,7 @@ Team buildSampleTeam() {
       age: 18,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_20',
       firstName: 'Thiago',
       lastName: 'Domínguez',
       number: 28,
@@ -235,7 +239,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1995, 7, 30),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_21',
       firstName: 'Ivo',
       lastName: 'Bianchi',
       number: 33,
@@ -248,7 +252,7 @@ Team buildSampleTeam() {
 
     // Puntas/Receptores
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_22',
       firstName: 'Santiago',
       lastName: 'Correa',
       number: 4,
@@ -259,7 +263,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2001, 6, 25),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_23',
       firstName: 'Valentín',
       lastName: 'Rojas',
       number: 6,
@@ -270,7 +274,7 @@ Team buildSampleTeam() {
       age: 21,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_24',
       firstName: 'Emiliano',
       lastName: 'Vega',
       number: 12,
@@ -281,7 +285,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1999, 2, 11),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_25',
       firstName: 'Gonzalo',
       lastName: 'Suárez',
       number: 16,
@@ -292,7 +296,7 @@ Team buildSampleTeam() {
       age: 19,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_26',
       firstName: 'Facundo',
       lastName: 'Salas',
       number: 24,
@@ -303,7 +307,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2003, 4, 17),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_27',
       firstName: 'Rodrigo',
       lastName: 'Funes',
       number: 29,
@@ -314,7 +318,7 @@ Team buildSampleTeam() {
       age: 30,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_28',
       firstName: 'Nahuel',
       lastName: 'Quiroga',
       number: 34,
@@ -327,7 +331,7 @@ Team buildSampleTeam() {
 
     // Líberos
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_29',
       firstName: 'Julián',
       lastName: 'Núñez',
       number: 5,
@@ -338,7 +342,7 @@ Team buildSampleTeam() {
       age: 26,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_30',
       firstName: 'Maximiliano',
       lastName: 'Ledesma',
       number: 15,
@@ -349,7 +353,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1994, 3, 3),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_31',
       firstName: 'Camilo',
       lastName: 'Aguirre',
       number: 19,
@@ -360,7 +364,7 @@ Team buildSampleTeam() {
       age: 20,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_32',
       firstName: 'Benjamín',
       lastName: 'Castro',
       number: 20,
@@ -371,7 +375,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(2005, 6, 19),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_33',
       firstName: 'Cristian',
       lastName: 'Bustos',
       number: 25,
@@ -382,7 +386,7 @@ Team buildSampleTeam() {
       age: 24,
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_34',
       firstName: 'Leandro',
       lastName: 'Aráoz',
       number: 30,
@@ -393,7 +397,7 @@ Team buildSampleTeam() {
       birthDate: DateTime(1999, 7, 27),
     ),
     Player(
-      id: generateId('pl_'),
+      id: '${kSampleTeamId}_pl_35',
       firstName: 'Martín',
       lastName: 'Cardozo',
       number: 35,
@@ -406,8 +410,8 @@ Team buildSampleTeam() {
   ];
 
   return Team(
-    id: generateId('team_'),
-    name: 'Club Atlético Central',
+    id: kSampleTeamId,
+    name: kSampleTeamName,
     players: players,
     headCoach: 'Roberto Giménez',
     assistantCoach: 'Lucía Fernández',
@@ -416,3 +420,10 @@ Team buildSampleTeam() {
     physicalTrainer: 'Ignacio Ramallo',
   );
 }
+
+/// Id fijo del equipo de ejemplo (ver [buildSampleTeam]). Los jugadores usan
+/// `<kSampleTeamId>_pl_NN`.
+const kSampleTeamId = 'team_sample_central';
+
+/// Nombre del equipo de ejemplo (también se usa para no cargarlo dos veces).
+const kSampleTeamName = 'Club Atlético Central';

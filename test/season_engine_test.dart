@@ -84,6 +84,9 @@ void main() {
           methodCall.method == 'getApplicationDocumentsDirectory' ? tempDir.path : null,
     );
     await StorageService.instance.init();
+    // Los datos (equipos, partidos...) son por cuenta: se abren los de una
+    // cuenta de prueba, como hace `_AccountDataGate` después del login.
+    await StorageService.instance.openUserBoxes('test-uid');
 
     // 3 terminados de 'team-1' (2 de la Liga, 1 de la Copa), 1 en curso del
     // mismo equipo y 1 terminado de otro equipo.

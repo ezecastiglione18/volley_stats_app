@@ -13,8 +13,8 @@ import 'legal_section.dart';
 /// Si se actualiza este texto, subir [kTermsVersion]/[kTermsEffectiveDate]
 /// para que quede registro de qué versión aceptó cada cuenta nueva (ver
 /// `AuthService.register`).
-const kTermsVersion = '1.0';
-const kTermsEffectiveDate = '26 de agosto de 2026';
+const kTermsVersion = '1.1';
+const kTermsEffectiveDate = '23 de octubre de 2026';
 
 const List<LegalSection> termsConditionsSections = [
   LegalSection(
@@ -38,10 +38,12 @@ const List<LegalSection> termsConditionsSections = [
         'funciones (pizarra táctica, zona de destino, estadísticas más allá de un partido, y el '
         'tope de partidos guardados) están limitadas en la versión gratuita y se desbloquean con '
         'una suscripción mensual paga ("versión premium"), según se detalla en la sección 04.\n\n'
-        'Los datos de juego (equipos, jugadores, partidos, jugadas de pizarra) se guardan '
-        'exclusivamente en el almacenamiento local del dispositivo: RallyStats funciona '
-        'offline para toda esa información. Solo el inicio de sesión y, en Android, la '
-        'suscripción premium dependen de conexión a un servicio externo.',
+        'Los datos de juego (equipos, jugadores, partidos, jugadas de pizarra, fixture) se '
+        'guardan en el almacenamiento local del dispositivo: RallyStats funciona offline para '
+        'toda esa información. Si activás la función opcional "Partidos y equipos en la nube", '
+        'los partidos terminados y los equipos se guardan además en tu cuenta para verlos en '
+        'todos tus dispositivos (ver la Política de Privacidad). El inicio de sesión, la nube y, '
+        'en Android, la suscripción premium dependen de conexión a un servicio externo.',
   ),
   LegalSection(
     '03. Cuenta de usuario',
@@ -100,8 +102,9 @@ const List<LegalSection> termsConditionsSections = [
         'cuenta activa.\n\n'
         'Los datos que vos cargás (equipos, jugadores, partidos, jugadas de pizarra, fotos que '
         'subís) siguen siendo tuyos: RallyStats no reclama ninguna propiedad sobre ese '
-        'contenido, y —como se explica en la Política de Privacidad— ni siquiera tiene acceso a '
-        'él, porque se guarda localmente en tu dispositivo.',
+        'contenido, y —como se explica en la Política de Privacidad— no lo mira ni lo usa: se '
+        'guarda en tu dispositivo y, solo si activás la nube, también en tu cuenta, únicamente '
+        'para que lo veas en tus otros dispositivos.',
   ),
   LegalSection(
     '07. Tus datos personales',
@@ -129,11 +132,12 @@ const List<LegalSection> termsConditionsSections = [
         'suscripción esté disponible sin interrupciones en todo momento, ya que dependen de '
         'proveedores externos (Firebase, Google Play, RevenueCat) fuera de nuestro control '
         'directo.\n\n'
-        'Los datos de equipos, jugadores, partidos y pizarra se guardan únicamente en tu '
-        'dispositivo, sin respaldo en ningún servidor nuestro. Si desinstalás la app, se rompe '
-        'o perdés el dispositivo sin haber exportado tus partidos, esa información se pierde de '
-        'forma irrecuperable — te recomendamos exportar los partidos importantes (función '
-        'disponible en la app) como respaldo periódico.\n\n'
+        'Los datos de equipos, jugadores, partidos, pizarra y fixture se guardan en tu '
+        'dispositivo. Sin la nube activada no tienen respaldo en ningún servidor nuestro, y con '
+        'la nube activada la pizarra, el fixture, las fotos y los partidos en curso tampoco: si '
+        'desinstalás la app, se rompe o perdés el dispositivo sin haberlos exportado, esa '
+        'información se pierde de forma irrecuperable — te recomendamos usar "Exportar todo" '
+        '(función disponible en la app) como respaldo periódico.\n\n'
         'En la medida permitida por la ley aplicable, los desarrolladores no son responsables '
         'por daños indirectos derivados del uso de la app, ni por la pérdida de datos guardados '
         'localmente. Nada en este punto limita los derechos irrenunciables que la Ley N.º '
@@ -150,15 +154,17 @@ const List<LegalSection> termsConditionsSections = [
   ),
   LegalSection(
     '11. Eliminación de cuenta',
-    'Podés eliminar tu cuenta en cualquier momento desde la app (botón "Eliminar cuenta" en la '
-        'pantalla principal), lo que borra tu email, contraseña y los registros de dispositivo '
-        'y consentimiento asociados a la cuenta, de forma permanente e irreversible.\n\n'
+    'Podés eliminar tu cuenta en cualquier momento desde la app (Configuración → "Eliminar '
+        'cuenta"), lo que borra tu email, contraseña, los registros de dispositivo y '
+        'consentimiento asociados a la cuenta, los partidos y equipos guardados en la nube y los '
+        'datos de esa cuenta en el dispositivo desde donde la eliminás, de forma permanente e '
+        'irreversible.\n\n'
         'Eliminar la cuenta no cancela automáticamente una suscripción premium activa en Google '
         'Play: esa suscripción se sigue renovando y cobrando hasta que la canceles vos mismo '
         'desde Google Play (la app te ofrece un acceso directo a esa gestión antes de '
-        'confirmar la eliminación). Los datos de equipos, jugadores y partidos guardados '
-        'localmente en el dispositivo no se borran al eliminar la cuenta, porque no forman '
-        'parte de ella (ver sección 02 y la Política de Privacidad).',
+        'confirmar la eliminación). Antes de confirmar, la app te ofrece exportar todos tus '
+        'datos para conservarlos o pasarlos a otra cuenta. En tus otros dispositivos solo se '
+        'cierra la sesión.',
   ),
   LegalSection(
     '12. Ley aplicable y jurisdicción',

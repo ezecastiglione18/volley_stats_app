@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 30;
+const _coverTotalPages = 33;
 
 /// Versión de la tapa, leída de `version:` en pubspec.yaml (sin el número de
 /// build), para que no quede desactualizada al subir la versión de la app.
@@ -45,58 +45,62 @@ final String _appVersion = () {
 /// tras generar y revisar el PDF si algún contenido corrió de página.
 const _pIntroduccion = 4;
 const _pCuentaLogin = 5;
-const _pPantallaPrincipal = 5;
-const _pPizarra = 6;
-const _pGestionEquipos = 7;
-const _pCrearEquipo = 7;
-const _pAgregarJugadores = 7;
-const _pEquipoEjemplo = 8;
-const _pExportarEquipo = 8;
-const _pImportarEquipo = 8;
-const _pCrearPartido = 8;
-const _pDatosRival = 8;
-const _pConfigPartido = 8;
-const _pPlanilla = 9;
-const _pSeleccionJugadores = 9;
-const _pFormacionInicial = 9;
-const _pRolesLibero = 10;
-const _pEditarFormacion = 11;
-const _pPantallaVivo = 11;
-const _pMarcador = 11;
-const _pCancha = 11;
-const _pBotonesAccion = 11;
-const _pZonaDestino = 13;
-const _pRotacionManual = 13;
-const _pCambiosJugador = 14;
-const _pCambioRegular = 14;
-const _pCambioLibero = 14;
-const _pDeshacerCambio = 15;
-const _pSancionesTarjetas = 15;
-const _pComoCargarSancion = 15;
-const _pEscalaSanciones = 16;
-const _pHerramientas = 17;
-const _pFinSet = 17;
-const _pArchivo = 18;
-const _pExportarPartido = 18;
-const _pImportarPartido = 18;
-const _pCompararPartidos = 19;
-const _pRivalScouting = 19;
-const _pResumen = 20;
-const _pGraficos = 20;
-const _pMapas = 21;
-const _pNotasScouting = 22;
-const _pExportarCsv = 22;
-const _pExportarPdf = 22;
-const _pGlosario = 23;
-const _pSuscripcionPremium = 25;
-const _pQueIncluyePremium = 25;
-const _pComoSuscribirse = 26;
-const _pDispositivosAdicionales = 26;
-const _pRestaurarCompras = 26;
-const _pGestionarCancelar = 26;
-const _pDarDeBajaDispositivo = 26;
-const _pFaq = 27;
-const _pContacto = 30;
+const _pDatosCuenta = 5;
+const _pEliminarCuenta = 6;
+const _pNube = 6;
+const _pPantallaPrincipal = 7;
+const _pPizarra = 8;
+const _pGestionEquipos = 8;
+const _pCrearEquipo = 9;
+const _pAgregarJugadores = 9;
+const _pEquipoEjemplo = 9;
+const _pExportarEquipo = 10;
+const _pImportarEquipo = 10;
+const _pCrearPartido = 10;
+const _pDatosRival = 10;
+const _pConfigPartido = 10;
+const _pPlanilla = 11;
+const _pSeleccionJugadores = 11;
+const _pFormacionInicial = 11;
+const _pRolesLibero = 12;
+const _pEditarFormacion = 13;
+const _pPantallaVivo = 13;
+const _pMarcador = 13;
+const _pCancha = 13;
+const _pBotonesAccion = 13;
+const _pZonaDestino = 15;
+const _pRotacionManual = 15;
+const _pCambiosJugador = 16;
+const _pCambioRegular = 16;
+const _pCambioLibero = 16;
+const _pDeshacerCambio = 17;
+const _pSancionesTarjetas = 17;
+const _pComoCargarSancion = 17;
+const _pEscalaSanciones = 18;
+const _pHerramientas = 19;
+const _pFinSet = 19;
+const _pArchivo = 20;
+const _pExportarPartido = 20;
+const _pImportarPartido = 20;
+const _pCompararPartidos = 21;
+const _pPapelera = 21;
+const _pRivalScouting = 21;
+const _pResumen = 22;
+const _pGraficos = 23;
+const _pMapas = 23;
+const _pNotasScouting = 24;
+const _pExportarCsv = 24;
+const _pExportarPdf = 24;
+const _pGlosario = 25;
+const _pSuscripcionPremium = 27;
+const _pQueIncluyePremium = 27;
+const _pComoSuscribirse = 28;
+const _pDispositivosAdicionales = 28;
+const _pRestaurarCompras = 28;
+const _pGestionarCancelar = 28;
+const _pDarDeBajaDispositivo = 28;
+const _pFaq = 29;
+const _pContacto = 33;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -109,8 +113,14 @@ Future<void> main() async {
   final bytes = await doc.save();
   final outFile = File('manual_usuario_rallystats.pdf');
   await outFile.writeAsBytes(bytes);
+  // Copia para Firebase Hosting (lo que abre Configuración → "Manual de
+  // usuario"): queda publicada recién con `firebase deploy --only hosting`.
+  final hostingFile = File('hosting${Platform.pathSeparator}manual.pdf');
+  await hostingFile.parent.create(recursive: true);
+  await hostingFile.writeAsBytes(bytes);
   // ignore: avoid_print
-  print('Manual generado: ${outFile.path} (${bytes.length} bytes)');
+  print('Manual generado: ${outFile.path} (${bytes.length} bytes) y ${hostingFile.path}. '
+      'Para publicarlo: firebase deploy --only hosting');
 }
 
 // ---------------------------------------------------------------------------
@@ -546,6 +556,9 @@ List<pw.Widget> _indexContent() {
     pw.SizedBox(height: 20),
     entry('Introducción', _pIntroduccion),
     entry('Cuenta e inicio de sesión', _pCuentaLogin),
+    entry('Tus datos en este dispositivo', _pDatosCuenta, sub: true),
+    entry('Eliminar la cuenta', _pEliminarCuenta, sub: true),
+    entry('Partidos y equipos en la nube', _pNube, sub: true),
     entry('Pantalla principal', _pPantallaPrincipal),
     entry('Pizarra táctica', _pPizarra),
     entry('Gestión de equipos', _pGestionEquipos),
@@ -581,6 +594,7 @@ List<pw.Widget> _indexContent() {
     entry('Exportar un partido', _pExportarPartido, sub: true),
     entry('Importar un partido', _pImportarPartido, sub: true),
     entry('Comparar dos partidos', _pCompararPartidos, sub: true),
+    entry('Papelera', _pPapelera, sub: true),
     entry('Scouting de rivales', _pRivalScouting),
     entry('Resumen del partido y estadísticas', _pResumen),
     entry('Gráficos', _pGraficos, sub: true),
@@ -643,7 +657,8 @@ List<pw.Widget> _section1Introduccion() => [
               'pasarlo a otro dispositivo e importarlo ahí.')
         ],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
-        [_t('Guardar el archivo histórico de partidos jugados.')],
+        [_t('Guardar el archivo histórico de partidos jugados, con una papelera de 30 días para recuperar lo que se borre (sección 14.4).')],
+        [_t('Si querés, guardar los partidos terminados y los equipos en la nube para verlos en todos tus dispositivos (sección 2.3).')],
         [_t('Dibujar y guardar jugadas en una pizarra táctica, con su propio archivo (sección 4).')],
       ]),
       _p(
@@ -651,13 +666,16 @@ List<pw.Widget> _section1Introduccion() => [
         'horizontal).',
       ),
       _infoBox(
-        'Nota: los equipos, jugadores, partidos y jugadas de pizarra se guardan únicamente en el '
-        'dispositivo donde se usa la app; no se suben a internet ni se sincronizan solos entre '
-        'dispositivos, así que conviene exportar (sección 14.1) o generar el PDF (sección 17) de los '
-        'partidos importantes para conservarlos, pasarlos a otro dispositivo o compartirlos con el cuerpo '
-        'técnico. La cuenta con la que se inicia sesión (sección 2) es la única excepción: necesita '
-        'internet para validarse y sí se controla desde un servidor, para que la misma cuenta no se pueda '
-        'usar en dos dispositivos a la vez.',
+        'Nota: los equipos, jugadores, partidos, jugadas de pizarra y el fixture se guardan en el '
+        'dispositivo donde se usa la app, separados por cuenta (cada cuenta ve solo los suyos, sección '
+        '2.1). Solo si activás "Partidos y equipos en la nube" (sección 2.3), los partidos terminados y los '
+        'equipos se guardan además en tu cuenta y aparecen en todos tus dispositivos. Las jugadas, el '
+        'fixture, las fotos y los partidos en curso nunca se suben, así que conviene exportarlos (Exportar '
+        'todo, sección 2.1, o un partido suelto, sección 14.1) o generar el PDF (sección 17) de los '
+        'partidos importantes para conservarlos o compartirlos con el cuerpo técnico. La cuenta con la que '
+        'se inicia sesión (sección 2) es la '
+        'excepción: necesita internet para validarse y sí se controla desde un servidor, para que la misma '
+        'cuenta no se pueda usar en más dispositivos de los que permite su plan.',
       ),
       _p(
         'Algunas de estas funciones (pizarra, zona de destino, guardar más de 3 partidos, estadísticas '
@@ -696,8 +714,109 @@ List<pw.Widget> _section2CuentaLogin() => [
       ),
       _p(
         'A diferencia del resto de los datos de la app (equipos, jugadores, partidos, jugadas de pizarra), '
-        'que se guardan solo en el dispositivo (sección 1), el inicio de sesión sí necesita conexión a '
+        'que se guardan en el dispositivo (sección 1), el inicio de sesión sí necesita conexión a '
         'internet: sin ella, no se puede validar la cuenta ni saber si otro dispositivo la tiene tomada.',
+      ),
+      _subHeading('2.1 Tus datos en este dispositivo'),
+      _p(
+        'Los equipos, partidos, jugadas de pizarra y el fixture son de la cuenta con la que se inició '
+        'sesión: si en el mismo celular o tablet entra otra cuenta, arranca con todo vacío y no ve lo de la '
+        'anterior (tampoco su tope de 3 partidos de la versión gratuita, que es por cuenta). Cerrar sesión '
+        'no borra nada: al volver a entrar con la misma cuenta, todo sigue ahí, incluido un partido que '
+        'haya quedado a mitad de carga. Si la sesión se cierra sola con la carga en vivo abierta (por '
+        'ejemplo, porque la cuenta se eliminó desde otro dispositivo), la app vuelve al inicio y el '
+        'partido queda guardado hasta la última acción cargada.',
+        bottom: 6,
+      ),
+      _p('En Configuración (sección 3) hay tres opciones para estos datos:', bottom: 6),
+      _bullets([
+        [
+          _b('Exportar todo: '),
+          _t('genera un único archivo con todos los equipos, partidos, jugadas y el fixture de la cuenta, '
+              'para guardarlo aparte o pasarlo a otra cuenta o a otro dispositivo. Se comparte con la hoja '
+              'de siempre (WhatsApp, correo, Drive, etc.). Las fotos de los jugadores no viajan.')
+        ],
+        [
+          _b('Importar copia completa: '),
+          _t('elige un archivo de Exportar todo y agrega a la cuenta abierta lo que todavía no tiene, sin '
+              'pisar ni borrar nada (lo que ya existe queda como estaba). Sin la suscripción premium, los '
+              'partidos respetan el tope de 3; al terminar se muestra cuánto se importó, cuánto quedó afuera '
+              'por el tope y cuánto ya existía.')
+        ],
+        [
+          _b('Restaurar copia automática: '),
+          _t('al actualizarse a esta versión, la app guardó sola una copia de todo lo que había en el '
+              'dispositivo. Desde acá se elige esa copia y se agrega a la cuenta abierta igual que con '
+              'Importar, pero sin tope de partidos (son datos que ya estaban en el dispositivo).')
+        ],
+      ]),
+      _infoBox(
+        'Al actualizar, todos los datos que ya había en el dispositivo quedan con la primera cuenta que '
+        'entra (la que tenía la sesión abierta o, si no había ninguna, la primera que inicia sesión). Si '
+        'antes dos cuentas usaban el mismo dispositivo, sus datos ya estaban mezclados y quedan todos con '
+        'esa cuenta. No se pierde nada: para pasarlos a la otra, usá Exportar todo con la primera e '
+        'Importar copia completa con la otra.',
+      ),
+      _subHeading('2.2 Eliminar la cuenta'),
+      _p(
+        'En Configuración, "Eliminar cuenta" borra de forma permanente el email, la contraseña y los '
+        'dispositivos registrados (pide confirmar y volver a escribir la contraseña), los partidos y '
+        'equipos guardados en la nube (sección 2.3) y los equipos, partidos, jugadas y fixture de esa '
+        'cuenta en este dispositivo. Por eso el mismo aviso ofrece "Exportar todo" antes de confirmar: con '
+        'ese archivo se pueden cargar en otra cuenta con Importar copia completa (sección 2.1). Hace falta '
+        'conexión a internet.',
+      ),
+      _infoBox(
+        'Si la cuenta estaba abierta en otros dispositivos, ahí se cierra la sesión sola y sus datos '
+        'dejan de estar accesibles. Si los querés conservar, usá Exportar todo en cada uno antes de eliminar '
+        'la cuenta. Eliminar la cuenta no cancela una suscripción premium activa: hay que cancelarla aparte '
+        'desde Google Play (sección 19.5).',
+      ),
+      _subHeading('2.3 Partidos y equipos en la nube'),
+      _p(
+        'La primera vez que entrás con tu cuenta, la app pregunta si querés guardar tus partidos y equipos '
+        'en la nube para verlos en todos tus dispositivos. "Sí" la activa para toda la cuenta (en todos sus '
+        'dispositivos); "Ahora no" no vuelve a preguntar. Se puede cambiar cuando quieras en Configuración, '
+        'con el interruptor "Partidos y equipos en la nube" (en la PC con Windows no aparece: ahí todo queda '
+        'en el dispositivo). Es para la versión gratuita y para premium por igual.',
+        bottom: 6,
+      ),
+      _bullets([
+        [
+          _b('Qué se sube: '),
+          _t('los partidos terminados (completos, con sus notas) y los equipos con sus jugadores (nombres, '
+              'números, posiciones, medidas y fechas de nacimiento). No se suben las fotos, las jugadas de la '
+              'pizarra, el fixture ni los partidos en curso (para esos, seguí usando Exportar).')
+        ],
+        [
+          _b('Cuándo: '),
+          _t('al activarla se sube todo lo que ya tenías (Configuración muestra "Subiendo X de N"; si se '
+              'corta la conexión, sigue sola la próxima vez). Después, cada partido al terminarlo y cada '
+              'equipo al guardarlo. Sin señal se encola y sale solo al volver la conexión, siempre que no '
+              'cierres sesión antes.')
+        ],
+        [
+          _b('En el otro dispositivo: '),
+          _t('lo nuevo aparece al abrir la app o al volver a ella. El tope de 3 partidos de la versión '
+              'gratuita no aplica a lo que baja de la nube: ningún partido de la cuenta queda afuera.')
+        ],
+        [
+          _b('Si se editó en dos lados: '),
+          _t('queda la edición más reciente (de un partido terminado solo se editan las notas; de un equipo, '
+              'el equipo entero). Las fotos de los jugadores quedan en cada dispositivo.')
+        ],
+        [
+          _b('Borrar: '),
+          _t('un partido eliminado va a la papelera en todos los dispositivos (sección 14.4); un equipo '
+              'eliminado desaparece de todos y los partidos que se jugaron con él no cambian.')
+        ],
+      ]),
+      _infoBox(
+        'Con la nube activada, "Hacer una copia ahora" (debajo del interruptor) vuelve a subir todo en ese '
+        'momento, aunque ya se suba solo. Apagar la nube deja de subir y de bajar en todos tus dispositivos '
+        'y pregunta aparte si borrar la copia de la nube (por defecto, no). Nunca borra nada de lo que '
+        'tenés en el dispositivo. En Configuración también se ve la fecha del último sync y si algún '
+        'partido no se pudo subir.',
       ),
     ];
 
@@ -745,7 +864,22 @@ List<pw.Widget> _section3PantallaPrincipal() => [
           _t('lo mismo para el reporte en PDF del partido (sección 17).')
         ],
         [_b('Tengo un código: '), _t('canjea un código promocional para activar premium (sección 19).')],
-        [_b('Cerrar sesión '), _t('y '), _b('Eliminar cuenta '), _t('(sección 2).')],
+        [
+          _b('Partidos y equipos en la nube: '),
+          _t('el interruptor de la sección 2.3 y "Hacer una copia ahora" (no aparecen en Windows).')
+        ],
+        [
+          _b('Manual de usuario (premium): '),
+          _t('abre este manual dentro de la app, siempre en su versión más reciente (necesita conexión; '
+              'sin red muestra la última copia que se bajó). Se puede compartir o imprimir desde ahí.')
+        ],
+        [
+          _b('Exportar todo, Importar copia completa '),
+          _t('y '),
+          _b('Restaurar copia automática '),
+          _t('(sección 2.1).')
+        ],
+        [_b('Cerrar sesión '), _t('y '), _b('Eliminar cuenta '), _t('(secciones 2 y 2.2).')],
         [_t('La Política de Privacidad y los Términos y Condiciones.')],
       ]),
       _p(
@@ -857,7 +991,9 @@ List<pw.Widget> _section5GestionEquipos() => [
       ]),
       _p(
         'Para borrar un equipo completo, entrá a su pantalla de edición y usá el ícono de tacho de basura '
-        'del encabezado; la app pide confirmación antes de eliminarlo.',
+        'del encabezado; la app pide confirmación antes de eliminarlo. Los partidos ya jugados con ese '
+        'equipo no cambian (cada uno guarda su propio plantel). Con la nube activada (sección 2.3), el '
+        'equipo se elimina en todos tus dispositivos.',
       ),
       _subHeading('5.3 Equipo de ejemplo'),
       _p(
@@ -1445,8 +1581,8 @@ List<pw.Widget> _section12Herramientas() => [
         ],
         [
           _b('Abandonar partido: '),
-          _t('borra por completo el partido en curso (no se puede deshacer). La app pide confirmación antes '
-              'de eliminarlo.')
+          _t('manda el partido en curso a la papelera del archivo, de donde se puede restaurar durante 30 '
+              'días (sección 14.4). La app pide confirmación antes.')
         ],
       ]),
     ];
@@ -1508,7 +1644,7 @@ List<pw.Widget> _section14Archivo() => [
         [_t('Tocar un partido en curso retoma la carga en vivo exactamente donde había quedado, reconstruyendo el marcador, la rotación y los cambios ya realizados.')],
         [
           _t('Desde el menú de tres puntos de cada partido se lo puede exportar (ver 14.1), compararlo con '
-              'otro partido terminado (ver 14.3) o eliminarlo del archivo.')
+              'otro partido terminado (ver 14.3) o eliminarlo del archivo (va a la papelera, ver 14.4).')
         ],
       ]),
       _subHeading('14.1 Exportar un partido'),
@@ -1555,6 +1691,32 @@ List<pw.Widget> _section14Archivo() => [
               'los dos tienen que haberse armado desde el mismo equipo de "Equipos" (sección 5).')
         ],
       ]),
+      _subHeading('14.4 Papelera'),
+      _p(
+        'Eliminar un partido (o abandonar uno en curso, sección 12) no lo borra: lo manda a la papelera, '
+        'que se abre con el ícono de tacho del encabezado de "Archivo de Partidos" (con la cantidad de '
+        'partidos que tiene). Cada partido muestra cuántos días le quedan: a los 30 días se borra solo, la '
+        'próxima vez que se abre la app.',
+        bottom: 6,
+      ),
+      _bullets([
+        [
+          _b('Restaurar: '),
+          _t('lo devuelve al archivo. Sin la suscripción premium respeta el tope de 3 partidos: si el '
+              'archivo está lleno, avisa y el partido sigue en la papelera.')
+        ],
+        [
+          _b('Eliminar definitivamente: '),
+          _t('lo borra para siempre (pide confirmación).')
+        ],
+      ]),
+      _p(
+        'Mientras un partido está en la papelera no cuenta para nada: ni para el tope de 3, ni para el '
+        'scouting, la temporada, el comparador o la estadística. Si salía del fixture, su fila vuelve a '
+        'figurar "sin jugar" y, al restaurarlo, otra vez como jugada. Con la nube activada (sección 2.3), '
+        'la papelera es la misma en todos tus dispositivos: lo que se borra en uno se puede restaurar desde '
+        'cualquiera.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1630,9 +1792,11 @@ List<pw.Widget> _section16Resumen() => [
         'Sin la suscripción premium, la primera vez que se entra a esta pantalla para un partido ya '
         'guardado en el Archivo de Partidos aparece un paso de confirmación ("Usar acá mi estadística '
         'gratis"), porque la versión gratuita solo genera la estadística de un único partido en toda la '
-        'cuenta (sección 19.1). Al confirmar, ese partido queda disponible para volver a consultarlo las '
-        'veces que hagan falta, pero no se puede generar la estadística de ningún otro partido hasta '
-        'suscribirse a premium, ni aunque el elegido se borre después del archivo.',
+        'cuenta, en todos sus dispositivos (sección 19.1). Confirmar necesita conexión a internet. Al '
+        'confirmar, ese partido queda disponible para volver a consultarlo las veces que hagan falta, '
+        'también sin conexión, pero no se puede generar la estadística de ningún otro partido hasta '
+        'suscribirse a premium, ni aunque el elegido se borre después del archivo, se entre desde otro '
+        'dispositivo o se reinstale la app.',
       ),
       _p(
         'El selector Estadística permite elegir entre el partido completo o un set en particular (afecta '
@@ -1800,7 +1964,8 @@ List<pw.Widget> _section17ExportarPdf() => [
         [_t('Si el partido tiene notas de scouting (sección 16.3), una sección "Notas de scouting" al final.')],
       ]),
       _infoBox(
-        'Nota: los datos se guardan solo en el dispositivo. Conviene exportar el reporte en PDF (o la tabla '
+        'Nota: los datos se guardan en el dispositivo (y, si activaste la nube, los partidos terminados '
+        'también en tu cuenta, sección 2.3). Conviene exportar el reporte en PDF (o la tabla '
         'a Excel, sección 16.4) y guardarlo o enviarlo al cuerpo técnico apenas termina cada partido '
         'importante.',
       ),
@@ -1910,27 +2075,31 @@ List<pw.Widget> _section19SuscripcionPremium() => [
       ),
       _bullets([
         [
-          _t('Hasta 3 partidos guardados en el Archivo de Partidos (sección 14): al llegar al tope, hay '
-              'que suscribirse para poder guardar uno nuevo.')
+          _t('Hasta 3 partidos guardados en el Archivo de Partidos (sección 14), por cuenta: al llegar al '
+              'tope, hay que suscribirse para poder guardar uno nuevo o restaurar uno de la papelera '
+              '(sección 14.4). Lo que baja de la nube (sección 2.3) no cuenta contra el tope: la nube es '
+              'para las dos versiones.')
         ],
         [_t('Sin acceso a la Pizarra táctica ni a su archivo de jugadas (sección 4).')],
         [
           _t('Estadística (sección 16) y reporte en PDF (sección 17) disponibles para un único partido '
-              'de toda la cuenta, a elección propia: la primera vez que se entra al resumen de un partido '
-              'ya guardado y terminado en el archivo, hay que confirmar que se va a usar ese cupo justo '
-              'ahí. Elegido, no se puede generar la estadística de ningún otro partido hasta suscribirse, '
-              'aunque el elegido se borre después del archivo. Tampoco hay acceso a estadística en vivo ni '
+              'de toda la cuenta (en todos sus dispositivos), a elección propia: la primera vez que se '
+              'entra al resumen de un partido ya guardado y terminado en el archivo, hay que confirmar, con '
+              'conexión a internet, que se va a usar ese cupo justo ahí. Elegido, no se puede generar la '
+              'estadística de ningún otro partido hasta suscribirse, aunque el elegido se borre después '
+              'del archivo. Tampoco hay acceso a estadística en vivo ni '
               'entre sets (secciones 12 y 13): solo una vez que el partido está guardado y terminado.')
         ],
         [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
         [_t('Sin poder elegir qué mapas y gráficos se ven en pantalla y en el PDF (sección 3): se muestra todo.')],
         [_t('Sin exportar la tabla a Excel (sección 16.4) ni comparar dos partidos (sección 14.3).')],
+        [_t('Sin el acceso al manual de usuario desde Configuración (sección 3).')],
       ]),
       _p(
         'Las notas de scouting (sección 16.3) son gratuitas. La suscripción premium desbloquea todo lo de '
         'la lista de arriba (partidos sin límite en el archivo, pizarra, estadística ilimitada e incluida en '
         'vivo y entre sets, zona de destino, elección de los mapas y gráficos, exportación a Excel y '
-        'comparador de partidos) y permite además sumar dispositivos adicionales (sección 19.3).',
+        'comparador de partidos, manual en la app) y permite además sumar dispositivos adicionales (sección 19.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
@@ -2006,23 +2175,49 @@ List<pw.Widget> _section20Faq() => [
       _sectionTitle(20, 'Preguntas frecuentes'),
       _faqCard(
         '¿Dónde se guardan los datos de la app?',
-        'Todo se guarda de forma local en el dispositivo (equipos, jugadores y partidos). Desinstalar la '
-            'app o borrar sus datos elimina también esa información, así que conviene exportar en PDF los '
-            'partidos que se quieran conservar.',
+        'Todo se guarda de forma local en el dispositivo (equipos, jugadores, partidos, jugadas y fixture), '
+            'separado por cuenta (sección 2.1). Si activaste la nube (sección 2.3), los partidos terminados '
+            'y los equipos además quedan en tu cuenta y vuelven solos al entrar en otro dispositivo o '
+            'después de reinstalar. Lo demás (jugadas, fixture, fotos, partidos en curso) se pierde al '
+            'desinstalar la app o borrar sus datos, así que conviene usar Exportar todo (sección 2.1) y '
+            'guardar el archivo en otro lado.',
+      ),
+      _faqCard(
+        'Borré un partido sin querer, ¿lo puedo recuperar?',
+        'Sí, durante 30 días: está en la papelera del Archivo de Partidos (sección 14.4), con el botón '
+            'Restaurar. Con la nube activada, se puede restaurar desde cualquiera de tus dispositivos.',
+      ),
+      _faqCard(
+        'Entré con otra cuenta en este celular y no veo mis partidos, ¿se borraron?',
+        'No. Cada cuenta ve solo sus propios datos (sección 2.1): al volver a entrar con la cuenta '
+            'anterior, todo sigue ahí. Si querés tener esos datos en la otra cuenta, usá Exportar todo con '
+            'la primera e Importar copia completa con la segunda.',
       ),
       _faqCard(
         '¿Cuántos partidos puedo cargar en el Archivo de Partidos?',
         'Sin la suscripción premium, hasta 3 partidos guardados; con premium activo, no hay ningún tope '
-            '(sección 19.1). En la práctica, con premium el único límite es el espacio libre en el '
-            'dispositivo, y como cada partido ocupa muy poco, se pueden acumular miles sin problema.',
+            '(sección 19.1). Los partidos de la papelera no cuentan, y los que llegan de la nube desde otro '
+            'dispositivo de la cuenta entran siempre, aunque pasen el tope (sección 2.3). En la práctica, '
+            'con premium el único límite es el espacio libre en el dispositivo, y como cada partido ocupa '
+            'muy poco, se pueden acumular miles sin problema.',
       ),
       _faqCard(
         '¿Qué pasa si se vence o cancelo la suscripción premium? ¿Pierdo los partidos ya guardados?',
         'No: cancelar o dejar vencer la suscripción no borra ningún dato. Vuelven a aplicarse los límites '
             'de la versión gratuita (sección 19.1): la estadística vuelve a quedar limitada a un único '
             'partido (y solo una vez guardado y terminado, no en vivo ni entre sets), sin acceso a la '
-            'Pizarra, y sin poder guardar un partido nuevo si ya hay 3 o más guardados. Pero los partidos, '
-            'jugadores y jugadas de pizarra siguen ahí, disponibles apenas se vuelve a suscribir.',
+            'Pizarra ni al manual desde la app, y sin poder guardar un partido nuevo si ya hay 3 o más '
+            'guardados. Pero los partidos, jugadores y jugadas de pizarra siguen ahí, disponibles apenas se '
+            'vuelve a suscribir, y la nube (sección 2.3) sigue funcionando igual: es también de la versión '
+            'gratuita.',
+      ),
+      _faqCard(
+        'Cambié de celular (o reinstalé la app), ¿cómo recupero mis partidos?',
+        'Si tenías la nube activada (sección 2.3), alcanza con iniciar sesión en el celular nuevo: los '
+            'partidos terminados y los equipos bajan solos. Las fotos de los jugadores, las jugadas de la '
+            'pizarra, el fixture y los partidos en curso no viajan por la nube: para esos (o si no tenías '
+            'la nube), usá Exportar todo en el celular viejo e Importar copia completa en el nuevo (sección '
+            '2.1).',
       ),
       _faqCard(
         '¿Qué versión de Android necesito para usar RallyStats?',
@@ -2033,7 +2228,9 @@ List<pw.Widget> _section20Faq() => [
         '¿Necesito conexión a internet para poder tomar la estadística?',
         'Solo para iniciar sesión (sección 2), que valida la cuenta contra un servidor. Una vez adentro, '
             'la carga en vivo, las planillas de equipo y el cálculo de estadísticas se hacen enteramente en '
-            'el dispositivo, sin necesitar conexión. También hace falta conexión para acciones puntuales '
+            'el dispositivo, sin necesitar conexión. En la versión gratuita, elegir el partido de la '
+            'estadística gratis también necesita conexión (sección 16), y la nube (sección 2.3) sube y baja '
+            'cuando hay señal. Además hace falta conexión para acciones puntuales '
             'que dependen del sistema operativo, como enviar el reporte en PDF por WhatsApp o correo '
             '(sección 17).',
       ),
@@ -2055,11 +2252,11 @@ List<pw.Widget> _section20Faq() => [
       ),
       _faqCard(
         '¿Puedo pasar un partido de un celular a otro, o verlo en dos dispositivos a la vez?',
-        'Se puede pasar un partido a otro dispositivo exportándolo (sección 14.1) e importándolo ahí '
-            '(sección 14.2); a diferencia del reporte en PDF (sección 17), que es solo para leer, ese '
-            'archivo se puede volver a abrir en la app, incluso si el partido todavía estaba en curso. Lo '
-            'que no se puede hacer es cargar el mismo partido en vivo desde dos dispositivos a la vez: una '
-            'vez importada, cada copia queda independiente y no se sincroniza sola con el original.',
+        'Con la nube activada (sección 2.3), cada partido terminado aparece solo en todos los dispositivos '
+            'de la cuenta. Un partido en curso se pasa exportándolo (sección 14.1) e importándolo en el otro '
+            '(sección 14.2); si se termina allá, al volver aparece terminado también acá (si en ese momento '
+            'lo tenés abierto en la carga en vivo, se actualiza cuando lo cerrás). Lo que no se puede hacer '
+            'es cargar el mismo partido en vivo desde dos dispositivos a la vez.',
       ),
       _faqCard(
         '¿Puedo llevar la estadística a Excel o Google Sheets?',
@@ -2073,7 +2270,9 @@ List<pw.Widget> _section20Faq() => [
       ),
       _faqCard(
         '¿Puedo pasar un equipo (plantel, cuerpo técnico y estadística acumulada) a otro dispositivo?',
-        'Sí, exportando el equipo (sección 5.4) e importándolo ahí (sección 5.5): se lleva el plantel, el '
+        'Con la nube activada (sección 2.3), los equipos aparecen solos en todos los dispositivos de la '
+            'cuenta (sin las fotos de los jugadores). Sin la nube, o para pasarlo a otra cuenta, '
+            'exportando el equipo (sección 5.4) e importándolo ahí (sección 5.5): se lleva el plantel, el '
             'cuerpo técnico y todos los partidos ya jugados por ese equipo, para que la estadística '
             'acumulada de Scouting de rivales (sección 15) quede igual del otro lado. Si el archivo '
             'elegido para importar no es un equipo exportado por RallyStats, aparece un aviso de error y '
@@ -2144,9 +2343,10 @@ List<pw.Widget> _section20Faq() => [
       ),
       _faqCard(
         '¿Qué pasa si abandono un partido por error?',
-        '"Abandonar partido" borra el partido por completo y no se puede deshacer. Si el partido ya tenía '
-            'un set terminado o estaba definido, se recomienda exportar el PDF (sección 17) antes de '
-            'abandonarlo, por si se necesitan esos datos más adelante.',
+        '"Abandonar partido" no lo borra: lo manda a la papelera del Archivo de Partidos, de donde se '
+            'puede restaurar durante 30 días con todo lo que se había cargado (sección 14.4). Al '
+            'restaurarlo vuelve al archivo como partido en curso y se retoma donde había quedado. Sin '
+            'premium, restaurar respeta el tope de 3 partidos.',
       ),
       _faqCard(
         '¿Puedo corregir las estadísticas de un partido que ya terminó?',
@@ -2156,8 +2356,9 @@ List<pw.Widget> _section20Faq() => [
             'aunque el marcador ya haya llegado al puntaje que cierra el set. Una vez confirmado ese botón, '
             'el set queda bloqueado y ya no se puede deshacer nada de ahí; lo mismo pasa con el partido '
             'entero al confirmar el set decisivo. Si un partido ya confirmado tiene un error importante, se '
-            'puede eliminar desde el menú de tres puntos en Archivo de Partidos (sección 14) y cargarlo de '
-            'nuevo desde cero.',
+            'puede eliminar desde el menú de tres puntos en Archivo de Partidos (va a la papelera, sección '
+            '14.4, y deja de contar para el tope de 3) y cargarlo de nuevo desde cero. Lo que sí se puede '
+            'editar siempre son las notas de scouting (sección 16.3).',
       ),
       _faqCard(
         '¿El líbero puede sacar?',

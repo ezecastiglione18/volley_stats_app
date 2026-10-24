@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/subscription_management_launcher.dart';
 import '../state/subscription_controller.dart';
 import '../utils/platform_support.dart';
+import 'full_backup_actions.dart';
 
 /// Punto de entrada del botón "Eliminar cuenta" (pantalla de Configuración,
 /// ver `AccountSettingsScreen`). Primero confirma
@@ -13,8 +14,10 @@ import '../utils/platform_support.dart';
 /// abajo) y, si el usuario sigue adelante, pide la contraseña para
 /// reautenticar y llama a `AuthService.deleteAccount`. El cierre de sesión
 /// que sigue lo maneja solo `_AuthGate` en `main.dart` (reacciona al stream
-/// de `authStateChanges`), así que acá no hace falta navegar a ningún lado
-/// después de borrar.
+/// de `authStateChanges`; antes, `AuthService.beforeLocalSignOut` vuelve a la
+/// primera ruta y cierra los datos), así que acá no hace falta navegar a
+/// ningún lado después de borrar. Antes de confirmar ofrece "Exportar todo": se
+/// borran la copia de la nube y los cajones de la cuenta en este dispositivo.
 Future<void> confirmAndDeleteAccount(BuildContext context) async {
   final isPremium = context.read<SubscriptionController>().isPremium;
   // Google Play no exige cancelar una suscripción activa para poder borrar
@@ -39,8 +42,25 @@ Future<void> confirmAndDeleteAccount(BuildContext context) async {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Los equipos, jugadores y partidos guardados en este dispositivo no se borran: '
-              'siguen disponibles localmente aunque elimines la cuenta.',
+              'También se borran los partidos y equipos guardados en la nube, y los equipos, '
+              'partidos, jugadas y fixture de esta cuenta en este dispositivo. Si los querés pasar '
+              'a otra cuenta, exportalos antes y después usá "Importar copia completa" con la otra '
+              'cuenta.',
+              style: TextStyle(fontSize: 13),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                onPressed: () => exportAllData(dialogContext),
+                icon: const Icon(Icons.ios_share, size: 18),
+                label: const Text('Exportar todo'),
+              ),
+            ),
+            const Text(
+              'Si usás esta cuenta en otros dispositivos, ahí se va a cerrar la sesión y sus datos '
+              'dejan de estar accesibles. Si los querés conservar, usá Exportar todo en cada uno '
+              'antes de borrar.',
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
             if (showSubscriptionWarning) ...[
@@ -159,11 +179,15 @@ Future<void> _showPasswordAndDelete(BuildContext context) async {
                       await AuthService.instance.deleteAccount(password: passwordController.text);
                       if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                     } on FirebaseAuthException catch (e) {
+                      // Si el error llegó después de cerrar la sesión local,
+                      // este diálogo ya se cerró (se vuelve a la primera ruta).
+                      if (!dialogContext.mounted) return;
                       setState(() {
                         busy = false;
                         error = _friendlyDeleteError(e);
                       });
                     } catch (_) {
+                      if (!dialogContext.mounted) return;
                       setState(() {
                         busy = false;
                         error = 'No se pudo eliminar la cuenta. Revisá tu conexión a internet.';

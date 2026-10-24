@@ -18,16 +18,42 @@ class SubscriptionController extends ChangeNotifier {
   bool isPremium = false;
   int deviceLimit = 1;
 
+  /// Cuenta a la que corresponde el estado en memoria (la de la caché que
+  /// se leyó, o la del último [refresh]).
+  String? _uid;
+
   /// Sólo lee la última caché guardada en Hive (rápido, sin red), para no
   /// frenar el arranque de la app con una llamada de red a RevenueCat. Se
   /// llama una vez al arrancar, antes de runApp, igual que
-  /// ThemeController.load()/AppDataController.loadAll().
-  Future<void> init() async {
-    final cache = StorageService.instance.loadSubscriptionCache();
-    if (cache != null) {
-      isPremium = cache['isPremium'] as bool? ?? false;
-      deviceLimit = cache['deviceLimit'] as int? ?? 1;
-    }
+  /// ThemeController.load(), con el [uid] de la sesión ya abierta si hay
+  /// una (la caché es por cuenta).
+  Future<void> init({String? uid}) async {
+    if (uid != null) loadCachedFor(uid);
+  }
+
+  /// Toma la caché de [uid] (al loguearse, ver `_AccountDataGate` en
+  /// `main.dart`). Es por cuenta: si se cambia de cuenta sin red, la nueva
+  /// no arranca con el premium cacheado de la anterior.
+  void loadCachedFor(String uid) {
+    _readCache(uid);
+    notifyListeners();
+  }
+
+  void _readCache(String uid) {
+    _uid = uid;
+    final cache = StorageService.instance.loadSubscriptionCache(uid);
+    isPremium = cache?['isPremium'] as bool? ?? false;
+    deviceLimit = cache?['deviceLimit'] as int? ?? 1;
+  }
+
+  /// Al cerrar sesión: vuelve al estado de recién creado, para que nada de
+  /// la cuenta anterior se use hasta que la próxima lea su propia caché.
+  void reset() {
+    _uid = null;
+    isLoading = true;
+    isPremium = false;
+    deviceLimit = 1;
+    notifyListeners();
   }
 
   /// La consulta real contra RevenueCat. Se llama al iniciar sesión, al
@@ -53,23 +79,28 @@ class SubscriptionController extends ChangeNotifier {
     }
 
     final uid = AuthService.instance.currentUser?.uid;
-    if (uid != null) {
-      try {
-        await Purchases.logIn(uid);
-      } catch (_) {
-        // Defensivo: no bloquear el refresh si logIn falla (ej. ya logueado).
-      }
+    if (uid == null) return;
+    // Sin notificar: `refresh` puede llamarse desde un initState.
+    if (uid != _uid) _readCache(uid);
+    try {
+      await Purchases.logIn(uid);
+    } catch (_) {
+      // Defensivo: no bloquear el refresh si logIn falla (ej. ya logueado).
     }
 
     try {
       final info = await Purchases.getCustomerInfo();
-      await _applyCustomerInfoAndCache(info);
+      // Si mientras tanto se cerró la sesión o entró otra cuenta, esta
+      // respuesta ya no es de la cuenta actual: no se aplica ni se cachea.
+      if (_uid != uid) return;
+      await _applyCustomerInfoAndCache(info, uid);
     } catch (_) {
       // Offline / RevenueCat inalcanzable: se mantiene lo que había en
-      // caché (cargado en init()). Es la única ventana de tolerancia a
-      // datos viejos — si RevenueCat sí responde y dice "inactiva", eso se
-      // aplica de inmediato, sin período de gracia propio.
+      // caché (cargado en loadCachedFor()). Es la única ventana de
+      // tolerancia a datos viejos — si RevenueCat sí responde y dice
+      // "inactiva", eso se aplica de inmediato, sin período de gracia propio.
     }
+    if (_uid != uid) return;
 
     isLoading = false;
     notifyListeners();
@@ -79,20 +110,21 @@ class SubscriptionController extends ChangeNotifier {
   /// `Purchases.purchase(...)` al comprar un complemento de dispositivo) sin
   /// tener que hacer otra consulta de red a `getCustomerInfo()`.
   void applyCustomerInfo(CustomerInfo info) {
-    _applyCustomerInfoAndCache(info);
+    final uid = _uid ?? AuthService.instance.currentUser?.uid;
+    if (uid == null) return;
+    _applyCustomerInfoAndCache(info, uid);
     notifyListeners();
   }
 
-  Future<void> _applyCustomerInfoAndCache(CustomerInfo info) async {
+  Future<void> _applyCustomerInfoAndCache(CustomerInfo info, String uid) async {
     isPremium = info.entitlements.active[kPremiumEntitlementId] != null;
     deviceLimit = deviceLimitFrom(
       activeSubscriptions: info.activeSubscriptions,
       activeEntitlementIds: info.entitlements.active.keys,
     );
-    await StorageService.instance.saveSubscriptionCache({
+    await StorageService.instance.saveSubscriptionCache(uid, {
       'isPremium': isPremium,
       'deviceLimit': deviceLimit,
     });
   }
-
 }

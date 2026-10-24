@@ -34,6 +34,17 @@ class VolleyMatch {
   /// y en los armados a mano.
   String? fixtureEntryId;
 
+  /// Hora (del dispositivo) de la última edición: la estampa
+  /// `AppDataController.saveMatch`, y también mandar a la papelera y
+  /// restaurar. Resuelve los conflictos del sync con la nube (gana la más
+  /// nueva; null cuenta como la más vieja). Null en partidos viejos.
+  DateTime? updatedAt;
+
+  /// Cuándo se mandó a la papelera (ver `AppDataController.trashMatch`);
+  /// null = no está en la papelera. A los 30 días se borra definitivamente.
+  /// Null en partidos viejos.
+  DateTime? deletedAt;
+
   VolleyMatch({
     required this.id,
     required this.date,
@@ -51,6 +62,8 @@ class VolleyMatch {
     this.status = MatchStatus.setup,
     this.notes,
     this.fixtureEntryId,
+    this.updatedAt,
+    this.deletedAt,
   }) : sets = sets ?? [];
 
   int get ownSetsWon => sets.where((s) => s.finished && s.winner == TeamSide.own).length;
@@ -76,6 +89,8 @@ class VolleyMatch {
         'status': status.name,
         'notes': notes,
         'fixtureEntryId': fixtureEntryId,
+        'updatedAt': updatedAt?.toIso8601String(),
+        'deletedAt': deletedAt?.toIso8601String(),
       };
 
   factory VolleyMatch.fromJson(Map<dynamic, dynamic> json) {
@@ -119,6 +134,8 @@ class VolleyMatch {
       ),
       notes: json['notes'] as String?,
       fixtureEntryId: json['fixtureEntryId'] as String?,
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
     );
   }
 }

@@ -78,6 +78,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    // Cierra el teclado: que no tape el error ni la ruedita mientras entra.
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     if (_registering && (!_acceptedPrivacy || !_acceptedTerms)) {
       setState(() => _error =
@@ -233,6 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (_registering) ...[
                       TextFormField(
                         controller: _firstName,
+                        textInputAction: TextInputAction.next,
                         decoration:
                             const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder()),
                         validator: (v) =>
@@ -241,6 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _lastName,
+                        textInputAction: TextInputAction.next,
                         decoration:
                             const InputDecoration(labelText: 'Apellido', border: OutlineInputBorder()),
                         validator: (v) =>
@@ -251,6 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
                       validator: (v) =>
                           (v == null || !v.contains('@')) ? 'Ingresá un email válido' : null,
@@ -259,6 +264,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _password,
                       obscureText: _obscurePassword,
+                      // La tecla "Listo" del teclado entra (o crea la cuenta)
+                      // directamente, sin tener que cerrar el teclado y tocar
+                      // el botón. (El "no entra al primer intento" no era del
+                      // teclado: ver `AuthService.slotLost`.)
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (!_busy) _submit();
+                      },
                       decoration: InputDecoration(
                         labelText: 'Contraseña',
                         border: const OutlineInputBorder(),
