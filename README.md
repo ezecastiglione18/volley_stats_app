@@ -11,7 +11,10 @@ estadísticas exportable como reporte en PDF.
 
 - Carga en vivo del partido, punto por punto, con calificación de cada toque y zona de destino opcional
   (saque, ataque y contraataque), en 6 zonas o en 9 (suma la franja media 7-8-9, elegible set a set), y en
-  los errores, si fue afuera o a la red (también opcional). En ataque y contraataque, el botón "R" registra
+  los errores, si fue afuera o a la red (también opcional). En ataque y contraataque se puede marcar
+  además (premium, opcional e independiente de la zona de destino) desde qué zona de la cancha propia
+  (1-6) se hizo el toque: los mapas arrancan la flecha ahí y el gráfico "Ataque por zona de salida" lo
+  resume. En ataque y contraataque, el botón "R" registra
   un rejuego (atacar contra el bloqueo para retenerla): cuenta como una P y el punto sigue con una contra.
 - Edición de la formación ya comenzada: mientras el set no tenga ninguna acción cargada, "Editar
   formación" vuelve a la pantalla de formación con todo precargado para corregir sexteto, saque, líberos
@@ -35,6 +38,10 @@ estadísticas exportable como reporte en PDF.
   opción de deshacer el último cambio o la última jugada cargada por error. Cualquier líbero de la
   planilla puede entrar o intercambiarse con el que está en cancha aunque no tenga un rol asignado en el
   set (Regla 19.3.2 de la FIVB: cambios de líbero ilimitados, con un punto jugado entre dos cambios).
+  Cambio excepcional por lesión cuando no hay cambio legal (Regla 15.7: entra cualquiera del banco salvo
+  los líberos y el reemplazado por el líbero, no cuenta en el límite y el que sale no vuelve en el
+  partido), y líbero que no puede seguir con redesignación de un jugador como nuevo líbero (Regla 19.4).
+  Las dos quedan en "Incidencias reglamentarias" del resumen y del PDF.
 - Carga de sanciones y tarjetas del árbitro (amonestación, tarjeta amarilla, roja, expulsión y
   descalificación) según el reglamento oficial de la FIVB, con el punto o la salida de cancha
   correspondiente aplicados automáticamente y la sustitución obligatoria cuando corresponde.
@@ -56,7 +63,7 @@ estadísticas exportable como reporte en PDF.
     rendimiento por rotación P1–P6 (tabla estilo DataVolley + diferencia de puntos, con referencias de
     cada columna y sus cálculos), side-out y
     break-point por rotación, evolución del marcador con rachas, origen de los puntos, eficiencia de
-    ataque y recepción por jugador, y mapa de calor de zonas.
+    ataque y recepción por jugador, mapa de calor de zonas y ataque por zona de salida.
 
   Lo mismo va al final del PDF (gráficos + planilla de mapas por jugador). Con premium se elige qué se ve
   en pantalla y qué va al PDF (Configuración → Estadística visual en pantalla / del PDF); sin premium se
@@ -69,14 +76,14 @@ estadísticas exportable como reporte en PDF.
   que la app guarda sola de todos los datos al actualizarse a la versión con datos por cuenta.
 - Archivo histórico de partidos, con retoma automática de un partido en curso donde quedó, y papelera
   de 30 días (eliminar un partido lo manda ahí; se restaura o se elimina definitivamente).
-- Partidos y equipos en la nube (opcional, free y premium; Android): con el interruptor de Configuración
-  (o el aviso que aparece una vez después del login), los partidos terminados y los equipos con sus
-  jugadores (sin fotos) se guardan en Firestore y aparecen en todos los dispositivos de la cuenta. Las
-  jugadas, el fixture y los partidos en curso no viajan. "Hacer una copia ahora" vuelve a subir todo en
-  el momento. No disponible en Windows.
-- Manual de usuario dentro de la app (premium, Configuración): siempre la versión publicada más reciente,
+- Partidos, equipos, jugadas y fixture en la nube (opcional, free y premium; Android): con el
+  interruptor de Configuración (o el aviso que aparece una vez después del login), los partidos
+  terminados, los equipos con sus jugadores (sin fotos), las jugadas de la pizarra y el fixture se guardan
+  en Firestore y aparecen en todos los dispositivos de la cuenta. Los partidos en curso y las fotos no
+  viajan. "Hacer una copia ahora" vuelve a subir todo en el momento. No disponible en Windows.
+- Manual de usuario dentro de la app (gratis, Configuración): siempre la versión publicada más reciente,
   con compartir e imprimir; sin red muestra la última copia bajada.
-- Fixture (gratis, local): la lista por fecha de los partidos por jugar, con rival, torneo, instancia y
+- Fixture (gratis): la lista por fecha de los partidos por jugar, con rival, torneo, instancia y
   notas. En "Nuevo Partido", "Elegir del fixture" autocompleta rival, torneo, instancia, cancha,
   categoría y fecha, y al guardar el partido la fila queda como "Jugado X-Y" (si el partido se borra,
   vuelve a "sin jugar").
@@ -96,7 +103,7 @@ estadísticas exportable como reporte en PDF.
   animada (los trazos se dibujan en el orden en que se hicieron), con pausa, slider y velocidad 1×/2×.
 - Modo claro y modo oscuro.
 - Suscripción premium mensual (Android, vía Google Play Billing/RevenueCat): la versión gratuita permite
-  hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra, zona de destino, elección de
+  hasta 3 partidos guardados (siempre al mejor de 5 sets), sin pizarra, zonas de destino y de salida, elección de
   los mapas y gráficos que se muestran, exportación a Excel ni comparador de partidos, y estadística/
   reporte en PDF disponible para un único partido de toda la cuenta —a elección propia, y solo una vez que
   ese partido está guardado y terminado en el archivo, nunca en vivo ni entre sets—, y se puede seguir
@@ -111,8 +118,9 @@ estadísticas exportable como reporte en PDF.
 - En Android, la app se usa solo en orientación vertical.
 - Los datos de juego (equipos, jugadores, partidos, jugadas de pizarra y fixture) se guardan en el
   dispositivo (Hive), separados por cuenta: otra cuenta que entra en el mismo dispositivo no ve los de
-  la anterior, y cerrar sesión no borra nada. Si la cuenta activa la nube, los partidos terminados y los
-  equipos se copian además a Firestore (`matches/{uid}`, `teams/{uid}`; reglas en
+  la anterior, y cerrar sesión no borra nada. Si la cuenta activa la nube, los partidos terminados, los
+  equipos, las jugadas y el fixture se copian además a Firestore (`matches/{uid}`, `teams/{uid}`,
+  `plays/{uid}`, `fixture/{uid}`; reglas en
   `volley_stats_app_backend/firestore.rules`). El cupo gratis de estadística (un partido) es
   uno por cuenta en todos sus dispositivos y se registra en Firestore, así que elegirlo necesita
   conexión. El inicio de sesión es la otra excepción: usa Firebase Authentication +
@@ -215,7 +223,7 @@ herramienta externa.
 
 El script deja también una copia en `hosting/manual.pdf`, que se publica con **`firebase deploy --only
 hosting`** (desde la raíz de este repo) en `https://volleystatsapp-be835.web.app/manual.pdf`. Es lo que
-abre Configuración → "Manual de usuario" (premium) dentro de la app, así que hay que hacer ese deploy cada
+abre Configuración → "Manual de usuario" (gratis) dentro de la app, así que hay que hacer ese deploy cada
 vez que se regenera el manual. La misma carpeta publica `eliminar-cuenta.html` (la página de "Eliminar cuenta" que pide Play en Seguridad de los datos).
 
 ## Contacto

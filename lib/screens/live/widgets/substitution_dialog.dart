@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/player.dart';
 import '../../../models/rally_event.dart' show TeamSide;
 import '../../../state/match_controller.dart';
+import 'libero_unable_dialog.dart';
 
 /// Bottom sheet para registrar un cambio durante el set. Tiene dos modos:
 /// - Cambio regular: titular <-> el mismo suplente fijo, cuenta contra el
@@ -122,6 +123,11 @@ class _RegularWizard extends StatefulWidget {
 
 class _RegularWizardState extends State<_RegularWizard> {
   int _step = 0;
+
+  // Cambio excepcional (Regla 15.7): mismo asistente de dos pasos, pero
+  // para un jugador que no puede seguir por lesión o enfermedad y no tiene
+  // un cambio legal posible.
+  bool _exceptional = false;
   // Cambia cada vez que se cancela una confirmación de cambio, para forzar
   // el remonte del desplegable de "¿Quién entra?" (un DropdownButtonFormField
   // no vuelve a leer `initialValue` solo porque el widget se reconstruya) y
@@ -135,6 +141,15 @@ class _RegularWizardState extends State<_RegularWizard> {
   void _next() => setState(() => _step = 1);
   void _back() => setState(() => _step = 0);
 
+  void _setExceptional(bool value) {
+    widget.onPlayerOutSelected(null);
+    setState(() {
+      _exceptional = value;
+      _step = 0;
+      _inFieldGen++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
@@ -144,7 +159,8 @@ class _RegularWizardState extends State<_RegularWizard> {
       children: [
         Row(
           children: [
-            const Text('Cambio regular', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(_exceptional ? 'Cambio excepcional' : 'Cambio regular',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             const Spacer(),
             Text('Paso ${_step + 1} de 2', style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
@@ -152,13 +168,19 @@ class _RegularWizardState extends State<_RegularWizard> {
         const SizedBox(height: 6),
         Text(
           'Cambios usados: ${controller.substitutionsUsedOwn} / '
-          '${controller.match.config.hasUnlimitedSubstitutions ? 'Sin límite' : controller.match.config.maxSubstitutionsPerSet}',
+          '${controller.match.config.hasUnlimitedSubstitutions ? 'Sin límite' : controller.match.config.maxSubstitutionsPerSet}'
+          '${_exceptionalCountLabel(controller)}',
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        const Text(
-          'Cada titular tiene un único suplente fijo: puede salir por él una vez y '
-          'volver a entrar una vez más, siempre entre esos dos mismos jugadores.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+        Text(
+          _exceptional
+              ? 'Solo para un jugador que no puede seguir por lesión o enfermedad y no se puede '
+                  'reemplazar con un cambio regular (Regla 15.7). Puede entrar cualquier jugador del '
+                  'banco salvo los líberos y el jugador reemplazado por el líbero. No cuenta en el '
+                  'límite y el que sale no puede volver a jugar en el partido.'
+              : 'Cada titular tiene un único suplente fijo: puede salir por él una vez y '
+                  'volver a entrar una vez más, siempre entre esos dos mismos jugadores.',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 14),
         Text(_stepTitles[_step], style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -176,16 +198,38 @@ class _RegularWizardState extends State<_RegularWizard> {
               ),
           ],
         ),
+        if (_step == 0 && _exceptional)
+          TextButton.icon(
+            icon: const Icon(Icons.arrow_back, size: 18),
+            label: const Text('Volver al cambio regular'),
+            onPressed: () => _setExceptional(false),
+          )
+        else if (_step == 0 && controller.onCourtPlayers.any((p) => controller.canSubOutExceptional(p.id)))
+          TextButton.icon(
+            icon: const Icon(Icons.healing_outlined, size: 18),
+            label: const Text('¿No puede seguir por lesión o enfermedad? Cambio excepcional'),
+            onPressed: () => _setExceptional(true),
+          ),
       ],
     );
   }
 
+  String _exceptionalCountLabel(MatchController controller) {
+    final n = controller.exceptionalSubstitutionsUsedOwn;
+    if (n == 0) return '';
+    return n == 1 ? ' · +1 excepcional' : ' · +$n excepcionales';
+  }
+
   Widget _buildOutStep(MatchController controller) {
-    final eligible = controller.onCourtPlayers.where((p) => controller.canSubOutRegular(p.id)).toList();
+    final eligible = controller.onCourtPlayers
+        .where((p) => _exceptional ? controller.canSubOutExceptional(p.id) : controller.canSubOutRegular(p.id))
+        .toList();
     if (eligible.isEmpty) {
-      return const Text(
-        'Ningún jugador en cancha puede salir por un cambio regular en este momento.',
-        style: TextStyle(fontSize: 12, color: Colors.grey),
+      return Text(
+        _exceptional
+            ? 'Todos los jugadores en cancha tienen un cambio regular disponible: usá el cambio regular.'
+            : 'Ningún jugador en cancha puede salir por un cambio regular en este momento.',
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
       );
     }
     final value = eligible.any((p) => p.id == widget.playerOutId) ? widget.playerOutId : null;
@@ -205,12 +249,14 @@ class _RegularWizardState extends State<_RegularWizard> {
   Widget _buildInStep(MatchController controller) {
     final playerOut = controller.playerById(widget.playerOutId!);
     if (playerOut == null) return const SizedBox.shrink();
-    final bench = controller.eligibleRegularBenchFor(playerOut.id);
+    final bench = _exceptional
+        ? controller.eligibleExceptionalBenchFor(playerOut.id)
+        : controller.eligibleRegularBenchFor(playerOut.id);
     if (bench.isEmpty) {
       return const Text('No hay suplente disponible para este jugador.',
           style: TextStyle(fontSize: 12, color: Colors.grey));
     }
-    final blocked = !controller.canRegisterSubstitution;
+    final blocked = !_exceptional && !controller.canRegisterSubstitution;
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,10 +309,12 @@ class _RegularWizardState extends State<_RegularWizard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
-        title: const Text('Confirmar cambio'),
+        title: Text(_exceptional ? 'Confirmar cambio excepcional' : 'Confirmar cambio'),
         content: Text(
           'Sale #${playerOut.number} ${playerOut.lastName} · ${playerOut.position.shortLabel}\n'
-          'Entra #${playerIn.number} ${playerIn.lastName} · ${playerIn.position.shortLabel}',
+          'Entra #${playerIn.number} ${playerIn.lastName} · ${playerIn.position.shortLabel}'
+          '${_exceptional ? '\n\n#${playerOut.number} ${playerOut.lastName} no podrá volver a jugar en lo '
+              'que queda del partido. No cuenta en el límite de cambios.' : ''}',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('Cancelar')),
@@ -276,7 +324,11 @@ class _RegularWizardState extends State<_RegularWizard> {
     );
     if (!mounted) return;
     if (confirmed == true) {
-      controller.substitutePlayer(playerOutId: playerOut.id, playerInId: playerIn.id);
+      if (_exceptional) {
+        controller.substituteExceptional(playerOutId: playerOut.id, playerInId: playerIn.id);
+      } else {
+        controller.substitutePlayer(playerOutId: playerOut.id, playerInId: playerIn.id);
+      }
       Navigator.pop(context);
     } else {
       setState(() => _inFieldGen++);
@@ -297,9 +349,31 @@ class _LiberoPanel extends StatelessWidget {
     // este set: los roles solo deciden los cambios automáticos.
     final liberoIds = controller.rosterLiberoIds;
     if (liberoIds.isEmpty) {
-      return const Text(
-        'No hay líberos en la planilla de este partido (se eligen al armar la planilla de 16).',
-        style: TextStyle(fontSize: 12, color: Colors.grey),
+      final hadLiberos = controller.match.liberoIds.isNotEmpty;
+      final canRedesignate =
+          controller.redesignationAllowedAfter(const []) && controller.redesignationCandidates.isNotEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hadLiberos
+                ? 'No queda ningún líbero disponible en este partido.'
+                : 'No hay líberos en la planilla de este partido (se eligen al armar la planilla de 16).',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          if (canRedesignate) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+              label: const Text('Redesignar un nuevo líbero'),
+              onPressed: () async {
+                final done =
+                    await showLiberoUnableDialog(context: context, controller: controller, onlyRedesignate: true);
+                if (done) setState(() {});
+              },
+            ),
+          ],
+        ],
       );
     }
 
@@ -313,7 +387,7 @@ class _LiberoPanel extends StatelessWidget {
       // slot y si su posición es líbero.
       final playerId = controller.currentSet.currentOrderOwn[slot];
       final player = controller.playerById(playerId);
-      if (player?.position != PlayerPosition.libero) continue;
+      if (player == null || !controller.isLibero(player.id)) continue;
       final canOut = controller.canSendLiberoOut(slot);
       final others = controller.otherLiberosFor(slot);
       rows.add(Padding(
@@ -325,7 +399,7 @@ class _LiberoPanel extends StatelessWidget {
               children: [
                 Expanded(
                     child: Text(
-                        'En cancha: #${player!.number} ${player.lastName} · ${player.position.shortLabel}')),
+                        'En cancha: #${player.number} ${player.lastName} · LIB')),
                 TextButton(
                   onPressed: canOut
                       ? () {
@@ -430,7 +504,7 @@ class _LiberoPanel extends StatelessWidget {
         ],
         const Text('Hacer entrar a un líbero', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        ...onCourt.where((p) => p.position != PlayerPosition.libero && !suggestedFor.contains(p.id)).map((p) {
+        ...onCourt.where((p) => !controller.isLibero(p.id) && !suggestedFor.contains(p.id)).map((p) {
           final options = liberoIds.where((id) => controller.canBringLiberoIn(id, p.id)).toList();
           if (options.isEmpty) return const SizedBox.shrink();
           return Padding(
@@ -454,6 +528,15 @@ class _LiberoPanel extends StatelessWidget {
             ),
           );
         }),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.healing_outlined, size: 18),
+          label: const Text('Líbero lesionado o que no puede seguir'),
+          onPressed: () async {
+            final done = await showLiberoUnableDialog(context: context, controller: controller);
+            if (done) setState(() {});
+          },
+        ),
       ],
     );
   }

@@ -477,7 +477,7 @@ void main() {
                   fixedPlayerId: _roster.first.id,
                   grades: attackCounterGrades,
                   trackZone: true,
-                  onConfirm: (player, grade, zone, miss, replay) => got = (grade, zone, miss, replay),
+                  onConfirm: (player, grade, zone, miss, replay, origin) => got = (grade, zone, miss, replay),
                 ),
                 child: const Text('abrir'),
               ),
@@ -522,7 +522,7 @@ void main() {
                     fixedPlayerId: _roster.first.id,
                     grades: attackCounterGrades,
                     trackZone: trackZone,
-                    onConfirm: (player, grade, zone, miss, replay) {
+                    onConfirm: (player, grade, zone, miss, replay, origin) {
                       gotGrade = grade;
                       gotMiss = miss;
                     },
@@ -722,14 +722,14 @@ void main() {
       await tester.runAsync(_resetVisualPrefs);
       await tester.pumpWidget(app(const VisualStatsSettingsScreen(target: VisualStatsTarget.pdf)));
       await tester.pumpAndSettle();
-      expect(find.text('11 de 11 seleccionados'), findsOneWidget);
+      expect(find.text('12 de 12 seleccionados'), findsOneWidget);
 
       await tester.runAsync(() async {
         await tester.tap(find.text('Ninguno'));
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pumpAndSettle();
-      expect(find.text('0 de 11 seleccionados'), findsOneWidget);
+      expect(find.text('0 de 12 seleccionados'), findsOneWidget);
       expect(StorageService.instance.loadPdfVisualCharts(), isEmpty);
       expect(StorageService.instance.loadPdfCourtMaps(), isEmpty);
 

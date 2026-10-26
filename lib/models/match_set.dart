@@ -1,3 +1,4 @@
+import 'libero_unable_event.dart';
 import 'manual_rotation_event.dart';
 import 'rally_event.dart';
 import 'sanction_event.dart';
@@ -53,6 +54,14 @@ class MatchSet {
   /// elegido en el set anterior.
   bool nineHitZones;
 
+  /// Si está activado, el ataque y la contra de este set piden
+  /// (opcionalmente) la zona de nuestra cancha (1-6) desde la que se hizo el
+  /// toque ([RallyEvent.originZone]). Función premium, independiente de
+  /// [trackHitZones]. Se elige al armar la formación de cada set: en el 1º
+  /// arranca desactivado y en los siguientes hereda lo elegido en el set
+  /// anterior. false en partidos anteriores.
+  bool trackOriginZone;
+
   /// Líbero designado para la defensa cuando el equipo propio saca en este
   /// set (opcional). Se elige al armar la formación de cada set porque puede
   /// cambiar de un set a otro.
@@ -80,12 +89,18 @@ class MatchSet {
   /// side-out para reconstruir la rotación vigente al retomar el partido.
   final List<ManualRotationEvent> manualRotations = [];
 
+  /// Líberos declarados sin poder jugar y redesignaciones de líbero (Regla
+  /// 19.4) cargadas en este set. Valen desde ese momento hasta el final del
+  /// partido (ver `VolleyMatch.liberoIds`). Vacía en partidos anteriores.
+  final List<LiberoUnableEvent> liberoUnableEvents = [];
+
   MatchSet({
     required this.setNumber,
     required this.startingOrderOwn,
     required this.startingServer,
     this.trackHitZones = true,
     this.nineHitZones = false,
+    this.trackOriginZone = false,
     this.defensiveLiberoId,
     this.receptionLiberoId,
     this.autoLiberoBackRowSwap = true,
@@ -105,6 +120,7 @@ class MatchSet {
         'substitutionsUsedOwn': substitutionsUsedOwn,
         'trackHitZones': trackHitZones,
         'nineHitZones': nineHitZones,
+        'trackOriginZone': trackOriginZone,
         'defensiveLiberoId': defensiveLiberoId,
         'receptionLiberoId': receptionLiberoId,
         'autoLiberoBackRowSwap': autoLiberoBackRowSwap,
@@ -112,6 +128,7 @@ class MatchSet {
         'substitutions': substitutions.map((s) => s.toJson()).toList(),
         'sanctions': sanctions.map((s) => s.toJson()).toList(),
         'manualRotations': manualRotations.map((r) => r.toJson()).toList(),
+        'liberoUnableEvents': liberoUnableEvents.map((e) => e.toJson()).toList(),
       };
 
   factory MatchSet.fromJson(Map<dynamic, dynamic> json) {
@@ -124,6 +141,7 @@ class MatchSet {
           .firstWhere((e) => e.name == json['startingServer']),
       trackHitZones: json['trackHitZones'] as bool? ?? true,
       nineHitZones: json['nineHitZones'] as bool? ?? false,
+      trackOriginZone: json['trackOriginZone'] as bool? ?? false,
       defensiveLiberoId: json['defensiveLiberoId'] as String?,
       receptionLiberoId: json['receptionLiberoId'] as String?,
       autoLiberoBackRowSwap: json['autoLiberoBackRowSwap'] as bool? ?? true,
@@ -149,6 +167,8 @@ class MatchSet {
         .map((e) => SanctionEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));
     s.manualRotations.addAll(((json['manualRotations'] as List?) ?? [])
         .map((e) => ManualRotationEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));
+    s.liberoUnableEvents.addAll(((json['liberoUnableEvents'] as List?) ?? [])
+        .map((e) => LiberoUnableEvent.fromJson(Map<dynamic, dynamic>.from(e as Map))));
     return s;
   }
 }

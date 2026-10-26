@@ -2,6 +2,7 @@ import 'match_config.dart';
 import 'match_set.dart';
 import 'player.dart';
 import 'rally_event.dart';
+import 'sanction_event.dart';
 
 enum MatchStatus { setup, inProgress, finished }
 
@@ -71,6 +72,50 @@ class VolleyMatch {
 
   bool get isMatchOver =>
       ownSetsWon >= config.setsToWin || rivalSetsWon >= config.setsToWin;
+
+  /// Líberos del partido: los de la planilla más los jugadores redesignados
+  /// como líbero (Regla 19.4.2, ver `LiberoUnableEvent`), que lo son desde
+  /// ese momento hasta el final del partido. Incluye a los que ya no pueden
+  /// jugar (ver [unableLiberoIds]).
+  Set<String> get liberoIds => {
+        for (final p in ownRoster)
+          if (p.position == PlayerPosition.libero) p.id,
+        for (final s in sets)
+          for (final e in s.liberoUnableEvents)
+            if (e.newLiberoId != null) e.newLiberoId!,
+      };
+
+  bool isLibero(String playerId) => liberoIds.contains(playerId);
+
+  /// Líberos declarados sin poder jugar (Regla 19.4.1): no vuelven a jugar
+  /// en lo que queda del partido.
+  Set<String> get unableLiberoIds => {
+        for (final s in sets)
+          for (final e in s.liberoUnableEvents) ...e.unableLiberoIds,
+      };
+
+  /// true si [playerId] no puede volver a jugar en lo que queda del
+  /// partido, en ningún set: una Descalificación (Regla 21.3.3), haber
+  /// salido por un cambio excepcional (Regla 15.7) o ser un líbero
+  /// declarado sin poder jugar (Regla 19.4). La Expulsión, que solo vale
+  /// para el set en que se dio, la resuelve `MatchController.isBarredFromPlay`.
+  bool isBarredForMatch(String playerId) {
+    if (unableLiberoIds.contains(playerId)) return true;
+    for (final set in sets) {
+      for (final s in set.substitutions) {
+        if (s.exceptional && s.playerOutId == playerId) return true;
+      }
+      for (final s in set.sanctions) {
+        if (s.team == TeamSide.own &&
+            s.targetKind == SanctionTargetKind.player &&
+            s.targetPlayerId == playerId &&
+            s.outcome == SanctionOutcome.descalificacion) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,

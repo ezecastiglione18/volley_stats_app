@@ -5,6 +5,7 @@ import '../../../models/player.dart';
 import '../../../models/rally_event.dart' show TeamSide;
 import '../../../models/sanction_event.dart';
 import '../../../state/match_controller.dart';
+import 'libero_unable_dialog.dart';
 
 /// Bottom sheet para registrar una sanción/tarjeta del árbitro (Regla 21 de
 /// la FIVB): equipo -> a quién sancionó -> categoría de conducta. El panel
@@ -511,6 +512,7 @@ class _ReplacementStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final playerOut = controller.playerById(sanction.targetPlayerId!);
+    if (controller.isLibero(sanction.targetPlayerId!)) return _buildLiberoReplacement(context, playerOut);
     final options = controller.eligibleReplacementsForSanction(sanction.targetPlayerId!);
     final scheme = Theme.of(context).colorScheme;
     return Column(
@@ -557,6 +559,63 @@ class _ReplacementStep extends StatelessWidget {
                 ),
             ],
           ),
+      ],
+    );
+  }
+
+  /// El líbero nunca entra ni sale por un cambio regular o excepcional: lo
+  /// reemplaza el jugador al que estaba reemplazando u otro líbero, y si el
+  /// equipo se queda sin ninguno, se puede redesignar uno (Regla 19.4).
+  Widget _buildLiberoReplacement(BuildContext context, Player? libero) {
+    final liberoId = sanction.targetPlayerId!;
+    final options = controller.liberoReplacementsForSanction(liberoId);
+    final canRedesignate =
+        controller.redesignationAllowedAfter(const []) && controller.redesignationCandidates.isNotEmpty;
+    String name(String id) {
+      final p = controller.playerById(id);
+      return p == null ? '?' : '#${p.number} ${p.lastName}';
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${sanction.outcome.title(sanction.category)}: reemplazo obligatorio',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        Text(
+          'El líbero #${libero?.number} ${libero?.lastName} debe abandonar la cancha. Lo reemplaza el '
+          'jugador al que estaba reemplazando u otro líbero; si no queda ninguno, podés redesignar un '
+          'nuevo líbero (Regla 19.4 de la FIVB).',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final id in options)
+              ActionChip(
+                label: Text(controller.isLibero(id) ? '${name(id)} · LIB' : '${name(id)} (vuelve)'),
+                onPressed: () {
+                  controller.substituteLiberoForSanction(sanction.id, liberoId, id);
+                  onDone('${sanction.outcome.title(sanction.category)} registrada: entra ${name(id)}.');
+                },
+              ),
+            if (canRedesignate)
+              ActionChip(
+                avatar: const Icon(Icons.person_add_alt_1_outlined, size: 16),
+                label: const Text('Redesignar un nuevo líbero'),
+                onPressed: () async {
+                  final done = await showLiberoUnableDialog(
+                      context: context, controller: controller, onlyRedesignate: true);
+                  if (done) {
+                    onDone('${sanction.outcome.title(sanction.category)} registrada: nuevo líbero designado.');
+                  }
+                },
+              ),
+          ],
+        ),
       ],
     );
   }

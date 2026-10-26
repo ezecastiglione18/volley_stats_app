@@ -454,7 +454,8 @@ class StatsEngine {
   // Reglas en documents/spec-estadistica-visual.md, secciones 5.1 y 5.2.
 
   /// Toques de saque, ataque y contra del equipo propio como flechas. El
-  /// origen se deduce del puesto del jugador y de si estaba adelante o atrás
+  /// origen es la zona de salida si se registró ([RallyEvent.originZone]); si
+  /// no, se deduce del puesto del jugador y de si estaba adelante o atrás
   /// en ese rally (reproduciendo rotación y cambios del set); el destino es
   /// el centro de la zona registrada, con un desvío chico y fijo por toque
   /// para que no se encimen. Los toques sin zona no se dibujan (salvo los
@@ -492,7 +493,9 @@ class StatsEngine {
           final playerId = ev.playerIds.first;
           final slot = order.indexOf(playerId);
           final courtPos = slot < 0 ? null : ((slot - offset) % 6 + 6) % 6 + 1;
-          final (ox, oy) = shotOrigin(kind, positions[playerId], courtPos);
+          final registered =
+              kind == ShotKind.serve || ev.originZone == null ? null : originZoneCenter(ev.originZone!);
+          final (ox, oy) = registered ?? shotOrigin(kind, positions[playerId], courtPos);
           final result = ev.replay ? ShotResult.replay : shotResultOf(ev.grade, ev.missType);
           final center = ev.targetZone == null ? null : zoneCenter(ev.targetZone!, nineZones: set.nineHitZones);
 
@@ -609,6 +612,39 @@ class StatsEngine {
       case null:
         return _originByCourtPosition[courtPos] ?? (0.50, 0.59);
     }
+  }
+
+  /// Punto de salida de un ataque o contra desde la zona [zone] (1-6) de
+  /// nuestra cancha, en las mismas coordenadas que [shotOrigin]: fila de red
+  /// (4-3-2) a la altura de un remate delantero y fila de fondo (5-6-1) a la
+  /// de un remate desde atrás de la línea de 3 m. Null si la zona no existe.
+  static (double, double)? originZoneCenter(int zone) {
+    const column = {4: 0, 3: 1, 2: 2, 5: 0, 6: 1, 1: 2};
+    final col = column[zone];
+    if (col == null) return null;
+    final front = zone == 2 || zone == 3 || zone == 4;
+    return ((col + 0.5) / 3, front ? 0.59 : 0.77);
+  }
+
+  /// Ataques y contras propios por zona de salida (1-6), para el gráfico
+  /// "Ataque por zona de salida": solo los toques con la zona registrada.
+  static OriginZoneStats computeOriginZones(VolleyMatch match, {int? setNumber}) {
+    final attack = {for (var z = 1; z <= 6; z++) z: TouchStats()};
+    final counter = {for (var z = 1; z <= 6; z++) z: TouchStats()};
+    var missing = 0;
+    for (final set in _selectedSets(match, setNumber)) {
+      for (final ev in set.events) {
+        if (ev.team != TeamSide.own) continue;
+        if (ev.phase != RallyPhase.attack && ev.phase != RallyPhase.counter) continue;
+        final zone = ev.originZone;
+        if (zone == null || zone < 1 || zone > 6) {
+          if (set.trackOriginZone) missing++;
+          continue;
+        }
+        _bumpTouch((ev.phase == RallyPhase.attack ? attack : counter)[zone]!, ev.grade);
+      }
+    }
+    return OriginZoneStats(attackByZone: attack, counterByZone: counter, missingZone: missing);
   }
 
   static const _originByCourtPosition = {

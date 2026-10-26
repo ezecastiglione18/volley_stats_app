@@ -378,7 +378,9 @@ class StorageService {
 
   List<Play> loadPlays() => _decodePlays(_playsBoxOpen);
 
-  Future<void> savePlay(Play play) async {
+  /// [sessionToken]: igual que en [saveMatch].
+  Future<void> savePlay(Play play, {int? sessionToken}) async {
+    _checkSession(sessionToken, 'La jugada ${play.id}');
     await _playsBoxOpen.put(play.id, play.toJson());
   }
 
@@ -395,7 +397,9 @@ class StorageService {
 
   List<FixtureEntry> loadFixtureEntries() => _decodeFixture(_fixtureBoxOpen);
 
-  Future<void> saveFixtureEntry(FixtureEntry entry) async {
+  /// [sessionToken]: igual que en [saveMatch].
+  Future<void> saveFixtureEntry(FixtureEntry entry, {int? sessionToken}) async {
+    _checkSession(sessionToken, 'La fila del fixture ${entry.id}');
     await _fixtureBoxOpen.put(entry.id, entry.toJson());
   }
 
@@ -510,19 +514,30 @@ class StorageService {
   static const cloudSyncKey = 'cloud_sync';
   static const cloudCursorMatchesKey = 'cloud_cursor_matches';
   static const cloudCursorTeamsKey = 'cloud_cursor_teams';
+  static const cloudCursorPlaysKey = 'cloud_cursor_plays';
+  static const cloudCursorFixtureKey = 'cloud_cursor_fixture';
   static const cloudUploadedKey = 'cloud_uploaded';
   static const cloudUploadDoneKey = 'cloud_upload_done';
   static const cloudOversizeKey = 'cloud_oversize';
+  static const cloudOversizePlaysKey = 'cloud_oversize_plays';
   static const cloudLastSyncKey = 'cloud_last_sync';
+
+  /// Versión de la política que aceptó la cuenta para la nube (caché de
+  /// `account_devices/{uid}.cloudConsent.privacyPolicyVersion`).
+  static const cloudConsentVersionKey = 'cloud_consent_version';
 
   static const _accountValueKeys = {
     cloudSyncKey,
     cloudCursorMatchesKey,
     cloudCursorTeamsKey,
+    cloudCursorPlaysKey,
+    cloudCursorFixtureKey,
     cloudUploadedKey,
     cloudUploadDoneKey,
     cloudOversizeKey,
+    cloudOversizePlaysKey,
     cloudLastSyncKey,
+    cloudConsentVersionKey,
   };
 
   /// Valor de `settings_box` que es de la cuenta [uid], con la misma regla
@@ -581,16 +596,33 @@ class StorageService {
   Set<ShotKind> loadScreenCourtMaps() => _loadEnumSet(_screenCourtMapsKey, ShotKind.values);
   Future<void> saveScreenCourtMaps(Set<ShotKind> v) => _saveEnumSet(_screenCourtMapsKey, ShotKind.values, v);
 
+  /// Borra una clave de `settings_box` (para simular datos de una versión
+  /// anterior en los tests).
+  @visibleForTesting
+  Future<void> debugRemoveSetting(String key) => _settings.delete(key);
+
+  /// Valores de enum agregados después de que pudo haber selecciones
+  /// guardadas sin una lista `_known` (ver [_loadEnumSet]).
+  static const _enumValuesAddedLater = {'attackOrigin'};
+
   /// Se guarda la lista de nombres (no los índices) para que agregar o
-  /// reordenar valores del enum no cambie lo que eligió el usuario.
+  /// reordenar valores del enum no cambie lo que eligió el usuario, más la
+  /// lista de valores que existían al guardar (`<clave>_known`): un valor
+  /// nuevo (p. ej. un gráfico agregado en una versión posterior) aparece
+  /// elegido hasta que el usuario lo saque, en vez de quedar oculto.
   Set<T> _loadEnumSet<T extends Enum>(String key, List<T> values) {
     final raw = _settings.get(key);
     if (raw is! List) return values.toSet();
     final names = raw.map((e) => e.toString()).toSet();
-    return {for (final v in values) if (names.contains(v.name)) v};
+    final rawKnown = _settings.get('${key}_known');
+    final known = rawKnown is List
+        ? rawKnown.map((e) => e.toString()).toSet()
+        : {for (final v in values) if (!_enumValuesAddedLater.contains(v.name)) v.name};
+    return {for (final v in values) if (names.contains(v.name) || !known.contains(v.name)) v};
   }
 
   Future<void> _saveEnumSet<T extends Enum>(String key, List<T> values, Set<T> selected) async {
     await _settings.put(key, [for (final v in values) if (selected.contains(v)) v.name]);
+    await _settings.put('${key}_known', [for (final v in values) v.name]);
   }
 }

@@ -88,6 +88,11 @@ class _LineupScreenState extends State<LineupScreen> {
   // set anterior.
   bool _nineHitZones = false;
 
+  // Registro de la zona de salida del ataque y la contra (premium,
+  // independiente de las zonas de destino). En el primer set arranca
+  // destildado; en los siguientes, con lo elegido en el set anterior.
+  bool _trackOriginZone = false;
+
   // Roles de líbero de este set (opcionales): se eligen de nuevo en cada
   // set porque el equipo puede usar líberos distintos set a set. Si hay un
   // set anterior en el mismo partido, arrancan precargados con lo elegido
@@ -122,6 +127,7 @@ class _LineupScreenState extends State<LineupScreen> {
     _receptionLiberoId = previousSet?.receptionLiberoId;
     _autoLiberoBackRowSwap = previousSet?.autoLiberoBackRowSwap ?? true;
     _nineHitZones = previousSet?.nineHitZones ?? false;
+    _trackOriginZone = previousSet?.trackOriginZone ?? false;
 
     // El saque inicial se alterna set a set (regla FIVB), excepto en el
     // set decisivo (tie-break), donde se vuelve a sortear: ahí no se
@@ -139,10 +145,18 @@ class _LineupScreenState extends State<LineupScreen> {
     // 6 puestos arrancan vacíos.
     final previousOrder = previousSet?.startingOrderOwn;
     if (previousOrder != null) {
+      // Sin los que ya no pueden jugar o pasaron a ser líberos (Reglas 15.7
+      // y 19.4): esas posiciones quedan vacías para elegir a otro.
+      final eligible = {for (final p in _playableRoster) if (!_isLibero(p)) p.id};
       for (var i = 0; i < 6 && i < previousOrder.length; i++) {
-        _positions[i + 1] = previousOrder[i];
+        if (eligible.contains(previousOrder[i])) _positions[i + 1] = previousOrder[i];
       }
     }
+    // Un rol de líbero heredado de un líbero que ya no puede jugar queda
+    // vacío; si se redesignó uno, se lo elige a mano.
+    final liberoIds = {for (final p in _liberos) p.id};
+    if (!liberoIds.contains(_defensiveLiberoId)) _defensiveLiberoId = null;
+    if (!liberoIds.contains(_receptionLiberoId)) _receptionLiberoId = null;
   }
 
   /// Modo edición: precarga exactamente lo que se eligió para el set en
@@ -156,13 +170,25 @@ class _LineupScreenState extends State<LineupScreen> {
     _rivalSetterPos = set.rivalSetterStartPosition;
     _trackHitZones = set.trackHitZones;
     _nineHitZones = set.nineHitZones;
+    _trackOriginZone = set.trackOriginZone;
     _defensiveLiberoId = set.defensiveLiberoId;
     _receptionLiberoId = set.receptionLiberoId;
     _autoLiberoBackRowSwap = set.autoLiberoBackRowSwap;
   }
 
-  List<Player> get _liberos =>
-      widget.roster.where((p) => p.position == PlayerPosition.libero).toList();
+  VolleyMatch? get _match => widget.existingController?.match;
+
+  /// true si [p] es líbero en este partido: de la planilla o redesignado en
+  /// un set anterior (Regla 19.4).
+  bool _isLibero(Player p) => _match?.isLibero(p.id) ?? p.position == PlayerPosition.libero;
+
+  /// Jugadores de la planilla que pueden jugar este set: sin los
+  /// descalificados, los que salieron por un cambio excepcional ni los
+  /// líberos declarados sin poder jugar (ver `VolleyMatch.isBarredForMatch`).
+  List<Player> get _playableRoster =>
+      widget.roster.where((p) => !(_match?.isBarredForMatch(p.id) ?? false)).toList();
+
+  List<Player> get _liberos => _playableRoster.where(_isLibero).toList();
 
   List<Player> _availableFor(int pos) {
     final used = _positions.entries
@@ -171,9 +197,7 @@ class _LineupScreenState extends State<LineupScreen> {
         .toSet();
     // El líbero nunca arranca en el sexteto inicial: solo entra en cancha
     // durante el set a través del cambio de líbero (fila trasera).
-    return widget.roster
-        .where((p) => p.position != PlayerPosition.libero && !used.contains(p.id))
-        .toList();
+    return _playableRoster.where((p) => !_isLibero(p) && !used.contains(p.id)).toList();
   }
 
   bool get _complete => _positions.values.every((v) => v != null);
@@ -242,7 +266,8 @@ class _LineupScreenState extends State<LineupScreen> {
       context: context,
       pos: pos,
       zoneLabel: _zoneLabel(pos),
-      roster: widget.roster,
+      roster: _playableRoster,
+      isLibero: _isLibero,
       positions: _positions,
       onAssign: (playerId) => _assignToPosition(pos, playerId),
     );
@@ -446,7 +471,9 @@ class _LineupScreenState extends State<LineupScreen> {
               'a qué zona de la cancha fue dirigido. Es una función premium. Con "9 zonas" se suma '
               'la franja media de la cancha (7 izquierda, 8 centro, 9 derecha, entre la fila '
               'delantera y la de fondo); se elige set a set y el set siguiente arranca con lo '
-              'elegido en el anterior.',
+              'elegido en el anterior. Con "Registrar zona de salida" (también premium, se puede '
+              'usar con o sin las zonas de destino), al calificar un ataque o una contra vas a poder '
+              'marcar (opcional) desde qué zona de tu cancha, del 1 al 6, se hizo el toque.',
         ),
       ],
     );
@@ -473,6 +500,7 @@ class _LineupScreenState extends State<LineupScreen> {
         startingServer: _startingServer,
         trackHitZones: isPremium && _trackHitZones,
         nineHitZones: _nineHitZones,
+        trackOriginZone: isPremium && _trackOriginZone,
         defensiveLiberoId: _defensiveLiberoId,
         receptionLiberoId: _receptionLiberoId,
         autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
@@ -494,6 +522,7 @@ class _LineupScreenState extends State<LineupScreen> {
         // Se guarda tal cual lo marcó el usuario (aunque las zonas estén
         // desactivadas en este set), para que el set siguiente lo herede.
         nineHitZones: _nineHitZones,
+        trackOriginZone: isPremium && _trackOriginZone,
         defensiveLiberoId: _defensiveLiberoId,
         receptionLiberoId: _receptionLiberoId,
         autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
@@ -527,6 +556,7 @@ class _LineupScreenState extends State<LineupScreen> {
       startingServer: _startingServer,
       trackHitZones: isPremium && _trackHitZones,
       nineHitZones: _nineHitZones,
+      trackOriginZone: isPremium && _trackOriginZone,
       defensiveLiberoId: _defensiveLiberoId,
       receptionLiberoId: _receptionLiberoId,
       autoLiberoBackRowSwap: _autoLiberoBackRowSwap,
@@ -705,6 +735,34 @@ class _LineupScreenState extends State<LineupScreen> {
                 subtitle: const Text('Suma la franja media: 7 · 8 · 9', style: TextStyle(fontSize: 11)),
                 onChanged: (v) => setState(() => _nineHitZones = v ?? false),
               ),
+            CheckboxListTile(
+              key: const ValueKey('track-origin-zone'),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              value: isPremium && _trackOriginZone,
+              title: Row(
+                children: [
+                  const Flexible(
+                    child: Text('Registrar zona de salida',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                  if (!isPremium) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.lock_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ],
+                ],
+              ),
+              subtitle: const Text('Desde qué zona (1-6) se hizo el ataque o la contra',
+                  style: TextStyle(fontSize: 11)),
+              onChanged: (v) {
+                if (!isPremium) {
+                  showRallyStatsPaywall(context);
+                  return;
+                }
+                setState(() => _trackOriginZone = v ?? false);
+              },
+            ),
             const SizedBox(height: 18),
             ElevatedButton(
               onPressed: _complete ? _start : null,

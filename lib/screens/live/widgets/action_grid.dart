@@ -47,7 +47,7 @@ class ActionGrid extends StatelessWidget {
       grades: serveAttackGrades,
       trackZone: controller.currentSet.trackHitZones,
       nineZones: controller.currentSet.nineHitZones,
-      onConfirm: (playerId, grade, zone, miss, replay) =>
+      onConfirm: (playerId, grade, zone, miss, replay, origin) =>
           controller.logServe(playerId, grade, targetZone: zone, missType: miss),
     );
   }
@@ -58,7 +58,7 @@ class ActionGrid extends StatelessWidget {
       title: 'Recepción',
       players: controller.onCourtPlayers,
       grades: receptionGrades,
-      onConfirm: (playerId, grade, zone, miss, replay) => controller.logReception(playerId, grade),
+      onConfirm: (playerId, grade, zone, miss, replay, origin) => controller.logReception(playerId, grade),
     );
   }
 
@@ -70,8 +70,9 @@ class ActionGrid extends StatelessWidget {
       grades: attackCounterGrades,
       trackZone: controller.currentSet.trackHitZones,
       nineZones: controller.currentSet.nineHitZones,
-      onConfirm: (playerId, grade, zone, miss, replay) =>
-          controller.logAttack(playerId, grade, targetZone: zone, missType: miss, replay: replay),
+      trackOrigin: controller.currentSet.trackOriginZone,
+      onConfirm: (playerId, grade, zone, miss, replay, origin) => controller.logAttack(playerId, grade,
+          targetZone: zone, missType: miss, replay: replay, originZone: origin),
     );
   }
 
@@ -83,8 +84,9 @@ class ActionGrid extends StatelessWidget {
       grades: attackCounterGrades,
       trackZone: controller.currentSet.trackHitZones,
       nineZones: controller.currentSet.nineHitZones,
-      onConfirm: (playerId, grade, zone, miss, replay) =>
-          controller.logCounter(playerId, grade, targetZone: zone, missType: miss, replay: replay),
+      trackOrigin: controller.currentSet.trackOriginZone,
+      onConfirm: (playerId, grade, zone, miss, replay, origin) => controller.logCounter(playerId, grade,
+          targetZone: zone, missType: miss, replay: replay, originZone: origin),
     );
   }
 

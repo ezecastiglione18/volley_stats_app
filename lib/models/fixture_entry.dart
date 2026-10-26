@@ -3,7 +3,8 @@
 /// partido real ("Elegir del fixture" en Nuevo Partido).
 ///
 /// Se guarda en Hive como mapa plano, igual que los demás modelos
-/// (`toJson`/`fromJson` a mano). El fixture es local: no se sincroniza.
+/// (`toJson`/`fromJson` a mano). Si la cuenta activó la nube, viaja con el
+/// sync igual que los equipos (ver `MatchSyncService`).
 class FixtureEntry {
   final String id;
   DateTime date;
@@ -22,6 +23,15 @@ class FixtureEntry {
   /// partido se borra del archivo.
   String? linkedMatchId;
 
+  /// Hora (del dispositivo) de la última edición: la estampa
+  /// `AppDataController.saveFixtureEntry` (y vincular o desvincular un
+  /// partido) y resuelve los conflictos del sync. Null en filas viejas.
+  DateTime? updatedAt;
+
+  /// Cuándo se borró la fila: queda oculta hasta la purga de los 30 días
+  /// para que el borrado viaje a los otros dispositivos. Null = no borrada.
+  DateTime? deletedAt;
+
   FixtureEntry({
     required this.id,
     required this.date,
@@ -33,6 +43,8 @@ class FixtureEntry {
     this.rivalTeamSourceId,
     this.notes,
     this.linkedMatchId,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +58,8 @@ class FixtureEntry {
         'rivalTeamSourceId': rivalTeamSourceId,
         'notes': notes,
         'linkedMatchId': linkedMatchId,
+        'updatedAt': updatedAt?.toIso8601String(),
+        'deletedAt': deletedAt?.toIso8601String(),
       };
 
   factory FixtureEntry.fromJson(Map<dynamic, dynamic> json) => FixtureEntry(
@@ -59,5 +73,7 @@ class FixtureEntry {
         rivalTeamSourceId: json['rivalTeamSourceId'] as String?,
         notes: json['notes'] as String?,
         linkedMatchId: json['linkedMatchId'] as String?,
+        updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+        deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
       );
 }

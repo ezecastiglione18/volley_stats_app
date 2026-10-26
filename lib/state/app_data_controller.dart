@@ -31,8 +31,10 @@ class MatchArchiveLimitException implements Exception {
 /// Papelera: un partido eliminado no se borra, pasa a [trashedMatches]
 /// (`deletedAt`) y se purga a los 30 días. [matches] nunca lo incluye, así
 /// que lo ignora todo lo que lee el archivo (scouting, temporada, impacto,
-/// comparador, CSV, fixture, cupo free y tope de 3). Lo mismo con los equipos
-/// borrados: salen de [teams] y quedan en [hiddenTeams] hasta la purga.
+/// comparador, CSV, fixture, cupo free y tope de 3). Lo mismo con los equipos,
+/// las jugadas y las filas del fixture borrados: salen de [teams], [plays] y
+/// [fixtureEntries] y quedan en [hiddenTeams], [hiddenPlays] y
+/// [hiddenFixtureEntries] hasta la purga.
 class AppDataController extends ChangeNotifier {
   /// Tope de partidos en el archivo de la versión free (por cuenta: cada
   /// cuenta tiene sus propios cajones).
@@ -74,10 +76,17 @@ class AppDataController extends ChangeNotifier {
   /// Papelera, del borrado más reciente al más viejo.
   List<VolleyMatch> trashedMatches = [];
 
+  /// Jugadas de la pizarra, sin las borradas.
   List<Play> plays = [];
 
-  /// Fixture (partidos por jugar), por fecha ascendente.
+  /// Jugadas borradas (`deletedAt`): ocultas hasta la purga, como [hiddenTeams].
+  List<Play> hiddenPlays = [];
+
+  /// Fixture (partidos por jugar), por fecha ascendente, sin las filas borradas.
   List<FixtureEntry> fixtureEntries = [];
+
+  /// Filas del fixture borradas (`deletedAt`): ocultas hasta la purga.
+  List<FixtureEntry> hiddenFixtureEntries = [];
 
   /// Id del partido que ya consumió el único cupo de estadística de la
   /// versión free (ver [registerFreeStatsUsage]). `null` si todavía no se
@@ -111,8 +120,12 @@ class AppDataController extends ChangeNotifier {
     matches = allMatches.where((m) => m.deletedAt == null).toList();
     trashedMatches = allMatches.where((m) => m.deletedAt != null).toList();
     _sortTrash();
-    plays = s.loadPlays();
-    fixtureEntries = s.loadFixtureEntries();
+    final allPlays = s.loadPlays();
+    plays = allPlays.where((p) => p.deletedAt == null).toList();
+    hiddenPlays = allPlays.where((p) => p.deletedAt != null).toList();
+    final allFixture = s.loadFixtureEntries();
+    fixtureEntries = allFixture.where((e) => e.deletedAt == null).toList();
+    hiddenFixtureEntries = allFixture.where((e) => e.deletedAt != null).toList();
     freeStatsMatchId = s.loadFreeStatsMatchId(uid);
     accountUid = uid;
     notifyListeners();
@@ -127,7 +140,9 @@ class AppDataController extends ChangeNotifier {
     matches = [];
     trashedMatches = [];
     plays = [];
+    hiddenPlays = [];
     fixtureEntries = [];
+    hiddenFixtureEntries = [];
     freeStatsMatchId = null;
     notifyListeners();
     await StorageService.instance.closeUserBoxes();
@@ -301,10 +316,11 @@ class AppDataController extends ChangeNotifier {
     matches.removeWhere((m) => m.id == matchId);
     trashedMatches.removeWhere((m) => m.id == matchId);
     // Si el partido salía de una fila del fixture, esa fila vuelve a quedar
-    // "sin jugar" (no se borra: el partido por jugar sigue existiendo).
-    for (final entry in fixtureEntries.where((e) => e.linkedMatchId == matchId)) {
+    // "sin jugar" (no se borra: el partido por jugar sigue existiendo). Es
+    // una edición de la fila: viaja a los otros dispositivos.
+    for (final entry in fixtureEntries.where((e) => e.linkedMatchId == matchId).toList()) {
       entry.linkedMatchId = null;
-      await StorageService.instance.saveFixtureEntry(entry);
+      await saveFixtureEntry(entry);
     }
     notifyListeners();
     sync?.deleteRemoteMatch(matchId);
@@ -321,8 +337,8 @@ class AppDataController extends ChangeNotifier {
   }
 
   /// Borra definitivamente lo que lleva más de 30 días en la papelera y los
-  /// equipos borrados hace más de 30 días, acá y en la nube. Corre al abrir
-  /// los datos de la cuenta ([openAccount]).
+  /// equipos, jugadas y filas del fixture borrados hace más de 30 días, acá y
+  /// en la nube. Corre al abrir los datos de la cuenta ([openAccount]).
   Future<void> purgeExpired() async {
     final cutoff = now().subtract(trashRetention);
     for (final m in trashedMatches.where((m) => m.deletedAt!.isBefore(cutoff)).toList()) {
@@ -334,27 +350,65 @@ class AppDataController extends ChangeNotifier {
       hiddenTeams.removeWhere((h) => h.id == t.id);
       sync?.deleteRemoteTeam(t.id);
     }
-    if (expiredTeams.isNotEmpty) notifyListeners();
+    final expiredPlays = hiddenPlays.where((p) => p.deletedAt!.isBefore(cutoff)).toList();
+    for (final p in expiredPlays) {
+      await StorageService.instance.deletePlay(p.id);
+      hiddenPlays.removeWhere((h) => h.id == p.id);
+      sync?.deleteRemotePlay(p.id);
+    }
+    final expiredFixture = hiddenFixtureEntries.where((e) => e.deletedAt!.isBefore(cutoff)).toList();
+    for (final e in expiredFixture) {
+      await StorageService.instance.deleteFixtureEntry(e.id);
+      hiddenFixtureEntries.removeWhere((h) => h.id == e.id);
+      sync?.deleteRemoteFixtureEntry(e.id);
+    }
+    if (expiredTeams.isNotEmpty || expiredPlays.isNotEmpty || expiredFixture.isNotEmpty) notifyListeners();
   }
 
   // ---------------- Fixture ----------------
 
-  Future<void> saveFixtureEntry(FixtureEntry entry) async {
-    await StorageService.instance.saveFixtureEntry(entry);
-    final idx = fixtureEntries.indexWhere((e) => e.id == entry.id);
-    if (idx == -1) {
-      fixtureEntries.add(entry);
-    } else {
-      fixtureEntries[idx] = entry;
+  /// La fila [id] del fixture, visible u oculta (borrada), o null.
+  FixtureEntry? findFixtureEntry(String id) {
+    for (final e in [...fixtureEntries, ...hiddenFixtureEntries]) {
+      if (e.id == id) return e;
     }
-    fixtureEntries.sort((a, b) => a.date.compareTo(b.date));
-    notifyListeners();
+    return null;
   }
 
-  Future<void> deleteFixtureEntry(String entryId) async {
-    await StorageService.instance.deleteFixtureEntry(entryId);
-    fixtureEntries.removeWhere((e) => e.id == entryId);
+  void _placeFixtureEntry(FixtureEntry entry) {
+    fixtureEntries.removeWhere((e) => e.id == entry.id);
+    hiddenFixtureEntries.removeWhere((e) => e.id == entry.id);
+    if (entry.deletedAt == null) {
+      fixtureEntries.add(entry);
+      fixtureEntries.sort((a, b) => a.date.compareTo(b.date));
+    } else {
+      hiddenFixtureEntries.add(entry);
+    }
+  }
+
+  /// Guarda una fila (alta o edición), estampa `updatedAt` y la sube a la
+  /// nube si corresponde. [syncToCloud] y [sessionToken]: igual que en
+  /// [saveTeam].
+  Future<void> saveFixtureEntry(FixtureEntry entry, {bool syncToCloud = true, int? sessionToken}) async {
+    if (syncToCloud) entry.updatedAt = now();
+    await StorageService.instance.saveFixtureEntry(entry, sessionToken: sessionToken);
+    _placeFixtureEntry(entry);
     notifyListeners();
+    if (syncToCloud) sync?.pushFixtureEntry(entry);
+  }
+
+  /// Borra una fila: la oculta (`deletedAt`) acá y en los otros
+  /// dispositivos, y se purga a los 30 días.
+  Future<void> deleteFixtureEntry(String entryId) async {
+    final entry = findFixtureEntry(entryId);
+    if (entry == null || entry.deletedAt != null) return;
+    final t = now();
+    entry.deletedAt = t;
+    entry.updatedAt = t;
+    await StorageService.instance.saveFixtureEntry(entry);
+    _placeFixtureEntry(entry);
+    notifyListeners();
+    sync?.pushFixtureEntry(entry);
   }
 
   /// Vincula la fila [entryId] del fixture con el partido [matchId] recién
@@ -364,8 +418,7 @@ class AppDataController extends ChangeNotifier {
     final idx = fixtureEntries.indexWhere((e) => e.id == entryId);
     if (idx == -1) return;
     fixtureEntries[idx].linkedMatchId = matchId;
-    await StorageService.instance.saveFixtureEntry(fixtureEntries[idx]);
-    notifyListeners();
+    await saveFixtureEntry(fixtureEntries[idx]);
   }
 
   /// El partido de la fila [entry], si todavía existe en el archivo. Una fila
@@ -440,8 +493,8 @@ class AppDataController extends ChangeNotifier {
   Map<String, dynamic> buildBackupJson() => FullBackup.buildJson(
         teams: [...teams, ...hiddenTeams],
         matches: [...matches, ...trashedMatches],
-        plays: plays,
-        fixture: fixtureEntries,
+        plays: [...plays, ...hiddenPlays],
+        fixture: [...fixtureEntries, ...hiddenFixtureEntries],
         createdAt: DateTime.now(),
         appVersion: kAppVersion,
       );
@@ -491,38 +544,46 @@ class AppDataController extends ChangeNotifier {
       summary.matches++;
     }
 
-    final playIds = {for (final p in plays) p.id};
+    final addedPlays = <Play>[];
+    final playIds = {for (final p in [...plays, ...hiddenPlays]) p.id};
     for (final p in backup.plays) {
       if (!playIds.add(p.id)) {
         summary.alreadyExisted++;
         continue;
       }
       await s.savePlay(p);
-      plays.add(p);
+      _placePlay(p);
+      addedPlays.add(p);
       summary.plays++;
     }
 
     // Una fila cuyo partido quedó afuera por el tope cuenta como "sin jugar"
     // (ver [linkedMatchOf]); no hace falta tocarla.
-    final fixtureIds = {for (final e in fixtureEntries) e.id};
+    final addedFixture = <FixtureEntry>[];
+    final fixtureIds = {for (final e in [...fixtureEntries, ...hiddenFixtureEntries]) e.id};
     for (final e in backup.fixture) {
       if (!fixtureIds.add(e.id)) {
         summary.alreadyExisted++;
         continue;
       }
       await s.saveFixtureEntry(e);
-      fixtureEntries.add(e);
+      _placeFixtureEntry(e);
+      addedFixture.add(e);
       summary.fixture++;
     }
 
-    plays.sort((a, b) => b.date.compareTo(a.date));
-    fixtureEntries.sort((a, b) => a.date.compareTo(b.date));
     notifyListeners();
     for (final t in addedTeams) {
       sync?.pushTeam(t);
     }
     for (final m in addedMatches) {
       sync?.push(m);
+    }
+    for (final p in addedPlays) {
+      sync?.pushPlay(p);
+    }
+    for (final e in addedFixture) {
+      sync?.pushFixtureEntry(e);
     }
     return summary;
   }
@@ -537,21 +598,48 @@ class AppDataController extends ChangeNotifier {
     }
   }
 
-  Future<void> savePlay(Play play) async {
-    await StorageService.instance.savePlay(play);
-    final idx = plays.indexWhere((p) => p.id == play.id);
-    if (idx == -1) {
-      plays.add(play);
-    } else {
-      plays[idx] = play;
+  // ---------------- Jugadas de la pizarra ----------------
+
+  /// La jugada [id], visible u oculta (borrada), o null.
+  Play? findPlay(String id) {
+    for (final p in [...plays, ...hiddenPlays]) {
+      if (p.id == id) return p;
     }
-    plays.sort((a, b) => b.date.compareTo(a.date));
-    notifyListeners();
+    return null;
   }
 
-  Future<void> deletePlay(String playId) async {
-    await StorageService.instance.deletePlay(playId);
-    plays.removeWhere((p) => p.id == playId);
+  void _placePlay(Play play) {
+    plays.removeWhere((p) => p.id == play.id);
+    hiddenPlays.removeWhere((p) => p.id == play.id);
+    if (play.deletedAt == null) {
+      plays.add(play);
+      plays.sort((a, b) => b.date.compareTo(a.date));
+    } else {
+      hiddenPlays.add(play);
+    }
+  }
+
+  /// Guarda una jugada (alta o edición), estampa `updatedAt` y la sube a la
+  /// nube si corresponde. [syncToCloud] y [sessionToken]: igual que en
+  /// [saveTeam].
+  Future<void> savePlay(Play play, {bool syncToCloud = true, int? sessionToken}) async {
+    final saved = syncToCloud ? play.withSyncStamps(updatedAt: now(), deletedAt: play.deletedAt) : play;
+    await StorageService.instance.savePlay(saved, sessionToken: sessionToken);
+    _placePlay(saved);
     notifyListeners();
+    if (syncToCloud) sync?.pushPlay(saved);
+  }
+
+  /// Borra una jugada: la oculta (`deletedAt`) acá y en los otros
+  /// dispositivos, y se purga a los 30 días.
+  Future<void> deletePlay(String playId) async {
+    final play = findPlay(playId);
+    if (play == null || play.deletedAt != null) return;
+    final t = now();
+    final deleted = play.withSyncStamps(updatedAt: t, deletedAt: t);
+    await StorageService.instance.savePlay(deleted);
+    _placePlay(deleted);
+    notifyListeners();
+    sync?.pushPlay(deleted);
   }
 }

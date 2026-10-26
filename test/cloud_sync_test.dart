@@ -11,8 +11,10 @@ import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:rally_stats/legal/privacy_policy_text.dart';
 import 'package:rally_stats/models/fixture_entry.dart';
 import 'package:rally_stats/models/match_config.dart';
+import 'package:rally_stats/models/play.dart';
 import 'package:rally_stats/models/player.dart';
 import 'package:rally_stats/models/rally_event.dart';
 import 'package:rally_stats/models/team.dart';
@@ -104,6 +106,9 @@ class _FakeCloudStore implements CloudSyncStore {
   Future<CloudSyncFlag> readFlag(String uid) async => flag;
 
   @override
+  Future<String?> readConsentVersion(String uid) async => consentVersion;
+
+  @override
   Future<void> writeFlag(String uid, bool enabled, {String? consentPolicyVersion}) async {
     flag = enabled ? CloudSyncFlag.on : CloudSyncFlag.off;
     consentVersion = consentPolicyVersion ?? consentVersion;
@@ -165,9 +170,14 @@ void main() {
   late _FakeCloudStore store;
   late MatchSyncService sync;
 
-  Future<void> openAs(String uid, {bool cloud = true}) async {
+  /// [consent]: versión de la política con la que la cuenta activó la nube
+  /// (por defecto la vigente; '2.0' = antes de que viajaran jugadas y fixture).
+  Future<void> openAs(String uid, {bool cloud = true, String consent = kPrivacyPolicyVersion}) async {
     await appData.openAccount(uid);
-    if (cloud) await storage.saveAccountValue(StorageService.cloudSyncKey, uid, true);
+    if (cloud) {
+      await storage.saveAccountValue(StorageService.cloudSyncKey, uid, true);
+      await storage.saveAccountValue(StorageService.cloudConsentVersionKey, uid, consent);
+    }
   }
 
   setUp(() async {
@@ -671,6 +681,200 @@ void main() {
       expect(await appData.addSampleTeam(), isTrue);
       expect(appData.teams.single.updatedAt, now);
       expect(store.doc(SyncCollection.teams, _uidA, kSampleTeamId)!['deletedAt'], isNull);
+    });
+  });
+
+  group('jugadas y fixture', () {
+    Play play(String id, {DateTime? updatedAt, DateTime? deletedAt, String name = 'Jugada', int points = 3}) => Play(
+          id: id,
+          name: name,
+          date: DateTime(2026, 9, 1),
+          strokes: [
+            PlayStroke(
+              colorValue: 0xFFFF0000,
+              arrow: true,
+              pointsX: [for (var i = 0; i < points; i++) i / points],
+              pointsY: [for (var i = 0; i < points; i++) 1 - i / points],
+            ),
+          ],
+          tokens: const [PlacedToken(tokenId: 'A', label: 'A', colorValue: 0xFF000000, x: 0.5, y: 0.5)],
+          updatedAt: updatedAt,
+          deletedAt: deletedAt,
+        );
+    FixtureEntry entry(String id, {DateTime? updatedAt, String rival = 'R', String? linkedMatchId}) =>
+        FixtureEntry(id: id, date: DateTime(2026, 11, 1), rivalTeamName: rival, linkedMatchId: linkedMatchId, updatedAt: updatedAt);
+
+    test('conversiones: fechas como Timestamp, sin listas dentro de listas, ida y vuelta', () {
+      final p = play('p1', updatedAt: now);
+      final pj = MatchSyncService.playToFirestoreJson(p);
+      expect(pj['date'], isA<Timestamp>());
+      expect(pj['updatedAt'], isA<Timestamp>());
+      expect(_hasNestedList(pj), isFalse);
+      expect(MatchSyncService.playFromFirestoreJson({...pj, 'serverUpdatedAt': Timestamp.now()}).toJson(), p.toJson());
+
+      final e = entry('f1', updatedAt: now, linkedMatchId: 'm1');
+      final ej = MatchSyncService.fixtureToFirestoreJson(e);
+      expect(ej['date'], isA<Timestamp>());
+      expect(MatchSyncService.fixtureFromFirestoreJson(ej).toJson(), e.toJson());
+
+      // Jugadas y filas guardadas antes de este cambio, sin las marcas.
+      final oldPlay = p.toJson()..remove('updatedAt')..remove('deletedAt');
+      expect(Play.fromJson(oldPlay).updatedAt, isNull);
+      final oldEntry = e.toJson()..remove('updatedAt')..remove('deletedAt');
+      expect(FixtureEntry.fromJson(oldEntry).deletedAt, isNull);
+    });
+
+    test('una jugada larga entra holgada en un documento', () {
+      // 40 trazos de 400 puntos (16.000 puntos: varios minutos de dibujo).
+      final big = Play(
+        id: 'grande',
+        name: 'Sistema completo',
+        date: DateTime(2026, 9, 1),
+        strokes: [
+          for (var s = 0; s < 40; s++)
+            PlayStroke(
+              colorValue: 0xFF00FF00,
+              arrow: s.isEven,
+              pointsX: [for (var i = 0; i < 400; i++) (i * 0.0024913 + s * 0.013) % 1],
+              pointsY: [for (var i = 0; i < 400; i++) (i * 0.0017331 + s * 0.021) % 1],
+            ),
+        ],
+      );
+      // Mide ~444 KB (el límite de Firestore es 1 MiB; el nuestro, 700 KB).
+      expect(MatchSyncService.playBytes(big), lessThan(MatchSyncService.maxDocumentBytes));
+    });
+
+    test('guardar y borrar suben solos; el borrado deja la jugada oculta, no la borra', () async {
+      await appData.savePlay(play('p1'));
+      expect(appData.plays.single.updatedAt, now);
+      expect(store.doc(SyncCollection.plays, _uidA, 'p1')!['name'], 'Jugada');
+
+      await appData.saveFixtureEntry(entry('f1'));
+      expect(store.doc(SyncCollection.fixture, _uidA, 'f1'), isNotNull);
+
+      now = now.add(const Duration(minutes: 1));
+      await appData.deletePlay('p1');
+      await appData.deleteFixtureEntry('f1');
+      expect(appData.plays, isEmpty);
+      expect(appData.hiddenPlays.single.id, 'p1');
+      expect(appData.fixtureEntries, isEmpty);
+      expect(store.doc(SyncCollection.plays, _uidA, 'p1')!['deletedAt'], isA<Timestamp>());
+      expect(store.doc(SyncCollection.fixture, _uidA, 'f1')!['deletedAt'], isA<Timestamp>());
+    });
+
+    test('pull: gana el updatedAt más nuevo, deletedAt oculta y el fixture apunta a partidos que bajan', () async {
+      await appData.savePlay(play('p1', name: 'Local nueva'));
+      store.putRemote(SyncCollection.plays, _uidA, 'p1',
+          MatchSyncService.playToFirestoreJson(play('p1', name: 'Vieja', updatedAt: now.subtract(const Duration(days: 1)))));
+      store.putRemote(SyncCollection.plays, _uidA, 'p2',
+          MatchSyncService.playToFirestoreJson(play('p2', name: 'Solo remota', updatedAt: now)));
+      store.putRemote(SyncCollection.plays, _uidA, 'p3',
+          MatchSyncService.playToFirestoreJson(play('p3', updatedAt: now, deletedAt: now)));
+      // Un partido y su fila del fixture, cargados en otro dispositivo.
+      store.putRemote(SyncCollection.matches, _uidA, 'm1',
+          MatchSyncService.matchToFirestoreJson(_match('m1', updatedAt: now)));
+      store.putRemote(SyncCollection.fixture, _uidA, 'f1',
+          MatchSyncService.fixtureToFirestoreJson(entry('f1', updatedAt: now, linkedMatchId: 'm1')));
+
+      await sync.pull();
+      expect(appData.findPlay('p1')!.name, 'Local nueva');
+      expect(store.doc(SyncCollection.plays, _uidA, 'p1')!['name'], 'Local nueva', reason: 'lo local más nuevo se re-sube');
+      expect(appData.plays.map((p) => p.id), containsAll(['p1', 'p2']));
+      expect(appData.hiddenPlays.map((p) => p.id), ['p3']);
+      expect(appData.linkedMatchOf(appData.fixtureEntries.single)!.id, 'm1', reason: 'figura como jugada');
+      expect(appData.findPlay('p2')!.updatedAt, now, reason: 'conserva el updatedAt remoto');
+    });
+
+    test('vincular y desvincular un partido viaja como edición de la fila', () async {
+      await appData.saveMatch(_match('m1'), isPremium: true);
+      await appData.saveFixtureEntry(entry('f1'));
+      await appData.linkFixtureEntryToMatch('f1', 'm1');
+      expect(store.doc(SyncCollection.fixture, _uidA, 'f1')!['linkedMatchId'], 'm1');
+      await appData.trashMatch('m1');
+      await appData.deleteMatch('m1');
+      expect(store.doc(SyncCollection.fixture, _uidA, 'f1')!['linkedMatchId'], isNull);
+    });
+
+    test('con el consentimiento 2.0 no viajan hasta aceptar la 2.1; después sube lo que faltaba', () async {
+      await appData.closeAccount();
+      await openAs(_uidA, consent: '2.0');
+      expect(kPrivacyPolicyVersion, '2.1');
+      expect(sync.needsPolicyUpdate, isTrue);
+
+      await appData.saveMatch(_match('m1'), isPremium: true);
+      await appData.savePlay(play('p1'));
+      await appData.saveFixtureEntry(entry('f1'));
+      store.putRemote(SyncCollection.plays, _uidA, 'remota',
+          MatchSyncService.playToFirestoreJson(play('remota', updatedAt: now)));
+      await sync.uploadAll();
+      expect(store.doc(SyncCollection.matches, _uidA, 'm1'), isNotNull, reason: 'partidos y equipos siguen igual');
+      expect(store.doc(SyncCollection.plays, _uidA, 'p1'), isNull);
+      expect(store.count(SyncCollection.fixture, _uidA), 0);
+      expect(appData.findPlay('remota'), isNull, reason: 'tampoco baja');
+
+      // Aceptó la 2.1 en otro dispositivo: refreshConsent lo trae del servidor.
+      store.consentVersion = '2.1';
+      expect(await sync.refreshConsent(), isFalse);
+      expect(sync.coversPlaysAndFixture, isTrue);
+      await storage.saveAccountValue(StorageService.cloudConsentVersionKey, _uidA, '2.0');
+      store.consentVersion = '2.0';
+      expect(await sync.refreshConsent(), isTrue);
+
+      // "Entendido" en este dispositivo.
+      final writesBefore = store.writes;
+      await sync.acceptCurrentPolicy();
+      await sync.uploadAll();
+      expect(store.consentVersion, '2.1');
+      expect(sync.needsPolicyUpdate, isFalse);
+      expect(store.doc(SyncCollection.plays, _uidA, 'p1'), isNotNull);
+      expect(store.doc(SyncCollection.fixture, _uidA, 'f1'), isNotNull);
+      expect(appData.findPlay('remota'), isNotNull);
+      expect(store.writes - writesBefore, 3,
+          reason: 'las dos jugadas (también la que bajó) y la fila; el partido ya estaba');
+    });
+
+    test('activar la nube desde cero acepta la política vigente', () async {
+      await storage.saveAccountValue(StorageService.cloudSyncKey, _uidA, null);
+      await storage.saveAccountValue(StorageService.cloudConsentVersionKey, _uidA, null);
+      await appData.savePlay(play('p1'));
+      await sync.setCloudSync(true);
+      await sync.uploadAll();
+      expect(sync.coversPlaysAndFixture, isTrue);
+      expect(store.consentVersion, kPrivacyPolicyVersion);
+      expect(store.doc(SyncCollection.plays, _uidA, 'p1'), isNotNull);
+      expect(MatchSyncService.compareVersions('2.10', '2.9'), 1);
+      expect(MatchSyncService.compareVersions('2.0', '2.1'), -1);
+    });
+
+    test('subida inicial, purga a los 30 días, copia completa y borrar la copia remota', () async {
+      await appData.savePlay(play('p1'), syncToCloud: false);
+      await appData.saveFixtureEntry(entry('f1'), syncToCloud: false);
+      await appData.saveFixtureEntry(entry('f2'), syncToCloud: false);
+      await appData.deleteFixtureEntry('f2');
+      await sync.uploadAll();
+      expect(store.count(SyncCollection.plays, _uidA), 1);
+      expect(store.count(SyncCollection.fixture, _uidA), 2, reason: 'la borrada viaja con su marca');
+      expect(sync.uploadTotal, 3);
+
+      // Exportar todo incluye las ocultas; importar no las duplica.
+      final json = appData.buildBackupJson();
+      expect((json['fixture'] as List).length, 2);
+      final summary = await appData.importBackup(FullBackup.parse(json), applyFreeCap: false);
+      expect(summary.alreadyExisted, 3);
+      expect(appData.hiddenFixtureEntries.single.id, 'f2');
+
+      now = now.add(const Duration(days: 31));
+      await appData.closeAccount();
+      await appData.openAccount(_uidA);
+      await sync.purgeRemote();
+      expect(appData.hiddenFixtureEntries, isEmpty);
+      expect(storage.loadFixtureEntries().map((e) => e.id), ['f1']);
+      expect(store.doc(SyncCollection.fixture, _uidA, 'f2'), isNull);
+
+      await sync.deleteAllRemote(_uidA);
+      expect(store.count(SyncCollection.plays, _uidA), 0);
+      expect(store.count(SyncCollection.fixture, _uidA), 0);
+      expect(appData.plays.single.id, 'p1', reason: 'nunca toca lo local');
     });
   });
 

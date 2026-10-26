@@ -69,6 +69,7 @@ class VisualStatsTab extends StatelessWidget {
     final timelines = StatsEngine.computeTimelines(match, setNumber: setNumber);
     final origin = StatsEngine.computePointOrigin(match, setNumber: setNumber);
     final zones = StatsEngine.computeZones(match, setNumber: setNumber);
+    final originZones = StatsEngine.computeOriginZones(match, setNumber: setNumber);
     final palette = ChartPalette.of(context);
 
     return ListView(
@@ -184,6 +185,13 @@ class VisualStatsTab extends StatelessWidget {
           help: 'Zonas de la cancha rival a las que fue cada toque (solo los que tienen zona registrada). '
               'Más oscuro = más pelotas; debajo, el % que terminó en punto.',
           builder: (expanded) => ZoneHeatmapSection(zones: zones, maxWidth: expanded ? 420 : 300),
+        ),
+        _ChartCard(
+          chart: VisualChart.attackOrigin,
+          visible: visibleCharts.contains(VisualChart.attackOrigin),
+          help: 'Zonas de nuestra cancha desde las que se atacó (solo los toques con zona de salida '
+              'registrada). Más oscuro = más ataques; debajo, el % que terminó en punto.',
+          builder: (expanded) => OriginHeatmapSection(origin: originZones, maxWidth: expanded ? 420 : 300),
         ),
       ],
     );
@@ -555,6 +563,53 @@ class _ZoneHeatmapSectionState extends State<ZoneHeatmapSection> {
         ),
         const SizedBox(height: 10),
         ZoneHeatmap(byZone: byZone, nineZones: zones.hasMiddleZoneData, maxWidth: widget.maxWidth),
+      ],
+    );
+  }
+}
+
+/// Mapa de calor de las zonas de salida, con selector Ataque / Contra /
+/// Los dos.
+class OriginHeatmapSection extends StatefulWidget {
+  const OriginHeatmapSection({super.key, required this.origin, this.maxWidth = 300});
+
+  final OriginZoneStats origin;
+  final double maxWidth;
+
+  @override
+  State<OriginHeatmapSection> createState() => _OriginHeatmapSectionState();
+}
+
+class _OriginHeatmapSectionState extends State<OriginHeatmapSection> {
+  int _kind = 2; // 0 ataque, 1 contra, 2 los dos
+
+  @override
+  Widget build(BuildContext context) {
+    final origin = widget.origin;
+    if (!origin.hasAnyData) {
+      return const _EmptyNote('No hay zonas de salida registradas (se activan al armar la formación de cada set).');
+    }
+    final byZone = [origin.attackByZone, origin.counterByZone, origin.combinedByZone][_kind];
+    return Column(
+      children: [
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 0, label: Text('Ataque')),
+            ButtonSegment(value: 1, label: Text('Contra')),
+            ButtonSegment(value: 2, label: Text('Los dos')),
+          ],
+          selected: {_kind},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => setState(() => _kind = s.first),
+        ),
+        const SizedBox(height: 10),
+        ZoneHeatmap(byZone: byZone, nineZones: false, ownCourt: true, maxWidth: widget.maxWidth),
+        if (origin.missingZone > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('${origin.missingZone} sin zona de salida (no se cuentan).',
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
       ],
     );
   }

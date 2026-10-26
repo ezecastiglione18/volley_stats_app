@@ -12,6 +12,7 @@ import '../models/sanction_event.dart';
 import '../models/stat_line.dart';
 import '../models/visual_stats.dart';
 import '../models/volley_match.dart';
+import 'match_incidents.dart';
 import 'pdf_charts.dart';
 import 'stats_engine.dart';
 import '../utils/court_geometry.dart';
@@ -184,6 +185,7 @@ class PdfReportService {
           ],
           ..._visualSection(match, stats, zones, charts),
           ..._mapsSection(match, stats, maps),
+          ..._incidentsSection(match),
           ..._notesSection(match),
         ],
       ),
@@ -245,6 +247,18 @@ class PdfReportService {
             out.add(pw.Inseparable(
                 child: _chartBlock(chart, 'Zonas de la cancha rival (fondo arriba, red abajo). Más oscuro = más '
                     'toques; debajo, el % que terminó en punto.', _pdfHeatmaps(zones))));
+          }
+          break;
+        case VisualChart.attackOrigin:
+          final origin = StatsEngine.computeOriginZones(match);
+          if (origin.hasAnyData) {
+            out.add(pw.Inseparable(
+                child: _chartBlock(
+                    chart,
+                    'Zonas de nuestra cancha (red arriba) desde las que se atacó. Más oscuro = más '
+                    'ataques; debajo, el % que terminó en punto.'
+                    '${origin.missingZone > 0 ? ' ${origin.missingZone} sin zona de salida, no se cuentan.' : ''}',
+                    _pdfOriginHeatmaps(origin))));
           }
           break;
       }
@@ -633,6 +647,44 @@ class PdfReportService {
       one('Ataque', zones.attackByZone),
       one('Contraataque', zones.counterByZone),
     ]);
+  }
+
+  static pw.Widget _pdfOriginHeatmaps(OriginZoneStats origin) {
+    pw.Widget one(String title, Map<int, TouchStats> byZone) => pw.Column(children: [
+          pw.Text(title, style: const pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 3),
+          pdfZoneHeatmap(200, byZone, nineZones: false, ownCourt: true),
+        ]);
+    return pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly, children: [
+      one('Ataque', origin.attackByZone),
+      one('Contraataque', origin.counterByZone),
+      one('Ataque y contra', origin.combinedByZone),
+    ]);
+  }
+
+  /// "Incidencias reglamentarias" (cambios excepcionales y líberos sin poder
+  /// jugar o redesignados), solo si hubo alguna.
+  static List<pw.Widget> _incidentsSection(VolleyMatch match) {
+    final incidents = matchIncidents(match);
+    if (incidents.isEmpty) return [];
+    return [
+      pw.SizedBox(height: 16),
+      pw.Inseparable(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Incidencias reglamentarias',
+                style: const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            for (final line in incidents)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 3),
+                child: pw.Text(latin1Safe(line), style: const pw.TextStyle(fontSize: 9.5)),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
 
   /// "Notas de scouting" al final del reporte, solo si el partido tiene notas.

@@ -2,7 +2,7 @@ import 'legal_section.dart';
 
 /// Texto de la Política de Privacidad de RallyStats, mostrado en el diálogo
 /// de aceptación al crear una cuenta (`showLegalDocumentDialog`), en
-/// Configuración y en el aviso de "Partidos y equipos en la nube".
+/// Configuración y en los avisos de la nube ("Tus datos en la nube").
 ///
 /// Transcripción textual (sin el maquetado HTML) del documento publicado en
 /// https://claude.ai/code/artifact/a4fe6398-98ad-416f-b495-5078529de1d7 — si
@@ -15,17 +15,23 @@ import 'legal_section.dart';
 /// Versión 2.0: suma la nube opcional de partidos y equipos (sección 03). A
 /// quien no la activa no le cambia nada, así que no se pide volver a aceptar
 /// la política: el consentimiento para la nube se pide al activarla.
-const kPrivacyPolicyVersion = '2.0';
-const kPrivacyPolicyEffectiveDate = '23 de octubre de 2026';
+///
+/// Versión 2.1: la nube suma las jugadas de la pizarra y el fixture. A las
+/// cuentas que ya la tenían activada (consentimiento 2.0) se les muestra una
+/// vez un aviso ("Entendido" / "Apagar la nube", ver
+/// `showCloudPolicyUpdateNotice`) y hasta aceptarlo no se suben jugadas ni
+/// fixture (`MatchSyncService.coversPlaysAndFixture`).
+const kPrivacyPolicyVersion = '2.1';
+const kPrivacyPolicyEffectiveDate = '26 de octubre de 2026';
 
 const List<LegalSection> privacyPolicySections = [
   LegalSection(
     'En síntesis',
     'Tus partidos son tuyos. Equipos, jugadores, partidos, la pizarra táctica y el fixture se '
-        'guardan en el almacenamiento local del celular o la PC. Solo si vos activás "Partidos y '
-        'equipos en la nube", los partidos terminados y los equipos con sus jugadores se guardan '
-        'además en tu cuenta, para verlos en todos tus dispositivos. Si no la activás, nada de eso '
-        'sale de tu dispositivo.\n\n'
+        'guardan en el almacenamiento local del celular o la PC. Solo si vos activás la nube, los '
+        'partidos terminados, los equipos con sus jugadores, las jugadas de la pizarra y el fixture '
+        'se guardan además en tu cuenta, para verlos en todos tus dispositivos. Si no la activás, '
+        'nada de eso sale de tu dispositivo.\n\n'
         'Para iniciar sesión usamos Firebase (Google). Guardamos tu email, tu nombre y '
         'apellido, y un identificador de instalación por cada dispositivo donde entrás — solo '
         'para verificar tu cuenta y controlar cuántos dispositivos la usan a la vez, según tu '
@@ -74,8 +80,9 @@ const List<LegalSection> privacyPolicySections = [
         'enteramente tuyos: RallyStats no interviene en el envío ni recibe copia.',
   ),
   LegalSection(
-    '03. Partidos y equipos en la nube (opcional)',
-    'Si activás "Partidos y equipos en la nube" (te lo preguntamos una vez después de iniciar '
+    '03. Tus datos en la nube (opcional)',
+    'Si activás la nube ("Partidos, equipos, jugadas y fixture en la nube"; te lo preguntamos una '
+        'vez después de iniciar '
         'sesión, y lo podés cambiar cuando quieras en Configuración), guardamos en Cloud '
         'Firestore (Google), asociado a tu cuenta, lo siguiente:\n\n'
         '• Los partidos terminados, completos: datos del partido (fecha, torneo, instancia, '
@@ -84,22 +91,29 @@ const List<LegalSection> privacyPolicySections = [
         '• Tus equipos (propios y rivales precargados) con sus jugadores: nombre, apellido, '
         'número, posición, altura, peso, mano hábil, alcances, fecha de nacimiento o edad, y el '
         'cuerpo técnico.\n'
-        '• La fecha de la última modificación de cada partido y equipo, y si lo mandaste a la '
-        'papelera.\n\n'
-        'No se suben las fotos de los jugadores, las jugadas de la pizarra, el fixture ni los '
-        'partidos en curso.\n\n'
-        'Para qué: únicamente para que veas y uses los mismos partidos y equipos en todos los '
+        '• Las jugadas de la pizarra táctica: nombre, fecha y los trazos y fichines dibujados.\n'
+        '• El fixture: fecha, rival, torneo, instancia, cancha, categoría, notas y a qué partido '
+        'quedó vinculada cada fila.\n'
+        '• La fecha de la última modificación de cada partido, equipo, jugada y fila del fixture, '
+        'y si lo borraste o lo mandaste a la papelera.\n\n'
+        'No se suben las fotos de los jugadores ni los partidos en curso.\n\n'
+        'Para qué: únicamente para que veas y uses los mismos datos en todos los '
         'dispositivos de tu cuenta, y como respaldo si cambiás o perdés el dispositivo. No los '
         'miramos, no los analizamos, no los usamos para ningún otro fin ni los compartimos con '
         'nadie. Están protegidos con reglas de seguridad que solo permiten que tu propia cuenta '
         'autenticada los lea o los modifique.\n\n'
         'Cómo borrarlos: un partido que eliminás va a la papelera (en todos tus dispositivos) y '
         'se borra definitivamente, también de la nube, a los 30 días o cuando lo elimines '
-        'definitivamente desde la papelera; un equipo que eliminás se borra a los 30 días. Si '
+        'definitivamente desde la papelera; un equipo, una jugada o una fila del fixture que '
+        'eliminás se borra a los 30 días. Si '
         'apagás la nube podés elegir borrar toda la copia de la nube; si no, queda guardada hasta '
         'que la borres o elimines tu cuenta. Al eliminar tu cuenta se borra toda la copia de la '
         'nube. Apagar la nube o eliminar la copia nunca borra lo que tenés en tu dispositivo.\n\n'
-        'Al activarla queda registrado que aceptaste esta versión de la política y cuándo.',
+        'Al activarla queda registrado que aceptaste esta versión de la política y cuándo. Si ya '
+        'tenías la nube activada con la versión anterior (que no incluía las jugadas ni el '
+        'fixture), te avisamos una vez: las jugadas y el fixture recién se suben cuando tocás '
+        '"Entendido", y ahí queda registrado que aceptaste esta versión; si preferís, desde el '
+        'mismo aviso podés apagar la nube.',
   ),
   LegalSection(
     '04. Cuenta y control de dispositivos',
@@ -132,8 +146,8 @@ const List<LegalSection> privacyPolicySections = [
     'En Windows, RallyStats no tiene restricciones de plan: todas las funciones están '
         'disponibles sin cargo. En Android, algunas funciones (pizarra táctica, zona de destino, '
         'estadísticas más allá de un partido, y el tope de partidos guardados) están limitadas '
-        'en la versión gratuita y se desbloquean con una suscripción mensual paga. La nube de '
-        'partidos y equipos está disponible en las dos versiones.\n\n'
+        'en la versión gratuita y se desbloquean con una suscripción mensual paga. La nube está '
+        'disponible en las dos versiones.\n\n'
         'Esa suscripción se procesa enteramente a través de Google Play Billing y RevenueCat, '
         'un proveedor que administra el estado de las suscripciones. Cuando iniciás sesión, le '
         'informamos a RevenueCat tu uid de Firebase (para asociar tu suscripción a tu cuenta), '
@@ -152,7 +166,7 @@ const List<LegalSection> privacyPolicySections = [
         'seguridad:\n\n'
         '• Google (Firebase Authentication y Cloud Firestore): aloja tu email, contraseña, '
         'nombre, apellido y los registros de dispositivo descriptos en la sección 04 y, si '
-        'activaste la nube, tus partidos y equipos (sección 03).\n'
+        'activaste la nube, tus partidos, equipos, jugadas y fixture (sección 03).\n'
         '• RevenueCat (y, detrás de esta, Google Play Billing): administra el estado de tu '
         'suscripción según lo descripto en la sección 05.\n\n'
         'Ninguno de estos proveedores tiene autorización nuestra para usar tus datos con fines '
@@ -165,12 +179,12 @@ const List<LegalSection> privacyPolicySections = [
     'Firebase y RevenueCat operan infraestructura fuera de la Argentina (típicamente en '
         'Estados Unidos y otros países donde estos proveedores tienen centros de datos). Esto '
         'implica que tu email, nombre, contraseña (hasheada), los registros de dispositivo y '
-        'suscripción y, si activaste la nube, tus partidos y equipos se procesan en servidores '
+        'suscripción y, si activaste la nube, tus partidos, equipos, jugadas y fixture se procesan en servidores '
         'ubicados fuera del país.\n\n'
         'El artículo 12 de la Ley N.º 25.326 restringe este tipo de transferencias a países que '
         'no cuenten con niveles de protección adecuados, salvo que medie el consentimiento del '
         'titular de los datos. Al crear una cuenta en RallyStats y aceptar esta política '
-        '—y, para tus partidos y equipos, al activar la nube— prestás ese consentimiento, en '
+        '—y, para los datos de la sección 03, al activar la nube— prestás ese consentimiento, en '
         'tanto esta transferencia es necesaria para poder ofrecerte el servicio.',
   ),
   LegalSection(
@@ -186,7 +200,7 @@ const List<LegalSection> privacyPolicySections = [
         'contrato de suscripción).\n'
         'Estado de suscripción → habilitar o restringir funciones premium (ejecución del '
         'contrato de suscripción).\n'
-        'Partidos y equipos en la nube → verlos en todos tus dispositivos y como respaldo '
+        'Partidos, equipos, jugadas y fixture en la nube → verlos en todos tus dispositivos y como respaldo '
         '(consentimiento, al activar la nube; lo podés revocar apagándola).\n'
         'Equipos, jugadores, partidos, pizarra y fixture en tu dispositivo → que la app funcione '
         'como planilla y anotador (no hay tratamiento de nuestra parte: no salen del '
@@ -197,11 +211,11 @@ const List<LegalSection> privacyPolicySections = [
     'Datos de cuenta (email, nombre, apellido, registros de dispositivo): se conservan '
         'mientras la cuenta exista. Podés eliminar tu cuenta vos mismo desde la app '
         '(Configuración → "Eliminar cuenta"), o escribiendo a ezecastiglione18@gmail.com o '
-        'federicotomasperez2002@outlook.com. Al eliminarla se borran también tus partidos y '
-        'equipos de la nube y los datos de esa cuenta en el dispositivo desde donde la '
-        'eliminás.\n\n'
-        'Partidos y equipos en la nube: mientras la nube esté activada, o hasta que borres la '
-        'copia o elimines tu cuenta. Lo que mandás a la papelera se borra a los 30 días.\n\n'
+        'federicotomasperez2002@outlook.com. Al eliminarla se borra también toda tu copia de la '
+        'nube y los datos de esa cuenta en el dispositivo desde donde la eliminás.\n\n'
+        'Datos en la nube (partidos, equipos, jugadas y fixture): mientras la nube esté activada, o '
+        'hasta que borres la copia o elimines tu cuenta. Lo que borrás o mandás a la papelera se '
+        'borra a los 30 días.\n\n'
         'Datos de suscripción: los conserva RevenueCat según sus propios plazos, asociados a '
         'tu historial de compras en Google Play (necesario, entre otras cosas, para procesar '
         'reclamos o restauraciones de compra).\n\n'
@@ -215,7 +229,7 @@ const List<LegalSection> privacyPolicySections = [
     'Toda comunicación entre la app y Firebase/RevenueCat viaja cifrada (HTTPS/TLS), como es '
         'estándar en los SDKs oficiales que usamos, y Google guarda los datos cifrados. Tu '
         'contraseña nunca se guarda en texto plano: Firebase Authentication la guarda con hash. '
-        'Tus datos de cuenta y, si activaste la nube, tus partidos y equipos están protegidos con '
+        'Tus datos de cuenta y, si activaste la nube, tus partidos, equipos, jugadas y fixture están protegidos con '
         'reglas de seguridad que solo permiten que tu propia cuenta autenticada los lea o los '
         'modifique.\n\n'
         'La app no pide permisos de cámara, ubicación, contactos ni acceso general al '
@@ -224,7 +238,7 @@ const List<LegalSection> privacyPolicySections = [
         'para elegir una foto de jugador, un PDF o un archivo exportado, se usan los '
         'selectores nativos del sistema operativo.\n\n'
         'Ningún sistema es 100% infalible, pero no guardamos de más: si no activás la nube, tus '
-        'equipos, jugadores y partidos no están en ningún servidor; si la activás, las fotos '
+        'equipos, jugadores, partidos, jugadas y fixture no están en ningún servidor; si la activás, las fotos '
         'igual nunca salen de tu dispositivo.',
   ),
   LegalSection(
@@ -233,7 +247,7 @@ const List<LegalSection> privacyPolicySections = [
         'procesamos (secciones 03 y 04) tenés derecho a:\n\n'
         '• Acceso: pedirnos qué datos tuyos tenemos guardados.\n'
         '• Rectificación y actualización: corregir datos inexactos o desactualizados (los '
-        'partidos y equipos de la nube se corrigen editándolos en la app).\n'
+        'datos de la nube se corrigen editándolos en la app).\n'
         '• Supresión: pedir que eliminemos tu cuenta y los datos asociados (o hacerlo vos '
         'mismo desde la app, igual que borrar la copia de la nube).\n'
         '• Revocar tu consentimiento en cualquier momento, sin efecto retroactivo: para la nube, '

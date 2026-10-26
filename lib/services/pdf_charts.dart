@@ -370,9 +370,16 @@ pw.Widget pdfEfficiencyBars(double w, List<PdfEfficiencyRow> rows) {
   });
 }
 
-/// Mitad rival con cada zona pintada según la cantidad de toques.
-pw.Widget pdfZoneHeatmap(double w, Map<int, TouchStats> byZone, {required bool nineZones}) {
-  final rows = nineZones
+/// Mitad rival con cada zona pintada según la cantidad de toques. Con
+/// [ownCourt], nuestra mitad (red arriba) para las zonas de salida.
+pw.Widget pdfZoneHeatmap(double w, Map<int, TouchStats> byZone, {required bool nineZones, bool ownCourt = false}) {
+  if (ownCourt) nineZones = false;
+  final rows = ownCourt
+      ? const [
+          [4, 3, 2],
+          [5, 6, 1],
+        ]
+      : nineZones
       ? const [
           [1, 6, 5],
           [9, 8, 7],
@@ -384,10 +391,12 @@ pw.Widget pdfZoneHeatmap(double w, Map<int, TouchStats> byZone, {required bool n
         ];
   final courtH = w * (nineZones ? 1.0 : 0.82);
   return PdfChart(w, courtH + 6, (c) {
-    final rowHeights = nineZones ? [courtH / 3, courtH / 3, courtH / 3] : [courtH * 2 / 3, courtH / 3];
+    final rowHeights = ownCourt
+        ? [courtH / 3, courtH * 2 / 3]
+        : (nineZones ? [courtH / 3, courtH / 3, courtH / 3] : [courtH * 2 / 3, courtH / 3]);
     final cellW = w / 3;
     final maxCount = math.max(1, byZone.values.map((s) => s.total).fold(0, math.max));
-    var top = 0.0;
+    var top = ownCourt ? 6.0 : 0.0;
     for (var r = 0; r < rows.length; r++) {
       for (var col = 0; col < 3; col++) {
         final zone = rows[r][col];
@@ -411,7 +420,8 @@ pw.Widget pdfZoneHeatmap(double w, Map<int, TouchStats> byZone, {required bool n
       }
       top += rowHeights[r];
     }
-    c.line(-2, courtH + 2, w + 2, courtH + 2, pdfNavy, width: 2);
+    final netY = ownCourt ? 4.0 : courtH + 2;
+    c.line(-2, netY, w + 2, netY, pdfNavy, width: 2);
   });
 }
 

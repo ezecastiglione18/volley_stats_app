@@ -149,17 +149,10 @@ class AccountSettingsScreen extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.menu_book_outlined),
                 title: const Text('Manual de usuario'),
-                subtitle: Text(isPremium
-                    ? 'Siempre la versión más reciente'
-                    : 'Premium · Siempre la versión más reciente'),
-                trailing: isPremium
-                    ? const Icon(Icons.chevron_right)
-                    : Icon(Icons.lock_outline, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                onTap: () => runIfPremium(
-                  context,
-                  () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const UserManualScreen()),
-                  ),
+                subtitle: const Text('Siempre la versión más reciente'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const UserManualScreen()),
                 ),
               ),
             ),
@@ -219,9 +212,9 @@ class AccountSettingsScreen extends StatelessWidget {
   }
 }
 
-/// "Partidos y equipos en la nube" (`MatchSyncService`): el interruptor por
-/// cuenta, la fecha del último sync, el progreso de la subida inicial y los
-/// partidos que no se pudieron subir. No aparece en Windows.
+/// "Partidos, equipos, jugadas y fixture en la nube" (`MatchSyncService`): el
+/// interruptor por cuenta, la fecha del último sync, el progreso de la subida
+/// inicial y lo que no se pudo subir. No aparece en Windows.
 class _CloudSyncCard extends StatelessWidget {
   final MatchSyncService sync;
   const _CloudSyncCard({required this.sync});
@@ -234,8 +227,9 @@ class _CloudSyncCard extends StatelessWidget {
         final on = sync.enabled;
         final last = sync.lastSyncAt;
         final oversize = sync.oversizeMatchIds.length;
+        final oversizePlays = sync.oversizePlayIds.length;
         final lines = <String>[
-          if (!on) 'Apagada: tus partidos y equipos quedan solo en este dispositivo',
+          if (!on) 'Apagada: tus datos quedan solo en este dispositivo',
           if (on && sync.uploading && sync.uploadTotal > 0)
             'Subiendo ${sync.uploadDone} de ${sync.uploadTotal}'
           else if (on && !sync.initialUploadDone)
@@ -247,13 +241,16 @@ class _CloudSyncCard extends StatelessWidget {
           if (on && oversize > 0)
             '$oversize ${oversize == 1 ? 'partido no se pudo subir' : 'partidos no se pudieron subir'} '
                 '(demasiado grande)',
+          if (on && oversizePlays > 0)
+            '$oversizePlays ${oversizePlays == 1 ? 'jugada no se pudo subir' : 'jugadas no se pudieron subir'} '
+                '(demasiado grande)',
         ];
         return Card(
           child: Column(
             children: [
               SwitchListTile(
                 secondary: const Icon(Icons.cloud_outlined),
-                title: const Text('Partidos y equipos en la nube'),
+                title: const Text('Partidos, equipos, jugadas y fixture en la nube'),
                 subtitle: Text(lines.join('\n')),
                 isThreeLine: lines.length > 1,
                 value: on,

@@ -9,7 +9,7 @@ RallyStats (paquete Dart `rally_stats`) es una app Flutter para anotar en vivo e
 oficiales de la FIVB para cambios de jugador y de líbero. Genera reportes en PDF, incluye una pizarra
 táctica para dibujar formaciones/jugadas, y es offline para todos los datos de juego (equipos, jugadores,
 partidos, jugadas de pizarra: todo se persiste localmente en Hive; si la cuenta activa la nube, los
-partidos terminados y los equipos se copian además a Firestore, ver Arquitectura). Dos excepciones dependen
+partidos terminados, los equipos, las jugadas y el fixture se copian además a Firestore, ver Arquitectura). Dos excepciones dependen
 de un backend: el inicio de sesión (Firebase, ver más abajo), para controlar que una cuenta no se use en
 más de un dispositivo a la vez, y en Android la suscripción premium mensual (Google Play Billing vía
 RevenueCat, ver Arquitectura), que limita ciertas funciones en la versión gratuita. Se distribuye y
@@ -90,13 +90,16 @@ acceso tira `UserDataClosedError` (un `StateError` con mensaje). Otras piezas:
   `openUserBoxes('test-uid')` después de `init()`.
 
 **Sync con la nube y papelera (Etapa 2 de la sección 3, `lib/services/match_sync_service.dart`)**:
-viajan los partidos **terminados** y los equipos con sus jugadores (propios y rivales), sin fotos; jugadas,
-fixture y partidos en curso no (para eso, Exportar todo / Exportar). Firestore:
-`matches/{uid}/user_matches/{matchId}` y `teams/{uid}/user_teams/{teamId}` = `toJson()` con las fechas
-como `Timestamp` y `photoPath` en null (`matchToFirestoreJson`/`teamToFirestoreJson`, nunca el JSON de
-Hive; no hay listas dentro de listas, y un partido de 5 sets con 9 zonas y notas largas mide ~190 KB),
-más `updatedAt` (reloj del dispositivo, resuelve conflictos), `serverUpdatedAt` (solo cursor del pull) y
-`deletedAt`. Reglas en `firestore.rules` del backend (solo el dueño del uid). Puntos no obvios:
+viajan los partidos **terminados**, los equipos con sus jugadores (propios y rivales), sin fotos, y desde la
+sección 8 (opción A, 26/10/2026) también las jugadas de la pizarra y el fixture; los partidos en curso no
+(para eso, Exportar todo / Exportar). Firestore: `matches/{uid}/user_matches/{matchId}`,
+`teams/{uid}/user_teams/{teamId}`, `plays/{uid}/user_plays/{playId}` y `fixture/{uid}/user_fixture/{entryId}`
+(`SyncCollection`) = `toJson()` con las fechas como `Timestamp` y `photoPath` en null
+(`matchToFirestoreJson`/`teamToFirestoreJson`/`playToFirestoreJson`/`fixtureToFirestoreJson`, nunca el JSON
+de Hive; no hay listas dentro de listas, un partido de 5 sets con 9 zonas y notas largas mide ~190 KB y una
+jugada de 16.000 puntos dibujados ~444 KB), más `updatedAt` (reloj del dispositivo, resuelve conflictos),
+`serverUpdatedAt` (solo cursor del pull) y `deletedAt`. Reglas en `firestore.rules` del backend (solo el
+dueño del uid). Puntos no obvios:
 
 - Interruptor por cuenta: `account_devices/{uid}.cloudSync` (ausente = nunca se preguntó → aviso único
   en `_SubscriptionGateState`, `lib/widgets/cloud_sync_dialogs.dart`), caché por cuenta en
@@ -129,8 +132,16 @@ más `updatedAt` (reloj del dispositivo, resuelve conflictos), `serverUpdatedAt`
   a `hiddenTeams`. `purgeExpired` (en `openAccount`) borra lo de más de 30 días; `purgeRemote`, en la
   nube. "Abandonar partido" también va a la papelera. Exportar todo incluye papelera y ocultos.
 - Equipo de ejemplo con ids fijos (`kSampleTeamId`) y `updatedAt` null: no sube hasta que se edita.
-- Borrar cuenta: `AuthService.deleteCloudData` (lo registra `main.dart`) borra `matches/{uid}` y
-  `teams/{uid}` en batches de 400 antes que `account_devices` y el usuario; después
+- Jugadas y fixture (sección 8): mismo patrón que los equipos. `Play` es inmutable: `savePlay` estampa con
+  `withSyncStamps`; `FixtureEntry` es mutable. Borrar = `deletedAt` y pasan a `hiddenPlays`/
+  `hiddenFixtureEntries` (purga a los 30 días, local y remota); Exportar todo los incluye. Vincular o
+  desvincular un partido de una fila (`linkFixtureEntryToMatch`, `deleteMatch`) es una edición de la fila
+  y viaja. Orden del pull: equipos → partidos → jugadas → fixture (una fila cuyo partido todavía no bajó
+  cuenta como "sin jugar"). Una jugada de más de 700 KB no sube y se cuenta aparte
+  (`cloud_oversize_plays`). El interruptor y "Hacer una copia ahora" son los mismos; Configuración lo
+  llama "Partidos, equipos, jugadas y fixture en la nube".
+- Borrar cuenta: `AuthService.deleteCloudData` (lo registra `main.dart`) borra `matches/{uid}`,
+  `teams/{uid}`, `plays/{uid}` y `fixture/{uid}` (`deleteAllRemote`, todas las `SyncCollection`) en batches de 400 antes que `account_devices` y el usuario; después
   `StorageService.deleteUserData` borra los 4 cajones y las claves de la cuenta en este dispositivo.
 - Política de privacidad 2.0 y Términos 1.1 (23/10/2026). El artifact publicado de la política
   (link en `privacy_policy_text.dart`) quedó en la 1.0: actualizarlo antes de publicar.
@@ -143,7 +154,7 @@ cada uno), y cada `MatchSet` contiene `List<RallyEvent>` (cada toque/punto carga
 verdad de un set es esa lista de eventos, no un puntaje o una rotación guardados como campo aparte
 (`ownScore`/`rivalScore`/`currentOrderOwn` en `MatchSet` son una caché derivada, no la fuente de verdad).
 
-**`MatchController` (`lib/state/match_controller.dart`, ~950 líneas) es el corazón de la app**: una
+**`MatchController` (`lib/state/match_controller.dart`, ~1800 líneas) es el corazón de la app**: una
 máquina de estados (`RallyStage`: `serveOwn` → `receiveOwn` → `attackK1Own` → `defending`, más los
 puntos rivales) que decide qué botones de acción están habilitados y aplica las reglas de rotación,
 cambio de jugador (regular y de líbero, con sus límites y automatismos) y fin de set. Para retomar un
@@ -152,6 +163,13 @@ reproduciendo desde cero el log de `events`/`substitutions` del último set. `un
 `undoLastSubstitution` funcionan sacando el último evento del log y volviendo a derivar el estado, no
 revirtiendo campos sueltos a mano. Cualquier cambio a las reglas del juego (rotación, líbero, cambios)
 va en este archivo.
+
+**Quién es líbero**: para cualquier regla de juego se usa `MatchController.isLibero(id)` /
+`VolleyMatch.isLibero` (líberos de la planilla + redesignados en `MatchSet.liberoUnableEvents`), **nunca**
+`Player.position == PlayerPosition.libero`, que es el puesto cargado en el equipo y no cambia con una
+redesignación (Regla 19.4). Lo mismo para quién puede jugar: `isBarredFromPlay` (set actual) y
+`VolleyMatch.isBarredForMatch` (descalificado, salido por cambio excepcional o líbero declarado sin poder
+jugar; la formación de los sets siguientes usa este). Detalle en Trabajo planificado → Tanda del 26/10.
 
 **Estadísticas (`lib/services/stats_engine.dart`)**: recorre el log de `RallyEvent` de uno o todos los
 sets y arma un `MatchStats` (una `PlayerStatLine` por jugador + fila de equipo + estadística agregada del
@@ -232,8 +250,8 @@ hay Play Billing fuera de Android). `SubscriptionController` (`ChangeNotifier`) 
 loguearse, `reset()` al cerrar sesión) y los revalida contra RevenueCat en
 `refresh()` (al loguearse y cada vez que la app vuelve a primer plano). No hay bloqueo total de la app en
 ningún caso: sin `isPremium`, la app se puede seguir usando de forma gratuita e indefinida; las
-restricciones puntuales (pizarra, estadísticas, zona de destino, tope de 3 partidos en el archivo, tope de
-3 sets) se resuelven todas contra `isPremium` directamente, cada una en su propia pantalla/callback — no
+restricciones puntuales (pizarra, estadísticas, zona de destino, zona de salida, tope de 3 partidos en el
+archivo, tope de 3 sets) se resuelven todas contra `isPremium` directamente, cada una en su propia pantalla/callback — no
 hay un único gate central para esto (a diferencia del login). El plan base habilita 1 dispositivo; hasta 3
 complementos de "dispositivo adicional" (`kDeviceAddOnProductIds`, se compran de a uno y en ese orden)
 suman hasta 4; cancelarlos, en cambio, no está restringido a ningún orden desde Play Store, así que
@@ -295,18 +313,18 @@ arrastrar, 1×/2×) y dibuja los fichines siempre completos con el mismo `TokenC
 **Fixture (`lib/screens/fixture/`, issue #50)**: `FixtureEntry` (`models/fixture_entry.dart`, campos mutables
 como `Team`; `linkedMatchId` null = sin jugar) en su propia caja Hive `fixture_box` (`StorageService`; por
 cuenta como el resto, ver Persistencia),
-cargada en `AppDataController.fixtureEntries` (ordenada por fecha ascendente). Es local y gratis: sin sync ni
-gating. `VolleyMatch.fixtureEntryId` (opcional, null en partidos viejos). Flujo: `NewMatchScreen` →
+cargada en `AppDataController.fixtureEntries` (ordenada por fecha ascendente). Es gratis y sin gating. `VolleyMatch.fixtureEntryId` (opcional, null en partidos viejos). Flujo: `NewMatchScreen` →
 "Elegir del fixture" (`FixtureScreen(pickMode: true)`, solo filas sin jugar) autocompleta los controles y
 guarda `_pendingFixtureEntryId`, que viaja por `RosterScreen` → `LineupScreen`; ahí se setea
 `match.fixtureEntryId` y, **recién después de que `saveMatch` no tira `MatchArchiveLimitException`**, se llama
 `AppDataController.linkFixtureEntryToMatch`. `deleteMatch` desvincula las filas que apuntaban a ese partido
 (no las borra). Una fila cuyo `linkedMatchId` apunta a un partido que ya no está cuenta como "sin jugar"
-(`linkedMatchOf`). No toca `MatchController`. Tests: `test/fixture_test.dart`.
+(`linkedMatchOf`). No toca `MatchController`. Tests: `test/fixture_test.dart`. Desde la sección 8 viaja
+con el sync (ver Sync con la nube): borrar una fila la oculta (`deletedAt`) en vez de sacarla de Hive.
 
 **Manual de usuario**: `manual_usuario_rallystats.pdf` no tiene fuente editable de otro tipo; se genera
 por completo con `tool/generate_manual.dart` (usa `package:pdf`). Dentro de la app (Configuración →
-"Manual de usuario", premium con `runIfPremium`) lo muestra `UserManualScreen`
+"Manual de usuario", gratis para todos los planes desde el 26/10/2026) lo muestra `UserManualScreen`
 (`lib/screens/settings/user_manual_screen.dart`): baja `kUserManualUrl` (Firebase Hosting, configurado en
 `firebase.json` + `.firebaserc` de este repo, con `Cache-Control: no-cache`) cada vez que se abre, lo
 muestra con `PdfPreview` de `printing` (compartir/imprimir) y guarda la última copia para verlo sin red.
@@ -430,6 +448,58 @@ Ahora `AuthService.slotLost` ignora los snapshots de caché, y `revalidateThisDe
 una lectura de caché (sin red). Test: `test/auth_slot_test.dart`. El arreglo anterior (tecla "Listo" del
 teclado, `unfocus`) era de otra hipótesis; se dejó porque igual sirve.
 
+**Tanda del 26/10/2026 (sección 8 opción A + ajustes): implementada, sin commit ni publicar.** Sale en la
+**1.4.0+19** (builds preparados el 26/10/2026: APK, .aab, zip e instalador de Windows en el escritorio como
+`RallyStats-1.4.0.*` / `RallyStats-Setup-1.4.0.exe`; la publicada en Play es la 1.3.0+18). Qué quedó y dónde:
+
+- Manual de usuario gratis (`account_settings_screen.dart`, sin `runIfPremium`) y sección 1.1 nueva del
+  manual con el recorrido completo de un partido, de crear el equipo al PDF.
+- Cambio excepcional (Regla 15.7 FIVB 2025-2028): `SubstitutionEvent.exceptional`,
+  `hasLegalSubstitutionFor`, `canSubOutExceptional`, `eligibleExceptionalBenchFor` (banco salvo líberos y
+  el reemplazado por el líbero), `substituteExceptional`. No cuenta en el límite; el que sale queda
+  afuera del partido; el puesto queda cerrado a cambios regulares (decisión conservadora: la regla no lo
+  aclara). El reemplazo por sanción (Regla 15.8) usa lo mismo y ahora marca `exceptional` (antes contaba
+  como regular en `_slotState` y el expulsado volvía en el set siguiente; Casebook 4.11). UI: link
+  "¿No puede seguir por lesión o enfermedad? Cambio excepcional" en el asistente de cambio regular,
+  solo cuando algún jugador no tiene cambio legal.
+- Líbero sin poder jugar y redesignación (Regla 19.4): `LiberoUnableEvent` en
+  `MatchSet.liberoUnableEvents` (`declareLiberoUnable`, `redesignationAllowedAfter`,
+  `redesignationCandidates`, `liberoCourtReplacementOptions`). Con dos líberos solo se redesigna cuando
+  ninguno puede seguir; candidatos = banco salvo el reemplazado por el líbero (se aclaró con Eze que la
+  regla es "no estar en cancha en ese momento", no "no haber ingresado en el set"). Si el líbero estaba en
+  cancha, el cambio de líbero se aplica en el mismo paso (sin esperar el punto) y se deshace junto con el
+  evento en `undoLastAction`. `liberoForCurrentServe` cae al otro rol o al primer líbero disponible si el
+  configurado ya no puede jugar. Un líbero sancionado en cancha: `substituteLiberoForSanction` o
+  redesignación (`libero_unable_dialog.dart`). `LineupScreen` usa `isLibero`/`isBarredForMatch` para el
+  sexteto y los roles de los sets siguientes.
+- "Incidencias reglamentarias" (`lib/services/match_incidents.dart`): tarjeta en la pestaña Tabla y
+  sección del PDF, solo si hubo cambios excepcionales o redesignaciones.
+- Zona de salida del ataque/contra: `RallyEvent.originZone` (1-6), `MatchSet.trackOriginZone` (premium,
+  independiente de `trackHitZones`, destildado en el 1º set y heredado después), fila `OriginZoneRow` en
+  `touch_dialog.dart` (el callback `onConfirm` tiene un 6º parámetro `originZone`).
+  `StatsEngine.computeShots` usa `originZoneCenter` si hay zona; `computeOriginZones` +
+  `VisualChart.attackOrigin` ("Ataque por zona de salida", `ZoneHeatmap(ownCourt: true)` y
+  `pdfZoneHeatmap(ownCourt: true)`). `StorageService._loadEnumSet` guarda `<clave>_known` para que un
+  gráfico nuevo aparezca elegido aunque ya hubiera una selección guardada (`_enumValuesAddedLater`).
+- Sección 8 opción A: ver Arquitectura → Sync con la nube. Reglas nuevas en
+  `volley_stats_app_backend/firestore.rules` **sin desplegar**.
+- Tests: `test/substitution_rules_test.dart`, `test/origin_zone_test.dart` y el grupo "jugadas y fixture"
+  de `test/cloud_sync_test.dart`. Manual: 36 páginas (1.1, 2.3, 3, 8, 9.6, 10, 10.4, 10.5, 11.1, 16, 16.1,
+  16.2, 17, 19.1, FAQ).
+
+- Política de privacidad 2.1 (26/10/2026, aprobada por Eze): `privacy_policy_text.dart`, artifact
+  publicado actualizado (versión 3), `hosting/eliminar-cuenta.html` y `documents/Play-Seguridad-de-los-datos.md`.
+  Consentimiento: `account_devices/{uid}.cloudConsent.privacyPolicyVersion` con caché por cuenta
+  (`cloud_consent_version`). Una cuenta con la nube activada y consentimiento < 2.1 ve una vez
+  `showCloudPolicyUpdateNotice` ("Novedad en la nube": Entendido / Apagar la nube, desde
+  `_SubscriptionGateState._askCloudSyncOnce`); hasta aceptarlo, jugadas y fixture no suben ni bajan
+  (`MatchSyncService.coversPlaysAndFixture`); `refreshConsent` trae del servidor si ya se aceptó en otro
+  dispositivo; `acceptCurrentPolicy` registra la 2.1 y relanza `uploadAll` (solo sube lo que faltaba).
+
+Pendiente: desplegar las reglas; `firebase deploy --only hosting` (manual + eliminar-cuenta); actualizar la
+descripción en Play Console → Seguridad de los datos; subir la versión en el release; prueba manual en
+dispositivo.
+
 ## Proceso de release (después de cargar ajustes nuevos)
 
 Cuando se termina de implementar uno o varios cambios y hay que dejar todo listo para el usuario final,
@@ -490,6 +560,24 @@ seguir este orden. No todos los pasos aplican siempre — evaluar cada uno:
    instalador al escritorio o subirlo como asset de un GitHub Release para compartirlo — es la vía
    recomendada para el usuario final; el `.zip` del paso 7 sigue sirviendo como alternativa portátil sin
    instalación.
+9. **Dejar en el escritorio solo los archivos de la versión nueva** (pedido de Eze, 26/10/2026): borrar
+   todo `.apk`, `.aab` o instalador `.exe` de RallyStats del escritorio que no sea de la versión que se
+   está generando (incluidos los APK de prueba), y **recién después** copiar ahí `RallyStats-<versión>.apk`,
+   `RallyStats-<versión>.aab` y `RallyStats-Setup-<versión>.exe` (en ese orden: si la limpieza se llevara
+   algo de más, la copia lo repone; el 26/10 se perdieron así el .apk y el .aab recién copiados sin causa
+   clara). Al final, listar el escritorio (`ls`) y confirmar que están los tres. `installer\Output\` no se
+   toca: queda como historial de instaladores.
+   ```powershell
+   $version = "1.4.0"   # la de pubspec.yaml, sin el número de build
+   $keep = "RallyStats-$version.apk", "RallyStats-$version.aab", "RallyStats-Setup-$version.exe"
+   Get-ChildItem "C:\Users\Usuario\Desktop" -File |
+     Where-Object { $_.Name -like "RallyStats*" -and ($_.Extension -in @(".apk", ".aab", ".exe")) -and ($_.Name -notin $keep) } |
+     ForEach-Object { "Borrando $($_.Name)"; Remove-Item -LiteralPath $_.FullName -Force -Confirm:$false }
+   $d = "C:\Users\Usuario\Desktop"
+   Copy-Item "build\app\outputs\flutter-apk\app-release.apk" "$d\RallyStats-$version.apk" -Force
+   Copy-Item "build\app\outputs\bundle\release\app-release.aab" "$d\RallyStats-$version.aab" -Force
+   Copy-Item "installer\Output\RallyStats-Setup-$version.exe" "$d\RallyStats-Setup-$version.exe" -Force
+   ```
 
 ## Particularidades del entorno de build en esta máquina (Windows)
 

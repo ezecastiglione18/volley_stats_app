@@ -15,6 +15,7 @@ Future<void> showPositionPickerSheet({
   required int pos,
   required String zoneLabel,
   required List<Player> roster,
+  bool Function(Player player)? isLibero,
   required Map<int, String?> positions,
   required void Function(String playerId) onAssign,
 }) {
@@ -28,6 +29,7 @@ Future<void> showPositionPickerSheet({
       pos: pos,
       zoneLabel: zoneLabel,
       roster: roster,
+      isLibero: isLibero ?? (p) => p.position == PlayerPosition.libero,
       positions: positions,
       onAssign: onAssign,
     ),
@@ -38,6 +40,10 @@ class _PositionPickerSheetBody extends StatefulWidget {
   final int pos;
   final String zoneLabel;
   final List<Player> roster;
+
+  /// Quién es líbero en este partido (incluye a un jugador redesignado como
+  /// líbero en un set anterior, Regla 19.4).
+  final bool Function(Player player) isLibero;
   final Map<int, String?> positions;
   final void Function(String playerId) onAssign;
 
@@ -45,6 +51,7 @@ class _PositionPickerSheetBody extends StatefulWidget {
     required this.pos,
     required this.zoneLabel,
     required this.roster,
+    required this.isLibero,
     required this.positions,
     required this.onAssign,
   });
@@ -83,7 +90,7 @@ class _PositionPickerSheetBodyState extends State<_PositionPickerSheetBody> {
     final scheme = Theme.of(context).colorScheme;
     final query = _searchCtrl.text.trim().toLowerCase();
 
-    final nonLiberos = widget.roster.where((p) => p.position != PlayerPosition.libero);
+    final nonLiberos = widget.roster.where((p) => !widget.isLibero(p));
     final availableRoles = nonLiberos.map((p) => p.position).toSet();
 
     var players = nonLiberos.toList();
@@ -97,7 +104,7 @@ class _PositionPickerSheetBodyState extends State<_PositionPickerSheetBody> {
     }
     players.sort((a, b) => a.number.compareTo(b.number));
 
-    final liberos = widget.roster.where((p) => p.position == PlayerPosition.libero).toList()
+    final liberos = widget.roster.where(widget.isLibero).toList()
       ..sort((a, b) => a.number.compareTo(b.number));
 
     return SafeArea(

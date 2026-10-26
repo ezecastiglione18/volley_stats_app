@@ -157,12 +157,16 @@ void main() {
       expect(appData.fixtureEntries.firstWhere((x) => x.id == 'ed').rivalTeamName, 'Cambiado');
     });
 
-    test('eliminar una fila la saca de la lista y de Hive', () async {
+    test('eliminar una fila la saca de la lista y la deja oculta en Hive hasta la purga', () async {
       await appData.saveFixtureEntry(_entry('del', DateTime(2027, 5, 1)));
       await appData.deleteFixtureEntry('del');
 
       expect(appData.fixtureEntries.any((e) => e.id == 'del'), isFalse);
-      expect(StorageService.instance.loadFixtureEntries().any((e) => e.id == 'del'), isFalse);
+      expect(appData.hiddenFixtureEntries.single.id, 'del');
+      // Queda con su marca para que el borrado viaje a los otros dispositivos
+      // (ver cloud_sync_test.dart); a los 30 días se purga.
+      final saved = StorageService.instance.loadFixtureEntries().singleWhere((e) => e.id == 'del');
+      expect(saved.deletedAt, isNotNull);
     });
 
     test('vínculo: al vincular, la fila queda "jugada" con ese partido', () async {

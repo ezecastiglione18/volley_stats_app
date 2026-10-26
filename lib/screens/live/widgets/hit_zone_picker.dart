@@ -83,3 +83,55 @@ class HitZonePicker extends StatelessWidget {
     );
   }
 }
+
+/// Fila de 6 botones (1 a 6) para indicar, de forma opcional, desde qué zona
+/// de nuestra cancha se hizo un ataque o una contra (`RallyEvent.originZone`).
+/// Tocar la zona elegida la quita.
+class OriginZoneRow extends StatelessWidget {
+  final int? selectedZone;
+  final ValueChanged<int?> onChanged;
+
+  const OriginZoneRow({super.key, required this.selectedZone, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final surfaceAlt = surfaceAltColor(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('¿Desde qué zona? (opcional)', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (var zone = 1; zone <= 6; zone++)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onChanged(selectedZone == zone ? null : zone),
+                  child: Container(
+                    key: ValueKey('origin-zone-$zone'),
+                    margin: const EdgeInsets.all(2),
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selectedZone == zone ? scheme.secondary : surfaceAlt,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: selectedZone == zone ? scheme.secondary : scheme.outline),
+                    ),
+                    child: Text(
+                      '$zone',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: selectedZone == zone ? const Color(0xFF06222B) : scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}

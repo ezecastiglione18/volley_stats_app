@@ -16,7 +16,8 @@ class CourtView extends StatelessWidget {
       final playerId = controller.playerAtPosition(pos);
       final player = controller.playerById(playerId);
       final isServer = pos == 1;
-      final isLibero = player?.position == PlayerPosition.libero;
+      // Un jugador redesignado como líbero (Regla 19.4) se muestra como LIB.
+      final isLibero = player != null && controller.isLibero(player.id);
       final warning = warningColor(context);
       return Expanded(
         child: Container(
@@ -44,7 +45,7 @@ class CourtView extends StatelessWidget {
                 ),
                 if (player != null)
                   Text(
-                    player.position.shortLabel,
+                    isLibero ? PlayerPosition.libero.shortLabel : player.position.shortLabel,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,

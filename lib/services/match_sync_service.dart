@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../legal/privacy_policy_text.dart';
+import '../models/fixture_entry.dart';
+import '../models/play.dart';
 import '../models/player.dart';
 import '../models/team.dart';
 import '../models/volley_match.dart';
@@ -15,9 +17,11 @@ import '../utils/platform_support.dart';
 import '../utils/sample_team.dart';
 import 'storage_service.dart';
 
-/// Las dos colecciones que viajan a la nube (por cuenta):
-/// `matches/{uid}/user_matches/{matchId}` y `teams/{uid}/user_teams/{teamId}`.
-enum SyncCollection { matches, teams }
+/// Las colecciones que viajan a la nube (por cuenta):
+/// `matches/{uid}/user_matches/{matchId}`, `teams/{uid}/user_teams/{teamId}`,
+/// `plays/{uid}/user_plays/{playId}` (jugadas de la pizarra) y
+/// `fixture/{uid}/user_fixture/{entryId}`.
+enum SyncCollection { matches, teams, plays, fixture }
 
 /// Valor de `account_devices/{uid}.cloudSync`.
 enum CloudSyncFlag {
@@ -77,6 +81,11 @@ abstract class CloudSyncStore {
 
   Future<CloudSyncFlag> readFlag(String uid);
 
+  /// Versión de la política que la cuenta aceptó al activar la nube
+  /// (`cloudConsent.privacyPolicyVersion`), del servidor; null si no hay o
+  /// no se pudo leer.
+  Future<String?> readConsentVersion(String uid);
+
   /// Guarda el interruptor. Con [consentPolicyVersion] deja además registro
   /// de qué versión de la política aceptó la cuenta al activar la nube.
   Future<void> writeFlag(String uid, bool enabled, {String? consentPolicyVersion});
@@ -89,10 +98,18 @@ class FirestoreCloudSyncStore implements CloudSyncStore {
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> _col(SyncCollection c, String uid) =>
-      c == SyncCollection.matches
-          ? _db.collection('matches').doc(uid).collection('user_matches')
-          : _db.collection('teams').doc(uid).collection('user_teams');
+  CollectionReference<Map<String, dynamic>> _col(SyncCollection c, String uid) {
+    switch (c) {
+      case SyncCollection.matches:
+        return _db.collection('matches').doc(uid).collection('user_matches');
+      case SyncCollection.teams:
+        return _db.collection('teams').doc(uid).collection('user_teams');
+      case SyncCollection.plays:
+        return _db.collection('plays').doc(uid).collection('user_plays');
+      case SyncCollection.fixture:
+        return _db.collection('fixture').doc(uid).collection('user_fixture');
+    }
+  }
 
   @override
   Future<void> write(SyncCollection collection, String uid, String id, Map<String, dynamic> data) =>
@@ -158,6 +175,18 @@ class FirestoreCloudSyncStore implements CloudSyncStore {
   }
 
   @override
+  Future<String?> readConsentVersion(String uid) async {
+    try {
+      final snap = await _account(uid).get(const GetOptions(source: Source.server)).timeout(_timeout);
+      final consent = snap.data()?['cloudConsent'];
+      final version = consent is Map ? consent['privacyPolicyVersion'] : null;
+      return version is String ? version : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<void> writeFlag(String uid, bool enabled, {String? consentPolicyVersion}) =>
       // `update` y no `set`: si la cuenta ya no existe, no se recrea su documento.
       _account(uid).update({
@@ -172,18 +201,22 @@ class FirestoreCloudSyncStore implements CloudSyncStore {
 
 /// Sección 3, Etapa 2 de `documents/RallyStats-Funcionalidades-Pendientes.pdf`:
 /// sync de los partidos terminados y los equipos (con sus jugadores, sin
-/// fotos) con Firestore, si la cuenta activó la nube. Las jugadas y el
-/// fixture no viajan (siguen en Exportar todo). Hive sigue siendo la fuente
-/// de todo lo que se muestra: el sync solo copia de un lado al otro.
+/// fotos) con Firestore, si la cuenta activó la nube; desde la sección 8
+/// (opción A), también las jugadas de la pizarra y el fixture, con las
+/// mismas reglas que los equipos. Los partidos en curso y las fotos no viajan
+/// (siguen en Exportar todo). Hive sigue siendo la fuente de todo lo que se
+/// muestra: el sync solo copia de un lado al otro.
 ///
-/// - [push]/[pushTeam]: sin esperar (el SDK de Firestore encola sin red).
+/// - [push]/[pushTeam]/[pushPlay]/[pushFixtureEntry]: sin esperar (el SDK de
+///   Firestore encola sin red).
 /// - [uploadAll]: subida inicial al activar la nube, reanudable.
 /// - [pull]: incremental, con el cursor en `serverUpdatedAt` (hora del
 ///   servidor). Gana el `updatedAt` más nuevo (null = el más viejo; empate:
 ///   no se toca); si lo local es más nuevo se vuelve a subir, para que una
 ///   escritura vieja encolada en otro dispositivo no deje la nube atrasada.
-///   Una marca `deletedAt` manda el partido a la papelera (o el equipo a
-///   ocultos): que algo falte en la nube nunca borra nada local.
+///   Una marca `deletedAt` manda el partido a la papelera (o el equipo, la
+///   jugada o la fila del fixture a ocultos): que algo falte en la nube nunca
+///   borra nada local.
 /// - Nada escribe en Hive si mientras tanto cambió la cuenta abierta.
 ///
 /// Free y premium por igual: ni la subida ni la bajada aplican el tope de 3.
@@ -284,8 +317,52 @@ class MatchSyncService extends ChangeNotifier {
     return Team.fromJson(json);
   }
 
+  /// `Play.toJson()` con las fechas como `Timestamp`. Los trazos son una
+  /// lista de mapas (cada uno con sus listas de puntos), sin listas dentro de
+  /// listas.
+  @visibleForTesting
+  static Map<String, dynamic> playToFirestoreJson(Play play) {
+    final json = play.toJson();
+    json['date'] = Timestamp.fromDate(play.date);
+    json['updatedAt'] = _ts(play.updatedAt);
+    json['deletedAt'] = _ts(play.deletedAt);
+    return json;
+  }
+
+  @visibleForTesting
+  static Play playFromFirestoreJson(Map<String, dynamic> data) {
+    final json = Map<String, dynamic>.from(data)..remove('serverUpdatedAt');
+    for (final key in const ['date', 'updatedAt', 'deletedAt']) {
+      json[key] = _iso(json[key]);
+    }
+    return Play.fromJson(json);
+  }
+
+  /// `FixtureEntry.toJson()` con las fechas como `Timestamp`.
+  @visibleForTesting
+  static Map<String, dynamic> fixtureToFirestoreJson(FixtureEntry entry) {
+    final json = entry.toJson();
+    json['date'] = Timestamp.fromDate(entry.date);
+    json['updatedAt'] = _ts(entry.updatedAt);
+    json['deletedAt'] = _ts(entry.deletedAt);
+    return json;
+  }
+
+  @visibleForTesting
+  static FixtureEntry fixtureFromFirestoreJson(Map<String, dynamic> data) {
+    final json = Map<String, dynamic>.from(data)..remove('serverUpdatedAt');
+    for (final key in const ['date', 'updatedAt', 'deletedAt']) {
+      json[key] = _iso(json[key]);
+    }
+    return FixtureEntry.fromJson(json);
+  }
+
   /// Tamaño (bytes UTF-8) del JSON del partido: aproxima el del documento.
   static int documentBytes(VolleyMatch match) => utf8.encode(jsonEncode(match.toJson())).length;
+
+  /// Igual que [documentBytes], para una jugada (una muy larga, con miles
+  /// de puntos dibujados, podría pasar el límite).
+  static int playBytes(Play play) => utf8.encode(jsonEncode(play.toJson())).length;
 
   // ---------------- Estado por cuenta ----------------
 
@@ -315,6 +392,81 @@ class MatchSyncService extends ChangeNotifier {
     final uid = _uid;
     if (uid == null) return const [];
     return [...(_s.loadAccountValue(StorageService.cloudOversizeKey, uid) as List? ?? const []).cast<String>()];
+  }
+
+  /// Jugadas que no se pudieron subir por tamaño.
+  List<String> get oversizePlayIds {
+    final uid = _uid;
+    if (uid == null) return const [];
+    return [...(_s.loadAccountValue(StorageService.cloudOversizePlaysKey, uid) as List? ?? const []).cast<String>()];
+  }
+
+  /// Desde qué versión de la política la nube incluye jugadas y fixture.
+  static const playsAndFixturePolicyVersion = '2.1';
+
+  /// 1 si la versión [a] ("2.1") es posterior a [b], 0 si es la misma, -1 si
+  /// es anterior.
+  static int compareVersions(String a, String b) {
+    final pa = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final pb = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    for (var i = 0; i < pa.length || i < pb.length; i++) {
+      final x = i < pa.length ? pa[i] : 0, y = i < pb.length ? pb[i] : 0;
+      if (x != y) return x > y ? 1 : -1;
+    }
+    return 0;
+  }
+
+  /// Versión de la política aceptada para la nube por la cuenta abierta
+  /// (caché), o null si no se sabe.
+  String? get acceptedPolicyVersion {
+    final uid = _uid;
+    if (uid == null) return null;
+    final v = _s.loadAccountValue(StorageService.cloudConsentVersionKey, uid);
+    return v is String ? v : null;
+  }
+
+  /// La cuenta aceptó una política que incluye jugadas y fixture en la nube
+  /// (2.1 o posterior). Sin eso, jugadas y fixture no suben ni bajan: una
+  /// cuenta que activó la nube con la 2.0 aceptó que solo viajaran partidos y
+  /// equipos.
+  bool get coversPlaysAndFixture {
+    final v = acceptedPolicyVersion;
+    return v != null && compareVersions(v, playsAndFixturePolicyVersion) >= 0;
+  }
+
+  /// La nube está activada pero con un consentimiento anterior a la
+  /// política vigente: hay que mostrar el aviso de la 2.1.
+  bool get needsPolicyUpdate => enabled && !coversPlaysAndFixture;
+
+  /// Antes de mostrar el aviso: si la caché no alcanza, consulta en el
+  /// servidor qué versión aceptó la cuenta (puede haberla aceptado en otro
+  /// dispositivo) y la guarda. Devuelve [needsPolicyUpdate].
+  Future<bool> refreshConsent() async {
+    final session = _session();
+    if (!enabled || session == null || coversPlaysAndFixture) return needsPolicyUpdate;
+    final remote = await _store.readConsentVersion(session.uid);
+    if (!_same(session)) return false;
+    if (remote != null) await _saveValue(session, StorageService.cloudConsentVersionKey, remote);
+    return needsPolicyUpdate;
+  }
+
+  /// "Entendido" en el aviso de la 2.1: registra el consentimiento con la
+  /// versión vigente y sube lo que faltaba (jugadas y fixture; lo ya subido
+  /// no se repite).
+  Future<void> acceptCurrentPolicy() async {
+    final session = _session();
+    if (!enabled || session == null) return;
+    await _saveValue(session, StorageService.cloudConsentVersionKey, kPrivacyPolicyVersion);
+    await _saveValue(session, StorageService.cloudUploadDoneKey, null);
+    notifyListeners();
+    try {
+      await _store
+          .writeFlag(session.uid, true, consentPolicyVersion: kPrivacyPolicyVersion)
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('MatchSyncService: no se pudo guardar el consentimiento ($e)');
+    }
+    unawaited(uploadAll());
   }
 
   bool get initialUploadDone {
@@ -357,6 +509,14 @@ class MatchSyncService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _setOversizePlay(_Session session, String playId, bool oversize) async {
+    final ids = oversizePlayIds;
+    if (oversize == ids.contains(playId)) return;
+    oversize ? ids.add(playId) : ids.remove(playId);
+    await _saveValue(session, StorageService.cloudOversizePlaysKey, ids);
+    notifyListeners();
+  }
+
   // ---------------- Push ----------------
 
   static bool _isUneditedSample(Team team) => team.id == kSampleTeamId && team.updatedAt == null;
@@ -380,6 +540,24 @@ class MatchSyncService extends ChangeNotifier {
     _fireAndForget(_store.write(SyncCollection.teams, session.uid, team.id, teamToFirestoreJson(team)));
   }
 
+  /// Sube una jugada sin esperar. Si no entra en un documento, no se sube y
+  /// queda anotada.
+  void pushPlay(Play play) {
+    final session = _session();
+    if (!enabled || session == null || !coversPlaysAndFixture) return;
+    final tooBig = playBytes(play) > maxDocumentBytes;
+    unawaited(_setOversizePlay(session, play.id, tooBig));
+    if (tooBig) return;
+    _fireAndForget(_store.write(SyncCollection.plays, session.uid, play.id, playToFirestoreJson(play)));
+  }
+
+  /// Sube una fila del fixture sin esperar.
+  void pushFixtureEntry(FixtureEntry entry) {
+    final session = _session();
+    if (!enabled || session == null || !coversPlaysAndFixture) return;
+    _fireAndForget(_store.write(SyncCollection.fixture, session.uid, entry.id, fixtureToFirestoreJson(entry)));
+  }
+
   /// "Eliminar definitivamente" y la purga local: también en la nube.
   void deleteRemoteMatch(String matchId) {
     final session = _session();
@@ -391,6 +569,18 @@ class MatchSyncService extends ChangeNotifier {
     final session = _session();
     if (!enabled || session == null) return;
     _fireAndForget(_store.delete(SyncCollection.teams, session.uid, teamId));
+  }
+
+  void deleteRemotePlay(String playId) {
+    final session = _session();
+    if (!enabled || session == null || !coversPlaysAndFixture) return;
+    _fireAndForget(_store.delete(SyncCollection.plays, session.uid, playId));
+  }
+
+  void deleteRemoteFixtureEntry(String entryId) {
+    final session = _session();
+    if (!enabled || session == null || !coversPlaysAndFixture) return;
+    _fireAndForget(_store.delete(SyncCollection.fixture, session.uid, entryId));
   }
 
   void _fireAndForget(Future<void> write) {
@@ -428,8 +618,9 @@ class MatchSyncService extends ChangeNotifier {
   }
 
   /// Baja lo que cambió en la nube desde el último pull: primero equipos,
-  /// después partidos. Sin red o con la nube apagada no hace nada. Si ya hay
-  /// uno en curso, devuelve ese.
+  /// después partidos, jugadas y por último el fixture (sus filas apuntan a
+  /// partidos). Sin red o con la nube apagada no hace nada. Si ya hay uno en
+  /// curso, devuelve ese.
   Future<void> pull() {
     if (!enabled) return Future.value();
     final running = _pullFuture;
@@ -459,6 +650,12 @@ class MatchSyncService extends ChangeNotifier {
       await _pullCollection(SyncCollection.teams, session);
       if (!_same(session)) return;
       await _pullCollection(SyncCollection.matches, session);
+      if (!_same(session)) return;
+      if (coversPlaysAndFixture) {
+        await _pullCollection(SyncCollection.plays, session);
+        if (!_same(session)) return;
+        await _pullCollection(SyncCollection.fixture, session);
+      }
       await _saveValue(session, StorageService.cloudLastSyncKey, DateTime.now().toIso8601String());
     } on UserDataClosedError {
       // Se cerró la sesión en el medio: no se escribió nada en la otra cuenta.
@@ -468,9 +665,7 @@ class MatchSyncService extends ChangeNotifier {
   }
 
   Future<void> _pullCollection(SyncCollection collection, _Session session) async {
-    final key = collection == SyncCollection.matches
-        ? StorageService.cloudCursorMatchesKey
-        : StorageService.cloudCursorTeamsKey;
+    final key = _cursorKeys[collection]!;
     final cursor = DateTime.tryParse(_s.loadAccountValue(key, session.uid) as String? ?? '');
     final since = cursor?.subtract(pullMargin);
     var newCursor = cursor;
@@ -481,9 +676,12 @@ class MatchSyncService extends ChangeNotifier {
           since: since, after: after, limit: pageSize);
       if (!_same(session)) return;
       for (final doc in page) {
-        final handled = collection == SyncCollection.matches
-            ? await _applyMatch(doc, session)
-            : await _applyTeam(doc, session);
+        final handled = switch (collection) {
+          SyncCollection.matches => await _applyMatch(doc, session),
+          SyncCollection.teams => await _applyTeam(doc, session),
+          SyncCollection.plays => await _applyPlay(doc, session),
+          SyncCollection.fixture => await _applyFixtureEntry(doc, session),
+        };
         if (!_same(session)) return;
         if (!handled) {
           // Partido abierto en la carga en vivo: el cursor no lo pasa, así el
@@ -521,6 +719,13 @@ class MatchSyncService extends ChangeNotifier {
     return true;
   }
 
+  static const _cursorKeys = {
+    SyncCollection.matches: StorageService.cloudCursorMatchesKey,
+    SyncCollection.teams: StorageService.cloudCursorTeamsKey,
+    SyncCollection.plays: StorageService.cloudCursorPlaysKey,
+    SyncCollection.fixture: StorageService.cloudCursorFixtureKey,
+  };
+
   Future<bool> _applyTeam(RemoteDoc doc, _Session session) async {
     final remote = teamFromFirestoreJson(doc.data);
     final local = appData.findTeam(remote.id);
@@ -537,10 +742,43 @@ class MatchSyncService extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> _applyPlay(RemoteDoc doc, _Session session) async {
+    final remote = playFromFirestoreJson(doc.data);
+    final local = appData.findPlay(remote.id);
+    if (local != null) {
+      final cmp = _compare(remote.updatedAt, local.updatedAt);
+      if (cmp == 0) return true;
+      if (cmp < 0) {
+        pushPlay(local);
+        return true;
+      }
+    }
+    await appData.savePlay(remote, syncToCloud: false, sessionToken: session.token);
+    return true;
+  }
+
+  /// Una fila cuyo partido todavía no bajó (o no existe) cuenta como "sin
+  /// jugar" (`AppDataController.linkedMatchOf`): no hace falta esperarlo.
+  Future<bool> _applyFixtureEntry(RemoteDoc doc, _Session session) async {
+    final remote = fixtureFromFirestoreJson(doc.data);
+    final local = appData.findFixtureEntry(remote.id);
+    if (local != null) {
+      final cmp = _compare(remote.updatedAt, local.updatedAt);
+      if (cmp == 0) return true;
+      if (cmp < 0) {
+        pushFixtureEntry(local);
+        return true;
+      }
+    }
+    await appData.saveFixtureEntry(remote, syncToCloud: false, sessionToken: session.token);
+    return true;
+  }
+
   // ---------------- Subida inicial ----------------
 
-  /// Sube todos los equipos y después todos los partidos terminados (también
-  /// los de la papelera, con su marca), sin tope. Primero baja lo que ya hay
+  /// Sube todos los equipos, después todos los partidos terminados (también
+  /// los de la papelera, con su marca), sin tope, y por último las jugadas y
+  /// el fixture (también los borrados, con su marca). Primero baja lo que ya hay
   /// en la nube, para no pisar una versión más nueva. Reanudable: anota cada
   /// documento confirmado por el servidor y la próxima vez sube solo los que
   /// faltan. Si se corta (sin red), se retoma al volver a abrir la app.
@@ -577,6 +815,17 @@ class MatchSyncService extends ChangeNotifier {
               await _store.write(SyncCollection.matches, session.uid, m.id, matchToFirestoreJson(m));
             }
           }),
+      // Jugadas y fixture, solo con el consentimiento 2.1 (ver coversPlaysAndFixture).
+      if (coversPlaysAndFixture)
+        for (final p in [...appData.plays, ...appData.hiddenPlays])
+          ('p:${p.id}', () async {
+            final tooBig = playBytes(p) > maxDocumentBytes;
+            await _setOversizePlay(session, p.id, tooBig);
+            if (!tooBig) await _store.write(SyncCollection.plays, session.uid, p.id, playToFirestoreJson(p));
+          }),
+      if (coversPlaysAndFixture)
+        for (final e in [...appData.fixtureEntries, ...appData.hiddenFixtureEntries])
+          ('f:${e.id}', () => _store.write(SyncCollection.fixture, session.uid, e.id, fixtureToFirestoreJson(e))),
     ];
     _progressUid = session.uid;
     _uploadTotal = items.length;
@@ -601,8 +850,8 @@ class MatchSyncService extends ChangeNotifier {
   }
 
   /// "Hacer una copia ahora" (Configuración, debajo del interruptor): aunque
-  /// todo ya se sube solo, vuelve a subir todos los equipos y partidos
-  /// terminados, después de bajar lo nuevo (así no pisa una versión más
+  /// todo ya se sube solo, vuelve a subir todos los equipos, partidos
+  /// terminados, jugadas y el fixture, después de bajar lo nuevo (así no pisa una versión más
   /// nueva de otro dispositivo). Devuelve true si terminó; false sin
   /// conexión o si se cortó (lo que quedó pendiente se retoma solo, como la
   /// subida inicial).
@@ -673,20 +922,25 @@ class MatchSyncService extends ChangeNotifier {
   /// Activa o apaga la nube para la cuenta abierta (en todos sus
   /// dispositivos). Activarla deja registro de la versión de la política
   /// aceptada y lanza [uploadAll]. Apagarla deja de subir y de bajar; con
-  /// [deleteRemoteCopy] además borra la copia de la nube (partidos y
-  /// equipos). Nunca toca lo local.
+  /// [deleteRemoteCopy] además borra la copia de la nube (partidos, equipos,
+  /// jugadas y fixture). Nunca toca lo local.
   Future<void> setCloudSync(bool on, {bool deleteRemoteCopy = false}) async {
     final session = _session();
     if (!supported || session == null) return;
     await _saveValue(session, StorageService.cloudSyncKey, on);
+    // Al activarla se acepta la política vigente (ver el aviso de activación).
+    if (on) await _saveValue(session, StorageService.cloudConsentVersionKey, kPrivacyPolicyVersion);
     if (!on) {
       // La próxima vez que se active, todo vuelve a subir y a bajar de cero.
       for (final key in const [
         StorageService.cloudCursorMatchesKey,
         StorageService.cloudCursorTeamsKey,
+        StorageService.cloudCursorPlaysKey,
+        StorageService.cloudCursorFixtureKey,
         StorageService.cloudUploadedKey,
         StorageService.cloudUploadDoneKey,
         StorageService.cloudOversizeKey,
+        StorageService.cloudOversizePlaysKey,
       ]) {
         await _saveValue(session, key, null);
       }
@@ -708,12 +962,13 @@ class MatchSyncService extends ChangeNotifier {
     }
   }
 
-  /// Borra `matches/{uid}` y `teams/{uid}` (al apagar la nube eligiendo
-  /// borrar la copia, y al eliminar la cuenta). Necesita red: si falla,
-  /// lanza.
+  /// Borra `matches/{uid}`, `teams/{uid}`, `plays/{uid}` y `fixture/{uid}`
+  /// (al apagar la nube eligiendo borrar la copia, y al eliminar la cuenta).
+  /// Necesita red: si falla, lanza.
   Future<void> deleteAllRemote(String uid) async {
-    await _store.deleteAll(SyncCollection.matches, uid);
-    await _store.deleteAll(SyncCollection.teams, uid);
+    for (final c in SyncCollection.values) {
+      await _store.deleteAll(c, uid);
+    }
   }
 }
 

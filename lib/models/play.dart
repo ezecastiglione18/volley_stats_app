@@ -82,7 +82,9 @@ class PlacedToken {
 
 /// Una jugada guardada en la pizarra táctica: un dibujo sobre la cancha
 /// (formaciones, movimientos, sistemas de ataque/defensa) con nombre y
-/// fecha, persistido igual que los partidos (ver [StorageService]).
+/// fecha, persistido igual que los partidos (ver [StorageService]). Si la
+/// cuenta activó la nube, viaja con el sync igual que los equipos (ver
+/// `MatchSyncService`).
 class Play {
   final String id;
   final String name;
@@ -90,12 +92,24 @@ class Play {
   final List<PlayStroke> strokes;
   final List<PlacedToken> tokens;
 
+  /// Hora (del dispositivo) de la última edición: la estampa
+  /// `AppDataController.savePlay` y resuelve los conflictos del sync (gana
+  /// la más nueva; null cuenta como la más vieja). Null en jugadas viejas.
+  final DateTime? updatedAt;
+
+  /// Cuándo se borró: la jugada queda oculta (no se muestra en ningún lado)
+  /// para que el borrado viaje a los otros dispositivos, y se purga a los 30
+  /// días. Null = no está borrada (y en jugadas viejas).
+  final DateTime? deletedAt;
+
   const Play({
     required this.id,
     required this.name,
     required this.date,
     required this.strokes,
     this.tokens = const [],
+    this.updatedAt,
+    this.deletedAt,
   });
 
   Play copyWith({String? name, List<PlayStroke>? strokes, List<PlacedToken>? tokens}) {
@@ -105,8 +119,21 @@ class Play {
       date: date,
       strokes: strokes ?? this.strokes,
       tokens: tokens ?? this.tokens,
+      updatedAt: updatedAt,
+      deletedAt: deletedAt,
     );
   }
+
+  /// La misma jugada con otras marcas de sync ([deletedAt] null = no borrada).
+  Play withSyncStamps({DateTime? updatedAt, DateTime? deletedAt}) => Play(
+        id: id,
+        name: name,
+        date: date,
+        strokes: strokes,
+        tokens: tokens,
+        updatedAt: updatedAt,
+        deletedAt: deletedAt,
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -114,6 +141,8 @@ class Play {
         'date': date.toIso8601String(),
         'strokes': strokes.map((s) => s.toJson()).toList(),
         'tokens': tokens.map((t) => t.toJson()).toList(),
+        'updatedAt': updatedAt?.toIso8601String(),
+        'deletedAt': deletedAt?.toIso8601String(),
       };
 
   factory Play.fromJson(Map<dynamic, dynamic> json) {
@@ -129,6 +158,8 @@ class Play {
               ?.map((t) => PlacedToken.fromJson(Map<dynamic, dynamic>.from(t as Map)))
               .toList() ??
           const [],
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
     );
   }
 }

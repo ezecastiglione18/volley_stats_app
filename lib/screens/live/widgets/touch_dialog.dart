@@ -12,7 +12,10 @@ import 'hit_zone_picker.dart';
 /// error (NN), si fue afuera o a la red (también opcional: se elige antes de
 /// tocar NN y se ignora con cualquier otra calificación, para no sumar un
 /// toque obligatorio a la carga). La opción "R · Rejuego" de ataque/contra
-/// confirma una P con `replay: true` y sin zona.
+/// confirma una P con `replay: true` y sin zona. Con [trackOrigin] (ataque
+/// y contra, función premium independiente de la zona de destino) suma una
+/// fila opcional 1-6 para indicar desde qué zona de nuestra cancha se hizo el
+/// toque; vale para cualquier calificación, incluido el rejuego.
 Future<void> showTouchDialog({
   required BuildContext context,
   required String title,
@@ -21,12 +24,15 @@ Future<void> showTouchDialog({
   required List<GradeOption> grades,
   bool trackZone = false,
   bool nineZones = false,
-  required void Function(String playerId, String grade, int? targetZone, String? missType, bool replay)
+  bool trackOrigin = false,
+  required void Function(
+          String playerId, String grade, int? targetZone, String? missType, bool replay, int? originZone)
       onConfirm,
 }) async {
   String? selected = fixedPlayerId ?? (players.length == 1 ? players.first.id : null);
   int? selectedZone;
   String? selectedMiss;
+  int? selectedOrigin;
   final trackMiss = trackZone && grades.any((g) => g.code == Grade.nn);
 
   await showModalBottomSheet(
@@ -66,6 +72,13 @@ Future<void> showTouchDialog({
                           players,
                           isSelected: (p) => selected == p.id,
                           onSelect: (p) => setState(() => selected = p.id),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                      if (trackOrigin) ...[
+                        OriginZoneRow(
+                          selectedZone: selectedOrigin,
+                          onChanged: (z) => setState(() => selectedOrigin = z),
                         ),
                         const SizedBox(height: 18),
                       ],
@@ -111,7 +124,7 @@ Future<void> showTouchDialog({
                                 : () {
                                     Navigator.pop(ctx);
                                     onConfirm(selected!, g.code, g.replay ? null : selectedZone,
-                                        g.code == Grade.nn ? selectedMiss : null, g.replay);
+                                        g.code == Grade.nn ? selectedMiss : null, g.replay, selectedOrigin);
                                   },
                             child: Text(
                                 g.code == Grade.nn && selectedMiss != null

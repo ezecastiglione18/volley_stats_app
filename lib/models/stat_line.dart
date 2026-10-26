@@ -247,3 +247,27 @@ class ZoneStats {
   /// partidos cargados con 6 zonas).
   List<int> get displayZones => [for (var z = 1; z <= (hasMiddleZoneData ? 9 : 6); z++) z];
 }
+
+/// Ataques y contras propios por zona de salida (1-6 de nuestra cancha, ver
+/// `RallyEvent.originZone`), de `StatsEngine.computeOriginZones`.
+class OriginZoneStats {
+  final Map<int, TouchStats> attackByZone;
+  final Map<int, TouchStats> counterByZone;
+
+  /// Ataques y contras de sets con el registro activo que se cargaron sin
+  /// zona de salida (es opcional).
+  final int missingZone;
+
+  OriginZoneStats({required this.attackByZone, required this.counterByZone, this.missingZone = 0});
+
+  /// Ataque y contra sumados, por zona.
+  Map<int, TouchStats> get combinedByZone => {
+        for (var z = 1; z <= 6; z++)
+          z: TouchStats()
+            ..addFrom(attackByZone[z] ?? TouchStats())
+            ..addFrom(counterByZone[z] ?? TouchStats()),
+      };
+
+  bool get hasAnyData =>
+      attackByZone.values.any((s) => s.total > 0) || counterByZone.values.any((s) => s.total > 0);
+}

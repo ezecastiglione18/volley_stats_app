@@ -83,6 +83,12 @@ class RallyEvent {
   /// destino. false en el resto de los casos y en partidos anteriores.
   final bool replay;
 
+  /// Zona de nuestra cancha (1-6) desde la que se hizo el ataque o la
+  /// contra, si quien carga la indicó. Solo en sets con
+  /// `MatchSet.trackOriginZone` (función premium, independiente de la zona
+  /// de destino); null en el resto de los casos y en partidos anteriores.
+  final int? originZone;
+
   RallyEvent({
     required this.id,
     required this.setNumber,
@@ -101,6 +107,7 @@ class RallyEvent {
     this.rivalActionType,
     this.missType,
     this.replay = false,
+    this.originZone,
   });
 
   Map<String, dynamic> toJson() => {
@@ -121,6 +128,7 @@ class RallyEvent {
         'rivalActionType': rivalActionType,
         'missType': missType,
         'replay': replay,
+        'originZone': originZone,
       };
 
   factory RallyEvent.fromJson(Map<dynamic, dynamic> json) => RallyEvent(
@@ -149,5 +157,6 @@ class RallyEvent {
         rivalActionType: json['rivalActionType'] as String?,
         missType: json['missType'] as String?,
         replay: json['replay'] as bool? ?? false,
+        originZone: (json['originZone'] as num?)?.toInt(),
       );
 }

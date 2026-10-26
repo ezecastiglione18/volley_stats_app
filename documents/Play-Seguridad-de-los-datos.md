@@ -1,7 +1,10 @@
 # Play Console → Contenido de la app → Seguridad de los datos (versión con la nube)
 
 Redactado el 23/10/2026 para la versión que trae "Partidos y equipos en la nube" (sección 3, Etapa 2).
-Lo de **nuevo** respecto de la declaración actual está marcado. Lo que ya estaba declarado (email,
+**Actualizado el 26/10/2026** (política 2.1): la nube suma las jugadas de la pizarra y el fixture. No hay
+tipos de datos nuevos: entran en "Otro contenido generado por usuarios", que ya estaba declarado. En Play
+Console solo cambia la descripción de ese tipo (si el formulario la pide) y el texto corto; el resto queda
+igual. Lo de **nuevo** respecto de la declaración del 23/10 está marcado. Lo que ya estaba declarado (email,
 nombre, ids de dispositivo, historial de compras vía RevenueCat) no cambia. Revisarlo contra el
 formulario real antes de enviarlo: Play cambia los nombres de las opciones cada tanto.
 
@@ -25,7 +28,7 @@ Respuestas cargadas en Play (secciones 3 y 4, 24/10/2026). En los 7 tipos: **Rec
 | Información personal → ID de usuario | Necesario | Funciones de la app, Administración de la cuenta |
 | **Información personal → Otra información** (fechas de nacimiento, edad, número, posición, medidas y mano hábil de los jugadores) | **Opcional** (solo si se activa la nube) | Funciones de la app |
 | Información financiera → Historial de compras | Necesario | Funciones de la app (estado de la suscripción) |
-| **Actividad en apps → Otro contenido generado por usuarios** (partidos: registro jugada por jugada y notas; equipos) | **Opcional** (solo si se activa la nube) | Funciones de la app |
+| Actividad en apps → Otro contenido generado por usuarios (partidos: registro jugada por jugada y notas; equipos; **jugadas de la pizarra y fixture**, desde el 26/10) | Opcional (solo si se activa la nube) | Funciones de la app |
 | Dispositivo u otros IDs | Necesario | Administración de la cuenta; Seguridad, cumplimiento y prevención de fraudes (límite de dispositivos) |
 
 - Firebase (Google) y RevenueCat son **proveedores de servicios**: para Play eso no cuenta como "compartir".
@@ -36,10 +39,10 @@ Respuestas cargadas en Play (secciones 3 y 4, 24/10/2026). En los 7 tipos: **Rec
 
 ## Texto corto (para la ficha o para responder a Play si lo pide)
 
-> RallyStats guarda tus partidos, equipos y jugadores en tu dispositivo. Si activás "Partidos y equipos
-> en la nube", los partidos terminados y los equipos con sus jugadores (nombres, números, posiciones,
-> medidas y fechas de nacimiento, sin fotos) se guardan también en tu cuenta para verlos en todos tus
-> dispositivos. No se usan para nada más, no se comparten y solo tu cuenta puede verlos. Podés apagar la
+> RallyStats guarda tus partidos, equipos, jugadores, jugadas y fixture en tu dispositivo. Si activás la
+> nube, los partidos terminados, los equipos con sus jugadores (nombres, números, posiciones, medidas y
+> fechas de nacimiento, sin fotos), las jugadas de la pizarra y el fixture se guardan también en tu cuenta
+> para verlos en todos tus dispositivos. No se usan para nada más, no se comparten y solo tu cuenta puede verlos. Podés apagar la
 > nube y borrar la copia cuando quieras, y eliminar tu cuenta desde la app borra todo.
 
 ## Sección 2 · Recopilación y seguridad de los datos (respuestas)

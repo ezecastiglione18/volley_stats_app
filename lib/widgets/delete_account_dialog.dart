@@ -42,7 +42,7 @@ Future<void> confirmAndDeleteAccount(BuildContext context) async {
             ),
             const SizedBox(height: 12),
             const Text(
-              'También se borran los partidos y equipos guardados en la nube, y los equipos, '
+              'También se borran los partidos, equipos, jugadas y fixture guardados en la nube, y los equipos, '
               'partidos, jugadas y fixture de esta cuenta en este dispositivo. Si los querés pasar '
               'a otra cuenta, exportalos antes y después usá "Importar copia completa" con la otra '
               'cuenta.',

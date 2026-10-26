@@ -32,7 +32,7 @@ const _white = PdfColors.white;
 /// Total de páginas del documento, para el pie de la portada (que se arma
 /// como página suelta, fuera del flujo de MultiPage que sí sabe su propio
 /// total). Ajustar tras generar si cambia la paginación real.
-const _coverTotalPages = 33;
+const _coverTotalPages = 36;
 
 /// Versión de la tapa, leída de `version:` en pubspec.yaml (sin el número de
 /// build), para que no quede desactualizada al subir la versión de la app.
@@ -44,63 +44,67 @@ final String _appVersion = () {
 /// Página donde arranca cada sección/subsección, para el índice. Ajustar
 /// tras generar y revisar el PDF si algún contenido corrió de página.
 const _pIntroduccion = 4;
-const _pCuentaLogin = 5;
-const _pDatosCuenta = 5;
-const _pEliminarCuenta = 6;
-const _pNube = 6;
-const _pPantallaPrincipal = 7;
-const _pPizarra = 8;
-const _pGestionEquipos = 8;
-const _pCrearEquipo = 9;
-const _pAgregarJugadores = 9;
-const _pEquipoEjemplo = 9;
-const _pExportarEquipo = 10;
-const _pImportarEquipo = 10;
-const _pCrearPartido = 10;
-const _pDatosRival = 10;
-const _pConfigPartido = 10;
-const _pPlanilla = 11;
-const _pSeleccionJugadores = 11;
-const _pFormacionInicial = 11;
-const _pRolesLibero = 12;
-const _pEditarFormacion = 13;
-const _pPantallaVivo = 13;
-const _pMarcador = 13;
-const _pCancha = 13;
-const _pBotonesAccion = 13;
-const _pZonaDestino = 15;
-const _pRotacionManual = 15;
-const _pCambiosJugador = 16;
-const _pCambioRegular = 16;
-const _pCambioLibero = 16;
-const _pDeshacerCambio = 17;
-const _pSancionesTarjetas = 17;
-const _pComoCargarSancion = 17;
-const _pEscalaSanciones = 18;
-const _pHerramientas = 19;
-const _pFinSet = 19;
-const _pArchivo = 20;
-const _pExportarPartido = 20;
-const _pImportarPartido = 20;
-const _pCompararPartidos = 21;
-const _pPapelera = 21;
-const _pRivalScouting = 21;
-const _pResumen = 22;
-const _pGraficos = 23;
-const _pMapas = 23;
-const _pNotasScouting = 24;
-const _pExportarCsv = 24;
-const _pExportarPdf = 24;
-const _pGlosario = 25;
-const _pSuscripcionPremium = 27;
-const _pQueIncluyePremium = 27;
-const _pComoSuscribirse = 28;
-const _pDispositivosAdicionales = 28;
-const _pRestaurarCompras = 28;
-const _pGestionarCancelar = 28;
-const _pDarDeBajaDispositivo = 28;
-const _pFaq = 29;
-const _pContacto = 33;
+const _pRecorrido = 5;
+const _pCuentaLogin = 6;
+const _pDatosCuenta = 6;
+const _pEliminarCuenta = 7;
+const _pNube = 7;
+const _pPantallaPrincipal = 8;
+const _pPizarra = 9;
+const _pGestionEquipos = 9;
+const _pCrearEquipo = 10;
+const _pAgregarJugadores = 10;
+const _pEquipoEjemplo = 10;
+const _pExportarEquipo = 11;
+const _pImportarEquipo = 11;
+const _pCrearPartido = 11;
+const _pDatosRival = 11;
+const _pConfigPartido = 11;
+const _pPlanilla = 12;
+const _pSeleccionJugadores = 12;
+const _pFormacionInicial = 12;
+const _pRolesLibero = 13;
+const _pEditarFormacion = 14;
+const _pPantallaVivo = 14;
+const _pMarcador = 14;
+const _pCancha = 14;
+const _pBotonesAccion = 14;
+const _pZonaDestino = 16;
+const _pRotacionManual = 16;
+const _pZonaSalida = 17;
+const _pCambiosJugador = 17;
+const _pCambioRegular = 17;
+const _pCambioLibero = 17;
+const _pDeshacerCambio = 18;
+const _pCambioExcepcional = 18;
+const _pLiberoRedesignacion = 19;
+const _pSancionesTarjetas = 20;
+const _pComoCargarSancion = 20;
+const _pEscalaSanciones = 21;
+const _pHerramientas = 21;
+const _pFinSet = 22;
+const _pArchivo = 23;
+const _pExportarPartido = 23;
+const _pImportarPartido = 23;
+const _pCompararPartidos = 23;
+const _pPapelera = 23;
+const _pRivalScouting = 24;
+const _pResumen = 24;
+const _pGraficos = 25;
+const _pMapas = 26;
+const _pNotasScouting = 27;
+const _pExportarCsv = 27;
+const _pExportarPdf = 27;
+const _pGlosario = 28;
+const _pSuscripcionPremium = 30;
+const _pQueIncluyePremium = 30;
+const _pComoSuscribirse = 31;
+const _pDispositivosAdicionales = 31;
+const _pRestaurarCompras = 31;
+const _pGestionarCancelar = 31;
+const _pDarDeBajaDispositivo = 31;
+const _pFaq = 32;
+const _pContacto = 36;
 
 Future<void> main() async {
   final doc = pw.Document();
@@ -555,10 +559,11 @@ List<pw.Widget> _indexContent() {
     pw.Text('Índice', style: pw.TextStyle(color: _textDark, fontSize: 22, fontWeight: pw.FontWeight.bold)),
     pw.SizedBox(height: 20),
     entry('Introducción', _pIntroduccion),
+    entry('Ejemplo: un partido de punta a punta', _pRecorrido, sub: true),
     entry('Cuenta e inicio de sesión', _pCuentaLogin),
     entry('Tus datos en este dispositivo', _pDatosCuenta, sub: true),
     entry('Eliminar la cuenta', _pEliminarCuenta, sub: true),
-    entry('Partidos y equipos en la nube', _pNube, sub: true),
+    entry('Tus datos en la nube', _pNube, sub: true),
     entry('Pantalla principal', _pPantallaPrincipal),
     entry('Pizarra táctica', _pPizarra),
     entry('Gestión de equipos', _pGestionEquipos),
@@ -581,10 +586,13 @@ List<pw.Widget> _indexContent() {
     entry('Botones de acción y calificación', _pBotonesAccion, sub: true),
     entry('Zona de destino (opcional)', _pZonaDestino, sub: true),
     entry('Rotación manual (opcional)', _pRotacionManual, sub: true),
+    entry('Zona de salida (opcional)', _pZonaSalida, sub: true),
     entry('Cambios de jugador', _pCambiosJugador),
     entry('Cambio regular', _pCambioRegular, sub: true),
     entry('Cambio de líbero', _pCambioLibero, sub: true),
     entry('Deshacer un cambio', _pDeshacerCambio, sub: true),
+    entry('Cambio excepcional (lesión o enfermedad)', _pCambioExcepcional, sub: true),
+    entry('Líbero que no puede seguir y redesignación', _pLiberoRedesignacion, sub: true),
     entry('Sanciones y tarjetas', _pSancionesTarjetas),
     entry('Cómo cargar una sanción', _pComoCargarSancion, sub: true),
     entry('Escala de sanciones (Regla 21 de la FIVB)', _pEscalaSanciones, sub: true),
@@ -634,8 +642,9 @@ List<pw.Widget> _section1Introduccion() => [
         [_t('Armar la planilla de 16 jugadores habilitados y la formación inicial de cada set.')],
         [_t('Cargar el partido en vivo, punto por punto, con calificación de cada toque.')],
         [
-          _t('Registrar cambios de jugador respetando las reglas oficiales de la FIVB (cambio regular y '
-              'cambio de líbero), eligiendo los roles de líbero de nuevo en cada set.')
+          _t('Registrar cambios de jugador respetando las reglas oficiales de la FIVB (cambio regular, '
+              'cambio de líbero, cambio excepcional por lesión y redesignación del líbero), eligiendo los '
+              'roles de líbero de nuevo en cada set.')
         ],
         [_t('Deshacer un toque, un cambio de jugador, una sanción o una rotación manual cargada por error, sin perder el resto de lo anotado, y corregir la formación de un set mientras todavía no empezó.')],
         [
@@ -658,7 +667,7 @@ List<pw.Widget> _section1Introduccion() => [
         ],
         [_t('Elegir entre modo claro y modo oscuro, según preferencia.')],
         [_t('Guardar el archivo histórico de partidos jugados, con una papelera de 30 días para recuperar lo que se borre (sección 14.4).')],
-        [_t('Si querés, guardar los partidos terminados y los equipos en la nube para verlos en todos tus dispositivos (sección 2.3).')],
+        [_t('Si querés, guardar los partidos terminados, los equipos, las jugadas de la pizarra y el fixture en la nube para verlos en todos tus dispositivos (sección 2.3).')],
         [_t('Dibujar y guardar jugadas en una pizarra táctica, con su propio archivo (sección 4).')],
       ]),
       _p(
@@ -668,9 +677,9 @@ List<pw.Widget> _section1Introduccion() => [
       _infoBox(
         'Nota: los equipos, jugadores, partidos, jugadas de pizarra y el fixture se guardan en el '
         'dispositivo donde se usa la app, separados por cuenta (cada cuenta ve solo los suyos, sección '
-        '2.1). Solo si activás "Partidos y equipos en la nube" (sección 2.3), los partidos terminados y los '
-        'equipos se guardan además en tu cuenta y aparecen en todos tus dispositivos. Las jugadas, el '
-        'fixture, las fotos y los partidos en curso nunca se suben, así que conviene exportarlos (Exportar '
+        '2.1). Solo si activás la nube (sección 2.3), los partidos terminados, los equipos, las jugadas y el '
+        'fixture se guardan además en tu cuenta y aparecen en todos tus dispositivos. Las fotos y los '
+        'partidos en curso nunca se suben, así que conviene exportarlos (Exportar '
         'todo, sección 2.1, o un partido suelto, sección 14.1) o generar el PDF (sección 17) de los '
         'partidos importantes para conservarlos o compartirlos con el cuerpo técnico. La cuenta con la que '
         'se inicia sesión (sección 2) es la '
@@ -678,9 +687,85 @@ List<pw.Widget> _section1Introduccion() => [
         'cuenta no se pueda usar en más dispositivos de los que permite su plan.',
       ),
       _p(
-        'Algunas de estas funciones (pizarra, zona de destino, guardar más de 3 partidos, estadísticas '
+        'Algunas de estas funciones (pizarra, zonas de destino y de salida, guardar más de 3 partidos, estadísticas '
         'más allá de un único partido, exportar a Excel y comparar partidos) requieren la suscripción '
         'premium: ver el detalle completo en la sección 19.',
+      ),
+      _subHeading('1.1 Ejemplo: un partido de punta a punta'),
+      _p(
+        'Este es el recorrido completo de un partido, desde crear el equipo hasta compartir el reporte en '
+        'PDF. Cada paso remite a la sección donde está explicado en detalle.',
+        bottom: 6,
+      ),
+      _numbered([
+        [
+          _b('Iniciar sesión '),
+          _t('con tu correo y contraseña (sección 2). Se hace una sola vez por dispositivo.')
+        ],
+        [
+          _b('Crear el equipo: '),
+          _t('en la pantalla principal, Equipos > + Nuevo equipo. Escribí el nombre y tocá Agregar para '
+              'sumar cada jugador con Apellido, Nombre, Número y Posición (sección 5). Hacen falta al menos '
+              '6 jugadores que no sean líberos. Para probar la app sin cargar nada, el ícono de estrella '
+              'carga un equipo de ejemplo (sección 5.3).')
+        ],
+        [
+          _b('Crear el partido: '),
+          _t('en la pantalla principal, Nuevo Partido. Elegí Mi equipo, escribí el Rival y, si querés, el '
+              'torneo, la instancia y la cancha. Revisá "Configuración del partido" (sets, puntos, cambios '
+              'por set) y tocá Continuar: elegir planilla de 16 (sección 6).')
+        ],
+        [
+          _b('Planilla: '),
+          _t('marcá los jugadores habilitados para este partido (hasta 16) y tocá Continuar: formación '
+              'inicial (sección 7).')
+        ],
+        [
+          _b('Formación del primer set: '),
+          _t('elegí quién saca primero, ubicá un jugador en cada una de las 6 posiciones (o usá '
+              'Autocompletar por rol), asigná los roles de líbero si tenés y, con premium, las opciones de '
+              'registro (zona de destino y zona de salida). Tocá Comenzar partido (sección 8).')
+        ],
+        [
+          _b('Cargar los puntos: '),
+          _t('la app habilita solo los botones que corresponden a cada momento. Por ejemplo, si saca el '
+              'rival: Recepción > elegí quién recibió > P; después Ataque > elegí quién atacó > PP, y el punto '
+              'es nuestro (rotación y saque se actualizan solos). Si sacamos nosotros: Saque > P; si el rival '
+              'ataca y lo defendemos, Contra > jugador > calificación; si el rival hace el punto, Punto Rival '
+              '(sección 9). Si te equivocás, Deshacer del encabezado anula la última acción (sección 12).')
+        ],
+        [
+          _b('Cambios y sanciones: '),
+          _t('el ícono de flechas cruzadas del encabezado abre el panel de cambios (sección 10); las '
+              'tarjetas del árbitro se cargan desde el ícono de tarjetas del encabezado (sección 11).')
+        ],
+        [
+          _b('Fin de cada set: '),
+          _t('al llegar a los puntos del set aparece un aviso. Tocá Confirmar fin de set en el encabezado; '
+              'la app vuelve a la formación con el sexteto anterior precargado para que solo ajustes lo que '
+              'cambia, y tocás Comenzar set 2 (sección 13).')
+        ],
+        [
+          _b('Fin del partido: '),
+          _t('con el set que define el partido, Confirmar fin de set lo guarda solo en el Archivo de '
+              'Partidos y abre el resumen (sección 13).')
+        ],
+        [
+          _b('Ver las estadísticas: '),
+          _t('el resumen tiene tres pestañas, Tabla, Mapas y Gráficos, y un selector para ver el partido '
+              'completo o un set (sección 16). En la versión gratuita, la primera vez hay que confirmar "Usar '
+              'acá mi estadística gratis", con internet, porque la estadística gratis es para un único '
+              'partido de la cuenta (sección 19.1).')
+        ],
+        [
+          _b('Generar el PDF: '),
+          _t('en el resumen, el ícono de PDF del encabezado arma el reporte completo y abre las opciones '
+              'para compartirlo por WhatsApp o correo, guardarlo o imprimirlo (sección 17).')
+        ],
+      ]),
+      _infoBox(
+        'Más adelante, el partido queda en Archivo de Partidos (sección 14): tocándolo se vuelve al resumen y '
+        'al PDF cuando haga falta.',
       ),
     ];
 
@@ -760,8 +845,8 @@ List<pw.Widget> _section2CuentaLogin() => [
       _subHeading('2.2 Eliminar la cuenta'),
       _p(
         'En Configuración, "Eliminar cuenta" borra de forma permanente el email, la contraseña y los '
-        'dispositivos registrados (pide confirmar y volver a escribir la contraseña), los partidos y '
-        'equipos guardados en la nube (sección 2.3) y los equipos, partidos, jugadas y fixture de esa '
+        'dispositivos registrados (pide confirmar y volver a escribir la contraseña), todo lo guardado '
+        'en la nube (sección 2.3) y los equipos, partidos, jugadas y fixture de esa '
         'cuenta en este dispositivo. Por eso el mismo aviso ofrece "Exportar todo" antes de confirmar: con '
         'ese archivo se pueden cargar en otra cuenta con Importar copia completa (sección 2.1). Hace falta '
         'conexión a internet.',
@@ -772,27 +857,31 @@ List<pw.Widget> _section2CuentaLogin() => [
         'la cuenta. Eliminar la cuenta no cancela una suscripción premium activa: hay que cancelarla aparte '
         'desde Google Play (sección 19.5).',
       ),
-      _subHeading('2.3 Partidos y equipos en la nube'),
+      _subHeading('2.3 Tus datos en la nube'),
       _p(
-        'La primera vez que entrás con tu cuenta, la app pregunta si querés guardar tus partidos y equipos '
-        'en la nube para verlos en todos tus dispositivos. "Sí" la activa para toda la cuenta (en todos sus '
-        'dispositivos); "Ahora no" no vuelve a preguntar. Se puede cambiar cuando quieras en Configuración, '
-        'con el interruptor "Partidos y equipos en la nube" (en la PC con Windows no aparece: ahí todo queda '
+        'La primera vez que entrás con tu cuenta, la app pregunta si querés guardar tus partidos, equipos, '
+        'jugadas y fixture en la nube para verlos en todos tus dispositivos. "Sí" la activa para toda la '
+        'cuenta (en todos sus dispositivos); "Ahora no" no vuelve a preguntar. Se puede cambiar cuando '
+        'quieras en Configuración, con el interruptor "Partidos, equipos, jugadas y fixture en la nube" (en '
+        'la PC con Windows no aparece: ahí todo queda '
         'en el dispositivo). Es para la versión gratuita y para premium por igual.',
         bottom: 6,
       ),
       _bullets([
         [
           _b('Qué se sube: '),
-          _t('los partidos terminados (completos, con sus notas) y los equipos con sus jugadores (nombres, '
-              'números, posiciones, medidas y fechas de nacimiento). No se suben las fotos, las jugadas de la '
-              'pizarra, el fixture ni los partidos en curso (para esos, seguí usando Exportar).')
+          _t('los partidos terminados (completos, con sus notas), los equipos con sus jugadores (nombres, '
+              'números, posiciones, medidas y fechas de nacimiento), las jugadas de la pizarra y el fixture. '
+              'No se suben las fotos ni los partidos en curso (para esos, seguí usando Exportar). Si ya '
+              'tenías la nube activada antes de que se sumaran las jugadas y el fixture, la app lo avisa una '
+              'vez ("Novedad en la nube"): suben recién al tocar Entendido, y desde ese aviso también se '
+              'puede apagar la nube.')
         ],
         [
           _b('Cuándo: '),
           _t('al activarla se sube todo lo que ya tenías (Configuración muestra "Subiendo X de N"; si se '
               'corta la conexión, sigue sola la próxima vez). Después, cada partido al terminarlo y cada '
-              'equipo al guardarlo. Sin señal se encola y sale solo al volver la conexión, siempre que no '
+              'equipo, jugada o fila del fixture al guardarla. Sin señal se encola y sale solo al volver la conexión, siempre que no '
               'cierres sesión antes.')
         ],
         [
@@ -803,12 +892,15 @@ List<pw.Widget> _section2CuentaLogin() => [
         [
           _b('Si se editó en dos lados: '),
           _t('queda la edición más reciente (de un partido terminado solo se editan las notas; de un equipo, '
-              'el equipo entero). Las fotos de los jugadores quedan en cada dispositivo.')
+              'una jugada o una fila del fixture, entera). Las fotos de los jugadores quedan en cada '
+              'dispositivo. Una fila del fixture ya jugada figura como jugada en el otro dispositivo en '
+              'cuanto baja también su partido.')
         ],
         [
           _b('Borrar: '),
-          _t('un partido eliminado va a la papelera en todos los dispositivos (sección 14.4); un equipo '
-              'eliminado desaparece de todos y los partidos que se jugaron con él no cambian.')
+          _t('un partido eliminado va a la papelera en todos los dispositivos (sección 14.4); un equipo, una '
+              'jugada o una fila del fixture eliminados desaparecen de todos (los partidos que se jugaron con '
+              'ese equipo no cambian).')
         ],
       ]),
       _infoBox(
@@ -816,7 +908,7 @@ List<pw.Widget> _section2CuentaLogin() => [
         'momento, aunque ya se suba solo. Apagar la nube deja de subir y de bajar en todos tus dispositivos '
         'y pregunta aparte si borrar la copia de la nube (por defecto, no). Nunca borra nada de lo que '
         'tenés en el dispositivo. En Configuración también se ve la fecha del último sync y si algún '
-        'partido no se pudo subir.',
+        'partido o alguna jugada no se pudo subir (por ser demasiado grande; en la práctica no pasa).',
       ),
     ];
 
@@ -865,12 +957,12 @@ List<pw.Widget> _section3PantallaPrincipal() => [
         ],
         [_b('Tengo un código: '), _t('canjea un código promocional para activar premium (sección 19).')],
         [
-          _b('Partidos y equipos en la nube: '),
+          _b('Partidos, equipos, jugadas y fixture en la nube: '),
           _t('el interruptor de la sección 2.3 y "Hacer una copia ahora" (no aparecen en Windows).')
         ],
         [
-          _b('Manual de usuario (premium): '),
-          _t('abre este manual dentro de la app, siempre en su versión más reciente (necesita conexión; '
+          _b('Manual de usuario: '),
+          _t('(gratis, para todos los planes) abre este manual dentro de la app, siempre en su versión más reciente (necesita conexión; '
               'sin red muestra la última copia que se bajó). Se puede compartir o imprimir desde ahí.')
         ],
         [
@@ -1144,7 +1236,10 @@ List<pw.Widget> _section8FormacionInicial() => [
               'define una vez por set. Con las zonas activadas aparece además el checkbox "Registrar en 9 '
               'zonas", que suma la franja media de la cancha (zonas 7, 8 y 9; ver sección 9.4): en el '
               'primer set arranca destildado y en cada set siguiente arranca con lo elegido en el set '
-              'anterior.')
+              'anterior. Aparte, el checkbox "Registrar zona de salida" (también premium, se puede usar con '
+              'o sin las zonas de destino) suma al calificar un ataque o una contra una fila para marcar '
+              'desde qué zona de tu cancha se hizo el toque (sección 9.6). En el primer set arranca '
+              'destildado y en los siguientes hereda lo elegido en el set anterior.')
         ],
       ]),
       _p(
@@ -1344,6 +1439,21 @@ List<pw.Widget> _section9PantallaVivo() => [
         'encabezado (sección 12) la revierte, junto con los cambios de líbero automáticos que haya '
         'provocado, respetando el orden en que se cargó respecto de los puntos y los cambios.',
       ),
+      _subHeading('9.6 Zona de salida (opcional)'),
+      _p(
+        'Si en la formación del set se tildó "Registrar zona de salida" (sección 8, función premium), al '
+        'tocar Ataque o Contra aparece, arriba de la zona de destino, una fila con los botones 1 a 6: '
+        '"¿Desde qué zona? (opcional)". Marcá desde qué zona de tu cancha se hizo el ataque (2-3-4 '
+        'adelante, 1-6-5 atrás, por ejemplo 1 para un ataque del opuesto desde el fondo) y después la '
+        'calificación. Se puede dejar sin marcar, y tocar de nuevo la zona elegida la quita. Vale para '
+        'cualquier calificación, también para el rejuego.',
+      ),
+      _p(
+        'Con la zona de salida, la flecha de ese toque en los mapas (sección 16.2) arranca en esa zona en '
+        'vez de en la posición deducida, y el gráfico "Ataque por zona de salida" (sección 16.1) cuenta '
+        'desde dónde se atacó y con qué resultado. Es independiente de la zona de destino: se puede '
+        'registrar una, la otra o las dos.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1355,8 +1465,10 @@ List<pw.Widget> _section10CambiosJugador() => [
       _p(
         'Se registran desde el ícono de flechas cruzadas del encabezado de la pantalla en vivo. El panel de '
         'cambios tiene dos modos: Cambio regular y Cambio de líbero, cada uno con sus propias reglas (las '
-        'mismas que usa el reglamento oficial de la FIVB, vigente también en los torneos de FeVA y de las '
-        'federaciones metropolitanas):',
+        'mismas que usa el reglamento oficial de la FIVB 2025-2028, vigente también en los torneos de FeVA '
+        'y de las federaciones metropolitanas). Para un jugador lesionado sin cambio regular posible está '
+        'el cambio excepcional (sección 10.4), y para un líbero que no puede seguir, la redesignación '
+        '(sección 10.5):',
       ),
       _subHeading('10.1 Cambio regular'),
       _bullets([
@@ -1379,6 +1491,7 @@ List<pw.Widget> _section10CambiosJugador() => [
               'esto vale para cualquier posición, no solo para los centrales.')
         ],
         [_t('Al elegir quién entra, la app pide confirmar el cambio (con el resumen de quién sale y quién entra) antes de aplicarlo.')],
+        [_t('El contador de cambios suma aparte los excepcionales, por ejemplo "6 / 6 · +1 excepcional" (no cuentan en el límite).')],
       ]),
       _subHeading('10.2 Cambio de líbero'),
       _p(
@@ -1431,6 +1544,59 @@ List<pw.Widget> _section10CambiosJugador() => [
         'justo después de la última jugada (por ejemplo, el líbero receptor que entró solo al perder el '
         'saque), ese botón lo revierte junto con la jugada, para dejar la cancha como estaba antes.',
       ),
+      _subHeading('10.4 Cambio excepcional (lesión o enfermedad)'),
+      _p(
+        'Un jugador que no puede seguir por lesión o enfermedad se reemplaza con un cambio regular. Si eso '
+        'no es posible (ya se usaron todos los cambios del set, o su puesto ya usó la ida y vuelta, o su '
+        'suplente fijo no puede entrar), el reglamento permite un cambio excepcional (Regla 15.7 de la '
+        'FIVB):',
+        bottom: 6,
+      ),
+      _bullets([
+        [_t('Puede entrar cualquier jugador que no esté en cancha, salvo los líberos y el jugador al que está reemplazando el líbero en ese momento.')],
+        [_t('No cuenta en el límite de cambios del set, pero queda registrado (el contador muestra "+1 excepcional").')],
+        [_b('El jugador que sale no puede volver a jugar en todo el partido, '), _t('tampoco en los sets siguientes: la app ya no lo ofrece en ningún cambio ni en la formación.')],
+        [_t('Quien entró queda en ese puesto sin cambio regular posible: solo puede salir con otro cambio excepcional.')],
+        [_t('El líbero nunca entra ni sale por un cambio excepcional (para el líbero, ver 10.5).')],
+      ]),
+      _numbered([
+        [_t('En el panel de cambios, modo Cambio regular. Cuando algún jugador en cancha no tiene cambio regular posible, abajo aparece "¿No puede seguir por lesión o enfermedad? Cambio excepcional".')],
+        [_t('Tocalo y elegí quién sale. Solo aparecen los jugadores sin cambio regular posible: si el lesionado todavía tiene uno, usá el cambio regular.')],
+        [_t('Tocá Siguiente y elegí quién entra.')],
+        [_t('Confirmá: la app avisa que el que sale no podrá volver a jugar en el partido.')],
+      ]),
+      _p(
+        'Se deshace como cualquier cambio (Deshacer último cambio o Deshacer del encabezado). En el resumen '
+        'del partido y en el PDF queda en "Incidencias reglamentarias" (secciones 16 y 17). Si la salida es '
+        'por una expulsión o descalificación, el reemplazo se hace desde el panel de sanciones (sección '
+        '11.1), con las mismas reglas.',
+      ),
+      _subHeading('10.5 Líbero que no puede seguir y redesignación'),
+      _p(
+        'Si un líbero se lesiona, se enferma o el entrenador decide que no sigue, se lo declara sin poder '
+        'jugar y no vuelve en lo que queda del partido (Regla 19.4 de la FIVB). Si es expulsado o '
+        'descalificado, se carga desde el panel de sanciones (sección 11.1), que ofrece el mismo '
+        'reemplazo. Con dos líberos, el equipo sigue con el otro. Recién cuando no le queda ningún líbero disponible, el entrenador puede '
+        'redesignar como líbero, por el resto del partido, a cualquier jugador que no esté en cancha en ese '
+        'momento, salvo el jugador al que estaba reemplazando el líbero. El redesignado juega como líbero '
+        'hasta el final (no vuelve a ser jugador común), y si después también se lesiona se puede '
+        'redesignar otro.',
+        bottom: 6,
+      ),
+      _numbered([
+        [_t('En el panel de cambios, modo Cambio de líbero, tocá "Líbero lesionado o que no puede seguir".')],
+        [_t('Marcá qué líbero no puede seguir (con uno solo, ya viene marcado).')],
+        [_t('Si con eso el equipo se queda sin líbero, aparece "Nuevo líbero": elegí a quién redesignar, o "Sin redesignar" para seguir sin líbero y hacerlo más tarde (con el botón "Redesignar un nuevo líbero" del mismo panel).')],
+        [_t('Si el líbero estaba en cancha, elegí quién entra: el jugador al que reemplazaba (vuelve), el otro líbero o directamente el nuevo líbero.')],
+        [_t('Tocá Confirmar.')],
+      ]),
+      _p(
+        'Desde ahí el redesignado aparece como LIB en la cancha y en las fichas, entra y sale con el cambio '
+        'de líbero y, en la formación de los sets siguientes, se elige en los roles de líbero (los roles que '
+        'eran del líbero que ya no juega quedan vacíos). Mientras tanto, los cambios automáticos usan el '
+        'líbero que quede disponible. Se deshace con el botón Deshacer del encabezado, junto con el cambio '
+        'de cancha que haya provocado, y queda en "Incidencias reglamentarias" del resumen y del PDF.',
+      ),
     ];
 
 // ---------------------------------------------------------------------------
@@ -1478,9 +1644,12 @@ List<pw.Widget> _section11SancionesTarjetas() => [
       ]),
       _p(
         'Si la sanción obliga a la persona a abandonar la cancha y estaba jugando, el mismo panel pide a '
-        'continuación elegir el reemplazo: primero ofrece el suplente regular de ese puesto si todavía '
-        'tenía cupo de cambio; si no, cualquier otro jugador del banco (salvo los líberos), '
-        'sin que ese reemplazo cuente contra el límite de cambios del set. Si no hay ningún suplente '
+        'continuación elegir el reemplazo: primero ofrece el cambio regular de ese puesto si todavía es '
+        'posible; si no, un cambio excepcional (sección 10.4): cualquier otro jugador del banco salvo los '
+        'líberos y el reemplazado por el líbero, sin que cuente contra el límite de cambios del set; en '
+        'ese caso el sancionado ya no vuelve a jugar en el partido, aunque fuera una expulsión. Si el '
+        'sancionado es el líbero en cancha, lo reemplaza el jugador al que estaba reemplazando o el otro '
+        'líbero, y si no queda ninguno se puede redesignar uno nuevo (sección 10.5). Si no hay ningún suplente '
         'disponible, la app avisa que el equipo queda incompleto en esa posición: es una situación '
         'excepcional que hay que resolver a criterio del cuerpo técnico y el árbitro, no algo que la app '
         'pueda decidir sola.',
@@ -1488,8 +1657,8 @@ List<pw.Widget> _section11SancionesTarjetas() => [
       _infoBox(
         'La app respeta automáticamente el alcance de cada sanción al armar las listas de banco '
         'disponible (para este reemplazo y para cualquier cambio posterior): un jugador Expulsado no '
-        'aparece como opción durante el resto de ese set, y uno Descalificado no vuelve a aparecer en '
-        'ningún set restante del partido.',
+        'aparece como opción durante el resto de ese set, y uno Descalificado (o reemplazado con un cambio '
+        'excepcional) no vuelve a aparecer en ningún set restante del partido.',
       ),
       _infoBox(
         'Una sanción se puede deshacer igual que cualquier otra acción, con el botón Deshacer del '
@@ -1783,6 +1952,7 @@ List<pw.Widget> _section16Resumen() => [
         [_t('El resultado punto a punto de cada set jugado.')],
         [_t('Una tabla de estadísticas por jugador, con una fila de TOTAL EQUIPO al final.')],
         [_t('Las notas de scouting del partido (sección 16.3).')],
+        [_t('Si los hubo, "Incidencias reglamentarias": los cambios excepcionales y los líberos que no pudieron seguir o fueron redesignados, con el set y el marcador (secciones 10.4 y 10.5).')],
         [
           _t('Una sección aparte, "Estadística del rival", con sus errores por tipo (saque, ataque, contra, '
               'genérico) y los puntos que ganó con su propio toque (ataque o contra).')
@@ -1869,6 +2039,13 @@ List<pw.Widget> _section16Resumen() => [
           _t('las zonas de destino de saque, ataque o contra pintadas sobre la cancha rival (solo si se '
               'registró la zona de destino, sección 8).')
         ],
+        [
+          _b('Ataque por zona de salida: '),
+          _t('nuestra cancha (red arriba) con las zonas 1 a 6 pintadas según cuántos ataques y contras '
+              'salieron de cada una, con el % que terminó en punto; se elige Ataque, Contra o Los dos. Solo '
+              'cuenta los toques con zona de salida registrada (sección 9.6) y avisa cuántos quedaron sin '
+              'zona.')
+        ],
       ]),
       _infoBox(
         'Los gráficos se calculan a partir de cada punto cargado, igual que la tabla: no hace falta cargar '
@@ -1903,10 +2080,10 @@ List<pw.Widget> _section16Resumen() => [
       _infoBox(
         'El destino de cada flecha es la zona de destino registrada en la carga (sección 9.4): los toques sin '
         'zona no se pueden dibujar (salvo los bloqueados, los rejuegos y los errores a la red, que terminan '
-        'siempre en la red), pero sí cuentan en el resumen (se avisa cuántos son). El origen no se '
-        'carga: la app lo deduce del puesto del jugador y de su lugar en la rotación en ese momento (por '
-        'ejemplo, un punta adelante ataca desde la zona 4 y atrás, por el medio). Por eso el mapa muestra '
-        'tendencias, no la posición exacta de cada pelota.',
+        'siempre en la red), pero sí cuentan en el resumen (se avisa cuántos son). El origen es la zona de '
+        'salida si se registró (sección 9.6); si no, la app lo deduce del puesto del jugador y de su lugar '
+        'en la rotación en ese momento (por ejemplo, un punta adelante ataca desde la zona 4 y atrás, por '
+        'el medio). Por eso el mapa muestra tendencias, no la posición exacta de cada pelota.',
       ),
       _subHeading('16.3 Notas de scouting'),
       _p(
@@ -1961,6 +2138,7 @@ List<pw.Widget> _section17ExportarPdf() => [
               'suscripción premium se elige qué lleva en Configuración > Estadística visual del PDF '
               '(sección 3); sin premium, el reporte lleva todo.')
         ],
+        [_t('Si hubo cambios excepcionales o redesignaciones de líbero, una sección "Incidencias reglamentarias".')],
         [_t('Si el partido tiene notas de scouting (sección 16.3), una sección "Notas de scouting" al final.')],
       ]),
       _infoBox(
@@ -2090,16 +2268,15 @@ List<pw.Widget> _section19SuscripcionPremium() => [
               'del archivo. Tampoco hay acceso a estadística en vivo ni '
               'entre sets (secciones 12 y 13): solo una vez que el partido está guardado y terminado.')
         ],
-        [_t('Sin la opción de registrar zona de destino en saque y ataque (sección 8).')],
+        [_t('Sin la opción de registrar zona de destino en saque y ataque, ni zona de salida en ataque y contra (secciones 8, 9.4 y 9.6).')],
         [_t('Sin poder elegir qué mapas y gráficos se ven en pantalla y en el PDF (sección 3): se muestra todo.')],
         [_t('Sin exportar la tabla a Excel (sección 16.4) ni comparar dos partidos (sección 14.3).')],
-        [_t('Sin el acceso al manual de usuario desde Configuración (sección 3).')],
       ]),
       _p(
-        'Las notas de scouting (sección 16.3) son gratuitas. La suscripción premium desbloquea todo lo de '
+        'Las notas de scouting (sección 16.3) y el manual de usuario en la app (sección 3) son gratuitos. La suscripción premium desbloquea todo lo de '
         'la lista de arriba (partidos sin límite en el archivo, pizarra, estadística ilimitada e incluida en '
-        'vivo y entre sets, zona de destino, elección de los mapas y gráficos, exportación a Excel y '
-        'comparador de partidos, manual en la app) y permite además sumar dispositivos adicionales (sección 19.3).',
+        'vivo y entre sets, zonas de destino y de salida, elección de los mapas y gráficos, exportación a Excel y '
+        'comparador de partidos) y permite además sumar dispositivos adicionales (sección 19.3).',
       ),
       _infoBox(
         'Cancelar la suscripción no borra ningún dato: los partidos, jugadores y jugadas ya guardados '
@@ -2176,9 +2353,9 @@ List<pw.Widget> _section20Faq() => [
       _faqCard(
         '¿Dónde se guardan los datos de la app?',
         'Todo se guarda de forma local en el dispositivo (equipos, jugadores, partidos, jugadas y fixture), '
-            'separado por cuenta (sección 2.1). Si activaste la nube (sección 2.3), los partidos terminados '
-            'y los equipos además quedan en tu cuenta y vuelven solos al entrar en otro dispositivo o '
-            'después de reinstalar. Lo demás (jugadas, fixture, fotos, partidos en curso) se pierde al '
+            'separado por cuenta (sección 2.1). Si activaste la nube (sección 2.3), los partidos terminados, '
+            'los equipos, las jugadas y el fixture además quedan en tu cuenta y vuelven solos al entrar en '
+            'otro dispositivo o después de reinstalar. Lo demás (fotos, partidos en curso) se pierde al '
             'desinstalar la app o borrar sus datos, así que conviene usar Exportar todo (sección 2.1) y '
             'guardar el archivo en otro lado.',
       ),
@@ -2206,7 +2383,7 @@ List<pw.Widget> _section20Faq() => [
         'No: cancelar o dejar vencer la suscripción no borra ningún dato. Vuelven a aplicarse los límites '
             'de la versión gratuita (sección 19.1): la estadística vuelve a quedar limitada a un único '
             'partido (y solo una vez guardado y terminado, no en vivo ni entre sets), sin acceso a la '
-            'Pizarra ni al manual desde la app, y sin poder guardar un partido nuevo si ya hay 3 o más '
+            'Pizarra, y sin poder guardar un partido nuevo si ya hay 3 o más '
             'guardados. Pero los partidos, jugadores y jugadas de pizarra siguen ahí, disponibles apenas se '
             'vuelve a suscribir, y la nube (sección 2.3) sigue funcionando igual: es también de la versión '
             'gratuita.',
@@ -2214,8 +2391,8 @@ List<pw.Widget> _section20Faq() => [
       _faqCard(
         'Cambié de celular (o reinstalé la app), ¿cómo recupero mis partidos?',
         'Si tenías la nube activada (sección 2.3), alcanza con iniciar sesión en el celular nuevo: los '
-            'partidos terminados y los equipos bajan solos. Las fotos de los jugadores, las jugadas de la '
-            'pizarra, el fixture y los partidos en curso no viajan por la nube: para esos (o si no tenías '
+            'partidos terminados, los equipos, las jugadas de la pizarra y el fixture bajan solos. Las fotos '
+            'de los jugadores y los partidos en curso no viajan por la nube: para esos (o si no tenías '
             'la nube), usá Exportar todo en el celular viejo e Importar copia completa en el nuevo (sección '
             '2.1).',
       ),
@@ -2322,6 +2499,13 @@ List<pw.Widget> _section20Faq() => [
         'Si al crear el partido tildaste "Permitir rotar el equipo manualmente" (sección 6.2), usá los '
             'botones Rotar o Rotar atrás debajo de la cancha, entre punto y punto (sección 9.5). Si no la '
             'tildaste, esa opción no se puede activar con el partido ya arrancado.',
+      ),
+      _faqCard(
+        'Se lesionó un jugador y ya usé todos los cambios, ¿qué hago?',
+        'Usá el cambio excepcional (sección 10.4): en el panel de cambios, modo Cambio regular, aparece '
+            '"¿No puede seguir por lesión o enfermedad? Cambio excepcional". Entra cualquier jugador del '
+            'banco salvo los líberos, no cuenta en el límite y el lesionado ya no puede volver en el '
+            'partido. Si el lesionado es el líbero, ver la sección 10.5.',
       ),
       _faqCard(
         'Tengo dos líberos en la planilla pero configuré uno solo, ¿puedo usar el otro?',

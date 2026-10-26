@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/libero_unable_event.dart';
 import '../models/manual_rotation_event.dart';
 import '../models/match_set.dart';
 import '../models/player.dart';
@@ -200,7 +201,13 @@ class MatchController extends ChangeNotifier {
   /// rematar ni bloquear (reglas FIVB), así que no se ofrece como opción al
   /// cargar ataque, contraataque o punto de bloqueo.
   List<Player> get onCourtAttackersAndBlockers =>
-      onCourtPlayers.where((p) => p.position != PlayerPosition.libero).toList();
+      onCourtPlayers.where((p) => !isLibero(p.id)).toList();
+
+  /// true si [playerId] es líbero en este partido: de la planilla o
+  /// redesignado (Regla 19.4.2, ver [declareLiberoUnable]). Para todas las
+  /// reglas de juego se usa esto y no `Player.position`, que es el puesto
+  /// cargado en el equipo y no cambia con una redesignación.
+  bool isLibero(String playerId) => match.isLibero(playerId);
 
   /// Jugadores propios del roster que no están en cancha en este momento
   /// (candidatos para entrar en un cambio), sin contar a quienes una sanción
@@ -212,23 +219,20 @@ class MatchController extends ChangeNotifier {
         .toList();
   }
 
-  /// true si [playerId] no puede volver a jugar en este momento del partido
-  /// por una sanción (Regla 21 de la FIVB): una Expulsión lo deja afuera
-  /// solo por el resto del set en que se dio (vuelve a estar disponible en
-  /// los sets siguientes), y una Descalificación lo deja afuera por el resto
-  /// del PARTIDO (cualquier set desde ese momento en adelante).
+  /// true si [playerId] no puede volver a jugar en este momento del partido:
+  /// una Expulsión (Regla 21) lo deja afuera solo por el resto del set en que
+  /// se dio (vuelve a estar disponible en los sets siguientes); una
+  /// Descalificación, haber salido por un cambio excepcional (Regla 15.7) o
+  /// ser un líbero declarado sin poder jugar (Regla 19.4) lo dejan afuera
+  /// por el resto del PARTIDO (ver `VolleyMatch.isBarredForMatch`).
   bool isBarredFromPlay(String playerId) {
-    for (final set in match.sets) {
-      for (final s in set.sanctions) {
-        if (s.team != TeamSide.own ||
-            s.targetKind != SanctionTargetKind.player ||
-            s.targetPlayerId != playerId) {
-          continue;
-        }
-        if (s.outcome == SanctionOutcome.descalificacion) return true;
-        if (s.outcome == SanctionOutcome.expulsion && set.setNumber == currentSet.setNumber) {
-          return true;
-        }
+    if (match.isBarredForMatch(playerId)) return true;
+    for (final s in currentSet.sanctions) {
+      if (s.team == TeamSide.own &&
+          s.targetKind == SanctionTargetKind.player &&
+          s.targetPlayerId == playerId &&
+          s.outcome == SanctionOutcome.expulsion) {
+        return true;
       }
     }
     return false;
@@ -241,6 +245,7 @@ class MatchController extends ChangeNotifier {
     required TeamSide startingServer,
     bool trackHitZones = true,
     bool nineHitZones = false,
+    bool trackOriginZone = false,
     String? defensiveLiberoId,
     String? receptionLiberoId,
     bool autoLiberoBackRowSwap = true,
@@ -251,6 +256,7 @@ class MatchController extends ChangeNotifier {
       startingServer: startingServer,
       trackHitZones: trackHitZones,
       nineHitZones: nineHitZones,
+      trackOriginZone: trackOriginZone,
       defensiveLiberoId: defensiveLiberoId,
       receptionLiberoId: receptionLiberoId,
       autoLiberoBackRowSwap: autoLiberoBackRowSwap,
@@ -281,6 +287,7 @@ class MatchController extends ChangeNotifier {
       currentSet.events.isEmpty &&
       currentSet.sanctions.isEmpty &&
       currentSet.manualRotations.isEmpty &&
+      currentSet.liberoUnableEvents.isEmpty &&
       currentSet.substitutions.every((s) => s.auto);
 
   /// Reemplaza la formación del set en curso (que todavía no empezó, ver
@@ -293,6 +300,7 @@ class MatchController extends ChangeNotifier {
     required TeamSide startingServer,
     bool trackHitZones = true,
     bool nineHitZones = false,
+    bool trackOriginZone = false,
     String? defensiveLiberoId,
     String? receptionLiberoId,
     bool autoLiberoBackRowSwap = true,
@@ -306,6 +314,7 @@ class MatchController extends ChangeNotifier {
       startingServer: startingServer,
       trackHitZones: trackHitZones,
       nineHitZones: nineHitZones,
+      trackOriginZone: trackOriginZone,
       defensiveLiberoId: defensiveLiberoId,
       receptionLiberoId: receptionLiberoId,
       autoLiberoBackRowSwap: autoLiberoBackRowSwap,
@@ -380,22 +389,24 @@ class MatchController extends ChangeNotifier {
     }
   }
 
-  void logAttack(String playerId, String grade, {int? targetZone, String? missType, bool replay = false}) {
+  void logAttack(String playerId, String grade,
+      {int? targetZone, String? missType, bool replay = false, int? originZone}) {
     _logAttackOrCounter(RallyPhase.attack, playerId, grade,
-        targetZone: targetZone, missType: missType, replay: replay);
+        targetZone: targetZone, missType: missType, replay: replay, originZone: originZone);
   }
 
-  void logCounter(String playerId, String grade, {int? targetZone, String? missType, bool replay = false}) {
+  void logCounter(String playerId, String grade,
+      {int? targetZone, String? missType, bool replay = false, int? originZone}) {
     _logAttackOrCounter(RallyPhase.counter, playerId, grade,
-        targetZone: targetZone, missType: missType, replay: replay);
+        targetZone: targetZone, missType: missType, replay: replay, originZone: originZone);
   }
 
   /// [replay] (rejuego: atacar contra el bloqueo para recuperar la
   /// posesión) solo vale con [Grade.p] y se guarda sin zona. Como cualquier
   /// P, el punto sigue en `defending`, donde el próximo toque propio es una
-  /// Contra.
+  /// Contra. [originZone] (zona de salida) se guarda también en un rejuego.
   void _logAttackOrCounter(RallyPhase phase, String playerId, String grade,
-      {int? targetZone, String? missType, bool replay = false}) {
+      {int? targetZone, String? missType, bool replay = false, int? originZone}) {
     final isReplay = replay && grade == Grade.p;
     if (isReplay) targetZone = null;
     final terminal = grade == Grade.pp || grade == Grade.nn || grade == Grade.bloq;
@@ -412,6 +423,7 @@ class MatchController extends ChangeNotifier {
       targetZone: targetZone,
       missType: missType,
       replay: isReplay,
+      originZone: originZone,
     );
     if (!terminal) {
       _stage = RallyStage.defending;
@@ -499,25 +511,25 @@ class MatchController extends ChangeNotifier {
 
   bool get canRegisterSubstitution => substitutionsRemaining > 0;
 
-  /// Líberos con un rol asignado en este set (defensor y/o receptor), sin
-  /// duplicados. Solo decide los automatismos (qué líbero entra solo y el
-  /// intercambio automático según quién saca); para los cambios manuales
-  /// vale cualquier líbero de la planilla, ver [rosterLiberoIds].
+  /// Líberos con un rol asignado en este set (defensor y/o receptor) que
+  /// todavía pueden jugar, sin duplicados. Solo decide los automatismos (qué
+  /// líbero entra solo y el intercambio automático según quién saca); para
+  /// los cambios manuales vale cualquier líbero de la planilla, ver
+  /// [rosterLiberoIds].
   List<String> get declaredLiberoIds {
+    final available = rosterLiberoIds;
     final ids = <String>{};
     if (currentSet.defensiveLiberoId != null) ids.add(currentSet.defensiveLiberoId!);
     if (currentSet.receptionLiberoId != null) ids.add(currentSet.receptionLiberoId!);
-    return ids.toList();
+    return ids.where(available.contains).toList();
   }
 
-  /// Líberos de la planilla del partido habilitados para jugar ahora mismo
-  /// (sin los que una sanción deja afuera), tengan o no un rol asignado en
-  /// este set: cualquiera de ellos puede entrar o intercambiarse con el
-  /// líbero en cancha (Regla 19.3.2.2).
-  List<String> get rosterLiberoIds => match.ownRoster
-      .where((p) => p.position == PlayerPosition.libero && !isBarredFromPlay(p.id))
-      .map((p) => p.id)
-      .toList();
+  /// Líberos del partido (de la planilla o redesignados) habilitados para
+  /// jugar ahora mismo (sin los que una sanción o la Regla 19.4 dejan
+  /// afuera), tengan o no un rol asignado en este set: cualquiera de ellos
+  /// puede entrar o intercambiarse con el líbero en cancha (Regla 19.3.2.2).
+  List<String> get rosterLiberoIds =>
+      match.liberoIds.where((id) => !isBarredFromPlay(id)).toList();
 
   /// Líbero que deberían usar los automatismos ahora, según quién saca: el
   /// defensor si sacamos nosotros, el receptor si saca el rival. Si hay un
@@ -532,11 +544,21 @@ class MatchController extends ChangeNotifier {
         ? currentSet.defensiveLiberoId
         : currentSet.receptionLiberoId;
     if (configured == null) return null;
-    if (declaredLiberoIds.length >= 2) return configured;
     final available = rosterLiberoIds;
+    if (!available.contains(configured)) {
+      // El configurado ya no puede jugar (sanción o Regla 19.4): los
+      // automatismos siguen con el del otro rol si puede, o si no con el
+      // primer líbero disponible (p. ej. el redesignado).
+      final other = _servingTeam == TeamSide.own
+          ? currentSet.receptionLiberoId
+          : currentSet.defensiveLiberoId;
+      if (other != null && available.contains(other)) return other;
+      return available.isEmpty ? null : available.first;
+    }
+    if (declaredLiberoIds.length >= 2) return configured;
     for (final sub in currentSet.substitutions.reversed) {
       if (sub.auto || !sub.isLiberoAction) continue;
-      if (playerById(sub.playerInId)?.position != PlayerPosition.libero) continue;
+      if (!isLibero(sub.playerInId)) continue;
       return available.contains(sub.playerInId) ? sub.playerInId : configured;
     }
     return configured;
@@ -550,12 +572,12 @@ class MatchController extends ChangeNotifier {
     for (final sub in currentSet.substitutions.where((s) => s.slotIndex == slotIndex)) {
       if (sub.isLiberoAction) {
         st.lastLiberoActionRally = sub.rallyNumber;
-        final outIsLibero = playerById(sub.playerOutId)?.position == PlayerPosition.libero;
+        final outIsLibero = isLibero(sub.playerOutId);
         if (!outIsLibero) {
           // Un jugador regular sale, entra un líbero.
           st.liberoOnCourtId = sub.playerInId;
           st.liberoReplacedPlayerId = sub.playerOutId;
-        } else if (playerById(sub.playerInId)?.position == PlayerPosition.libero) {
+        } else if (isLibero(sub.playerInId)) {
           // Líbero por líbero: se mantiene quién fue el reemplazado original.
           st.liberoOnCourtId = sub.playerInId;
         } else {
@@ -563,6 +585,12 @@ class MatchController extends ChangeNotifier {
           st.liberoOnCourtId = null;
           st.liberoReplacedPlayerId = null;
         }
+      } else if (sub.exceptional) {
+        // Después de un cambio excepcional el puesto queda cerrado a los
+        // cambios regulares: quien entró solo puede salir por otro cambio
+        // excepcional (criterio conservador; la Regla 15.7 no lo aclara).
+        st.regularOutUsed = true;
+        st.regularReturnUsed = true;
       } else {
         if (!st.regularOutUsed) {
           st.regularSubstituteId = sub.playerInId;
@@ -597,7 +625,7 @@ class MatchController extends ChangeNotifier {
   /// true si [playerOutId] (en cancha) todavía puede salir por un cambio
   /// regular, según el emparejamiento fijo de su puesto.
   bool canSubOutRegular(String playerOutId) {
-    if (playerById(playerOutId)?.position == PlayerPosition.libero) return false;
+    if (isLibero(playerOutId)) return false;
     final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
     if (slot == -1) return false;
     final st = _slotState(slot);
@@ -616,8 +644,11 @@ class MatchController extends ChangeNotifier {
     if (slot == -1) return [];
     final st = _slotState(slot);
     if (playerOutId == st.regularSubstituteId) {
-      final starter = playerById(currentSet.startingOrderOwn[slot]);
-      return starter == null ? [] : [starter];
+      // Solo puede volver el titular, y solo si está en el banco y todavía
+      // puede jugar (pudo haber entrado en otro puesto por un cambio
+      // excepcional o haber sido redesignado como líbero).
+      final starterId = currentSet.startingOrderOwn[slot];
+      return benchPlayers.where((p) => p.id == starterId && !isLibero(p.id)).toList();
     }
     final lockedElsewhere = <String>{};
     for (var i = 0; i < 6; i++) {
@@ -633,7 +664,7 @@ class MatchController extends ChangeNotifier {
     // quien sale.
     final startingIds = currentSet.startingOrderOwn.toSet();
     final candidates = benchPlayers.where((p) =>
-        p.position != PlayerPosition.libero &&
+        !isLibero(p.id) &&
         !lockedElsewhere.contains(p.id) &&
         !startingIds.contains(p.id));
     return candidates.toList();
@@ -652,6 +683,63 @@ class MatchController extends ChangeNotifier {
       isLiberoAction: false,
     );
   }
+
+  // ---- Cambio excepcional (Regla 15.7) ----
+  //
+  // Un jugador (nunca el líbero) que no puede seguir por lesión, enfermedad,
+  // expulsión o descalificación se reemplaza primero con un cambio legal; si
+  // no se puede, el equipo tiene derecho a un cambio excepcional: entra
+  // cualquier jugador que no esté en cancha, salvo los líberos y el jugador
+  // al que está reemplazando el líbero. No cuenta contra el límite (sí en el
+  // total de cambios del set) y el que sale no vuelve a jugar en el partido.
+
+  /// true si [playerOutId] (en cancha) se puede reemplazar ahora con un
+  /// cambio legal: queda cupo, su puesto lo permite y hay alguien que pueda
+  /// entrar. Mientras sea así no corresponde el cambio excepcional.
+  bool hasLegalSubstitutionFor(String playerOutId) =>
+      canRegisterSubstitution &&
+      canSubOutRegular(playerOutId) &&
+      eligibleRegularBenchFor(playerOutId).isNotEmpty;
+
+  /// Jugadores del banco que pueden entrar por [playerOutId] con un cambio
+  /// excepcional (vacío si [playerOutId] no está en cancha o es líbero).
+  List<Player> eligibleExceptionalBenchFor(String playerOutId) {
+    if (!currentSet.currentOrderOwn.contains(playerOutId) || isLibero(playerOutId)) return [];
+    final replacedByLibero = _playersReplacedByLibero;
+    return benchPlayers.where((p) => !isLibero(p.id) && !replacedByLibero.contains(p.id)).toList();
+  }
+
+  /// true si [playerOutId] (en cancha) solo se puede reemplazar con un
+  /// cambio excepcional: no tiene cambio legal posible y hay quien entre.
+  bool canSubOutExceptional(String playerOutId) =>
+      !hasLegalSubstitutionFor(playerOutId) && eligibleExceptionalBenchFor(playerOutId).isNotEmpty;
+
+  /// Cambios excepcionales ya hechos en el set (no cuentan contra el límite).
+  int get exceptionalSubstitutionsUsedOwn =>
+      currentSet.substitutions.where((s) => s.exceptional).length;
+
+  /// Cambio excepcional manual (lesión o enfermedad): [playerOutId] en
+  /// cancha, [playerInId] en el banco. El que sale queda afuera del resto
+  /// del partido (ver [isBarredFromPlay]).
+  void substituteExceptional({required String playerOutId, required String playerInId}) {
+    if (!canSubOutExceptional(playerOutId)) return;
+    if (!eligibleExceptionalBenchFor(playerOutId).any((p) => p.id == playerInId)) return;
+    _applySubstitution(
+      slotIndex: currentSet.currentOrderOwn.indexOf(playerOutId),
+      playerInId: playerInId,
+      countsAgainstLimit: false,
+      isLiberoAction: false,
+      exceptional: true,
+    );
+  }
+
+  /// Jugadores que hoy están afuera porque un líbero ocupa su puesto: son
+  /// el "jugador reemplazado" de la Regla 19.3.2.2 y no pueden entrar por
+  /// un cambio excepcional ni ser redesignados como líbero.
+  Set<String> get _playersReplacedByLibero => {
+        for (var i = 0; i < 6; i++)
+          if (_slotState(i).liberoReplacedPlayerId != null) _slotState(i).liberoReplacedPlayerId!,
+      };
 
   // ---- Cambio de líbero ----
 
@@ -734,12 +822,119 @@ class MatchController extends ChangeNotifier {
     );
   }
 
+  // ---- Líbero sin poder jugar y redesignación (Regla 19.4) ----
+  //
+  // Un líbero queda sin poder jugar por lesión, enfermedad, expulsión o
+  // descalificación, o porque el entrenador lo declara así, y no vuelve a
+  // jugar en el partido. Con dos líberos el equipo sigue con el otro; recién
+  // cuando no le queda ningún líbero disponible puede redesignar como líbero,
+  // por el resto del partido, a cualquier jugador que no esté en cancha salvo
+  // el jugador al que estaba reemplazando el líbero. Si el líbero estaba en
+  // cancha, lo reemplaza ese jugador, el otro líbero o directamente el
+  // redesignado (Regla 19.4.2.2). Un líbero nunca entra por un cambio
+  // regular ni excepcional.
+
+  /// true si declarar sin poder jugar a [unableIds] deja al equipo sin
+  /// ningún líbero disponible, y entonces puede redesignar uno. Hace falta
+  /// que el partido haya tenido al menos un líbero.
+  bool redesignationAllowedAfter(Iterable<String> unableIds) =>
+      match.liberoIds.isNotEmpty && rosterLiberoIds.every(unableIds.contains);
+
+  /// Jugadores que se pueden redesignar como líbero ahora: los del banco que
+  /// pueden jugar, salvo los líberos y los reemplazados por un líbero.
+  List<Player> get redesignationCandidates {
+    final replacedByLibero = _playersReplacedByLibero;
+    return benchPlayers.where((p) => !isLibero(p.id) && !replacedByLibero.contains(p.id)).toList();
+  }
+
+  /// Quiénes pueden entrar en cancha en lugar del líbero de [slotIndex] si
+  /// se lo declara sin poder jugar junto con [unableIds]: el jugador al que
+  /// reemplazaba, otro líbero disponible o [newLiberoId]. Vacía si en ese
+  /// puesto no hay un líbero.
+  List<String> liberoCourtReplacementOptions(int slotIndex,
+      {Iterable<String> unableIds = const [], String? newLiberoId}) {
+    final st = _slotState(slotIndex);
+    if (st.liberoOnCourtId == null) return [];
+    return {
+      st.liberoReplacedPlayerId!,
+      ...rosterLiberoIds.where((id) => id != st.liberoOnCourtId && !unableIds.contains(id)),
+      if (newLiberoId != null) newLiberoId,
+    }.toList();
+  }
+
+  /// Puesto (0-5) del líbero en cancha, o -1 si no hay ninguno.
+  int get liberoOnCourtSlot {
+    for (var i = 0; i < 6; i++) {
+      if (_slotState(i).liberoOnCourtId != null) return i;
+    }
+    return -1;
+  }
+
+  /// Declara a [liberoIds] (líberos disponibles) sin poder jugar el resto
+  /// del partido y, si con eso el equipo se queda sin líbero, redesigna a
+  /// [newLiberoId] (ver [redesignationCandidates]). Con redesignación, los
+  /// líberos que hoy no juegan por una expulsión del set también quedan
+  /// afuera del partido (Regla 19.4.2.2). Si uno de los declarados está en
+  /// cancha, sale en el mismo paso por [courtReplacementId] (ver
+  /// [liberoCourtReplacementOptions]; por defecto vuelve el jugador al que
+  /// reemplazaba), sin esperar el punto entre dos cambios de líbero.
+  void declareLiberoUnable({
+    required List<String> liberoIds,
+    String? newLiberoId,
+    String? courtReplacementId,
+  }) {
+    final available = rosterLiberoIds;
+    if (liberoIds.any((id) => !available.contains(id))) return;
+    if (liberoIds.isEmpty && newLiberoId == null) return;
+    if (newLiberoId != null) {
+      if (!redesignationAllowedAfter(liberoIds)) return;
+      if (!redesignationCandidates.any((p) => p.id == newLiberoId)) return;
+    }
+    final unable = <String>{
+      ...liberoIds,
+      if (newLiberoId != null)
+        ...match.liberoIds.where((id) => !available.contains(id) && !match.unableLiberoIds.contains(id)),
+    };
+
+    String? linkedSubId;
+    // También un líbero que sigue en cancha aunque ya no pueda jugar (p. ej.
+    // expulsado y todavía sin reemplazo) sale en este paso.
+    final slot = currentSet.currentOrderOwn
+        .indexWhere((id) => unable.contains(id) || (isLibero(id) && !available.contains(id)));
+    if (slot != -1) {
+      final options =
+          liberoCourtReplacementOptions(slot, unableIds: liberoIds, newLiberoId: newLiberoId);
+      final inId = options.contains(courtReplacementId) ? courtReplacementId! : options.first;
+      // El evento va después del cambio (que hasta acá no consulta quién es
+      // líbero): así deshacer saca los dos juntos, más nuevo primero.
+      _applySubstitution(
+        slotIndex: slot,
+        playerInId: inId,
+        countsAgainstLimit: false,
+        isLiberoAction: true,
+      );
+      linkedSubId = currentSet.substitutions.last.id;
+    }
+    currentSet.liberoUnableEvents.add(LiberoUnableEvent(
+      id: generateId('lib_'),
+      setNumber: currentSet.setNumber,
+      rallyNumber: _rallyCounter,
+      unableLiberoIds: unable.toList(),
+      newLiberoId: newLiberoId,
+      linkedSubstitutionEventId: linkedSubId,
+      timestamp: _nextTimestamp(),
+    ));
+    notifyListeners();
+    _persist();
+  }
+
   void _applySubstitution({
     required int slotIndex,
     required String playerInId,
     required bool countsAgainstLimit,
     required bool isLiberoAction,
     bool auto = false,
+    bool exceptional = false,
   }) {
     final set = currentSet;
     final playerOutId = set.currentOrderOwn[slotIndex];
@@ -757,6 +952,7 @@ class MatchController extends ChangeNotifier {
       countedAgainstLimit: countsAgainstLimit,
       isLiberoAction: isLiberoAction,
       auto: auto,
+      exceptional: exceptional,
       timestamp: _nextTimestamp(),
     ));
     notifyListeners();
@@ -774,6 +970,9 @@ class MatchController extends ChangeNotifier {
       !currentSet.substitutions.last.auto &&
       !(currentSet.sanctions.isNotEmpty &&
           currentSet.sanctions.last.linkedSubstitutionEventId ==
+              currentSet.substitutions.last.id) &&
+      !(currentSet.liberoUnableEvents.isNotEmpty &&
+          currentSet.liberoUnableEvents.last.linkedSubstitutionEventId ==
               currentSet.substitutions.last.id);
 
   /// Revierte en memoria un cambio ya registrado (devuelve al jugador que
@@ -1052,25 +1251,21 @@ class MatchController extends ChangeNotifier {
     return sanction;
   }
 
-  /// Suplentes elegibles para reemplazar a [playerOutId] (en cancha) por
-  /// expulsión/descalificación (Regla 15.8): primero el suplente regular si
-  /// todavía tiene cupo (sustitución legal normal); si no, cualquier
-  /// suplente del banco salvo los líberos (sustitución excepcional: no
-  /// cuenta contra el límite, pero queda registrada).
+  /// Suplentes elegibles para reemplazar a [playerOutId] (en cancha, no
+  /// líbero) por expulsión/descalificación (Regla 15.8): el cambio legal si
+  /// es posible; si no, los del cambio excepcional (Regla 15.7, ver
+  /// [eligibleExceptionalBenchFor]). Un líbero sancionado se resuelve con
+  /// [declareLiberoUnable] o con un cambio de líbero.
   List<Player> eligibleReplacementsForSanction(String playerOutId) {
-    if (canRegisterSubstitution && canSubOutRegular(playerOutId)) {
-      final regular = eligibleRegularBenchFor(playerOutId);
-      if (regular.isNotEmpty) return regular;
-    }
-    return benchPlayers.where((p) => p.position != PlayerPosition.libero).toList();
+    if (hasLegalSubstitutionFor(playerOutId)) return eligibleRegularBenchFor(playerOutId);
+    return eligibleExceptionalBenchFor(playerOutId);
   }
 
   /// true si reemplazar a [playerOutId] con [playerInId] es la sustitución
   /// legal normal (cuenta contra el cupo) en vez de la sustitución
   /// excepcional de la Regla 15.7 (libre, no cuenta).
   bool _isRegularSanctionReplacement(String playerOutId, String playerInId) =>
-      canRegisterSubstitution &&
-      canSubOutRegular(playerOutId) &&
+      hasLegalSubstitutionFor(playerOutId) &&
       eligibleRegularBenchFor(playerOutId).any((p) => p.id == playerInId);
 
   /// Reemplazo obligatorio de un jugador expulsado/descalificado (Regla
@@ -1082,12 +1277,44 @@ class MatchController extends ChangeNotifier {
     final slot = currentSet.currentOrderOwn.indexOf(playerOutId);
     if (slot == -1) return;
     final regular = _isRegularSanctionReplacement(playerOutId, playerInId);
+    if (!regular && !eligibleExceptionalBenchFor(playerOutId).any((p) => p.id == playerInId)) return;
     _applySubstitution(
       slotIndex: slot,
       playerInId: playerInId,
       countsAgainstLimit: regular,
       isLiberoAction: false,
+      exceptional: !regular,
     );
+    _linkSanctionToLastSubstitution(idx);
+  }
+
+  /// Quiénes pueden entrar por el líbero [liberoId] (en cancha) si una
+  /// expulsión/descalificación lo saca: el jugador al que reemplazaba u otro
+  /// líbero disponible (Casebook FIVB 2025, 5.4). Para redesignar un líbero
+  /// nuevo, [declareLiberoUnable].
+  List<String> liberoReplacementsForSanction(String liberoId) {
+    final slot = currentSet.currentOrderOwn.indexOf(liberoId);
+    if (slot == -1) return [];
+    return liberoCourtReplacementOptions(slot);
+  }
+
+  /// Reemplazo obligatorio de un líbero en cancha expulsado/descalificado:
+  /// un cambio de líbero libre, sin esperar el punto entre dos cambios de
+  /// líbero, que se deshace junto con la sanción.
+  void substituteLiberoForSanction(String sanctionEventId, String liberoId, String playerInId) {
+    final idx = currentSet.sanctions.indexWhere((s) => s.id == sanctionEventId);
+    if (idx == -1) return;
+    if (!liberoReplacementsForSanction(liberoId).contains(playerInId)) return;
+    _applySubstitution(
+      slotIndex: currentSet.currentOrderOwn.indexOf(liberoId),
+      playerInId: playerInId,
+      countsAgainstLimit: false,
+      isLiberoAction: true,
+    );
+    _linkSanctionToLastSubstitution(idx);
+  }
+
+  void _linkSanctionToLastSubstitution(int idx) {
     final old = currentSet.sanctions[idx];
     currentSet.sanctions[idx] = SanctionEvent(
       id: old.id,
@@ -1181,7 +1408,8 @@ class MatchController extends ChangeNotifier {
       (currentSet.events.isNotEmpty ||
           (currentSet.substitutions.isNotEmpty && !currentSet.substitutions.last.auto) ||
           currentSet.sanctions.isNotEmpty ||
-          currentSet.manualRotations.isNotEmpty);
+          currentSet.manualRotations.isNotEmpty ||
+          currentSet.liberoUnableEvents.isNotEmpty);
 
   /// Deshace la última acción cargada en el set, sea una jugada (saque,
   /// ataque, punto/error rival, etc.), una sanción/tarjeta, una rotación
@@ -1201,10 +1429,13 @@ class MatchController extends ChangeNotifier {
       final lastSanction = currentSet.sanctions.isNotEmpty ? currentSet.sanctions.last : null;
       final lastRotation =
           currentSet.manualRotations.isNotEmpty ? currentSet.manualRotations.last : null;
+      final lastLibero =
+          currentSet.liberoUnableEvents.isNotEmpty ? currentSet.liberoUnableEvents.last : null;
       final subIsMostRecent =
           (lastEvent == null || !lastEvent.timestamp.isAfter(lastSub.timestamp)) &&
           (lastSanction == null || !lastSanction.timestamp.isAfter(lastSub.timestamp)) &&
-          (lastRotation == null || !lastRotation.timestamp.isAfter(lastSub.timestamp));
+          (lastRotation == null || !lastRotation.timestamp.isAfter(lastSub.timestamp)) &&
+          (lastLibero == null || !lastLibero.timestamp.isAfter(lastSub.timestamp));
       if (!subIsMostRecent) break;
       _revertSubstitution(currentSet.substitutions.removeLast());
     }
@@ -1213,6 +1444,28 @@ class MatchController extends ChangeNotifier {
     final lastEvent = currentSet.events.isNotEmpty ? currentSet.events.last : null;
     final lastRotation =
         currentSet.manualRotations.isNotEmpty ? currentSet.manualRotations.last : null;
+    final lastLibero =
+        currentSet.liberoUnableEvents.isNotEmpty ? currentSet.liberoUnableEvents.last : null;
+
+    // Líbero declarado sin poder jugar / redesignación: se deshace junto con
+    // el cambio de líbero con el que salió de cancha, si lo hubo (es más
+    // viejo que el evento, así que no cuenta para decidir si es lo último).
+    if (lastLibero != null &&
+        (lastSub == null ||
+            lastSub.id == lastLibero.linkedSubstitutionEventId ||
+            !lastSub.timestamp.isAfter(lastLibero.timestamp)) &&
+        (lastEvent == null || !lastEvent.timestamp.isAfter(lastLibero.timestamp)) &&
+        (lastSanction == null || !lastSanction.timestamp.isAfter(lastLibero.timestamp)) &&
+        (lastRotation == null || !lastRotation.timestamp.isAfter(lastLibero.timestamp))) {
+      currentSet.liberoUnableEvents.removeLast();
+      if (lastSub != null && lastSub.id == lastLibero.linkedSubstitutionEventId) {
+        currentSet.substitutions.removeLast();
+        _revertSubstitution(lastSub);
+      }
+      notifyListeners();
+      _persist();
+      return;
+    }
 
     final rotationIsLatest = lastRotation != null &&
         (lastSub == null || !lastSub.timestamp.isAfter(lastRotation.timestamp)) &&
@@ -1316,6 +1569,13 @@ class MatchController extends ChangeNotifier {
   int? _randomZone() =>
       currentSet.trackHitZones ? 1 + _rng.nextInt(currentSet.nineHitZones ? 9 : 6) : null;
 
+  /// Zona de salida al azar (a veces sin indicar, como en la carga real):
+  /// la posición en cancha del atacante o, de vez en cuando, otra.
+  int? _randomOrigin(String playerId) {
+    if (!currentSet.trackOriginZone || _rng.nextInt(5) == 0) return null;
+    return _rng.nextInt(4) == 0 ? 1 + _rng.nextInt(6) : courtPositionOf(playerId);
+  }
+
   /// Juega un punto completo a partir del estado actual, eligiendo al azar
   /// jugador/calificación/resultado en cada toque, reutilizando los mismos
   /// métodos `log*` que usan los botones de carga manual. Pensado para
@@ -1336,8 +1596,12 @@ class MatchController extends ChangeNotifier {
           break;
         case RallyStage.attackK1Own:
           final g = _randomGrade(_attackGradePool);
-          logAttack(_randomPlayerId(), g,
-              targetZone: _randomZone(), missType: _randomMiss(g), replay: _randomReplay(g));
+          final attacker = _randomPlayerId();
+          logAttack(attacker, g,
+              targetZone: _randomZone(),
+              missType: _randomMiss(g),
+              replay: _randomReplay(g),
+              originZone: _randomOrigin(attacker));
           break;
         case RallyStage.defending:
           _simulateDefendingTouch();
@@ -1350,8 +1614,12 @@ class MatchController extends ChangeNotifier {
     final roll = _rng.nextDouble();
     if (roll < 0.45) {
       final g = _randomGrade(_attackGradePool);
-      logCounter(_randomPlayerId(), g,
-          targetZone: _randomZone(), missType: _randomMiss(g), replay: _randomReplay(g));
+      final attacker = _randomPlayerId();
+      logCounter(attacker, g,
+          targetZone: _randomZone(),
+          missType: _randomMiss(g),
+          replay: _randomReplay(g),
+          originZone: _randomOrigin(attacker));
     } else if (roll < 0.65) {
       final blockers = onCourtPlayers..shuffle(_rng);
       logBlockPoint(blockers.take(1 + _rng.nextInt(2)).map((p) => p.id).toList());
@@ -1440,6 +1708,7 @@ class MatchController extends ChangeNotifier {
     String? rivalActionType,
     String? missType,
     bool replay = false,
+    int? originZone,
   }) {
     final set = currentSet;
     final servingBefore = _servingTeam;
@@ -1469,6 +1738,14 @@ class MatchController extends ChangeNotifier {
       // El detalle de un error solo tiene sentido en un NN y con zonas.
       missType: set.trackHitZones && grade == Grade.nn ? missType : null,
       replay: replay,
+      // La zona de salida solo en ataque/contra y con su registro activo.
+      originZone: set.trackOriginZone &&
+              (phase == RallyPhase.attack || phase == RallyPhase.counter) &&
+              originZone != null &&
+              originZone >= 1 &&
+              originZone <= 6
+          ? originZone
+          : null,
     );
     set.events.add(event);
 

@@ -15,6 +15,7 @@ enum VisualChart {
   attackEfficiency,
   reception,
   heatmap,
+  attackOrigin,
 }
 
 extension VisualChartInfo on VisualChart {
@@ -36,6 +37,8 @@ extension VisualChartInfo on VisualChart {
         return 'Recepción por jugador';
       case VisualChart.heatmap:
         return 'Mapa de calor por zona';
+      case VisualChart.attackOrigin:
+        return 'Ataque por zona de salida';
     }
   }
 
@@ -57,6 +60,8 @@ extension VisualChartInfo on VisualChart {
         return 'Distribución PP / P / ! / N / V- / NN de cada receptor.';
       case VisualChart.heatmap:
         return 'Zonas de destino de saque, ataque y contra pintadas sobre la cancha.';
+      case VisualChart.attackOrigin:
+        return 'Desde qué zona de nuestra cancha se atacó, con cantidad y % de punto.';
     }
   }
 }

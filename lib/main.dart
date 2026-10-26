@@ -348,16 +348,24 @@ class _SubscriptionGateState extends State<_SubscriptionGate> with WidgetsBindin
 
   /// Aviso único: si la cuenta nunca contestó si quiere la nube (campo
   /// `cloudSync` ausente en `account_devices/{uid}`). Sin red y sin caché no
-  /// pregunta: lo hace la próxima vez.
+  /// pregunta: lo hace la próxima vez. Si la nube está activada con un
+  /// consentimiento anterior a la política 2.1, muestra en cambio el aviso de
+  /// que ahora también viajan jugadas y fixture.
   Future<void> _askCloudSyncOnce(MatchSyncService sync) async {
     final flag = await sync.refreshFlag();
-    if (flag != CloudSyncFlag.unset || !mounted) return;
+    if (!mounted) return;
+    final needsPolicyUpdate = flag == CloudSyncFlag.on && await sync.refreshConsent();
+    if ((flag != CloudSyncFlag.unset && !needsPolicyUpdate) || !mounted) return;
     // Que la pantalla de Inicio ya esté (no el indicador de carga).
     while (mounted && context.read<SubscriptionController>().isLoading) {
       await Future<void>.delayed(const Duration(milliseconds: 200));
     }
     if (!mounted) return;
-    await showCloudSyncPrompt(context, sync);
+    if (flag == CloudSyncFlag.unset) {
+      await showCloudSyncPrompt(context, sync);
+    } else {
+      await showCloudPolicyUpdateNotice(context, sync);
+    }
   }
 
   @override

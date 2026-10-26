@@ -6,6 +6,7 @@ import '../../models/rally_event.dart';
 import '../../models/volley_match.dart';
 import '../../services/csv_export_service.dart';
 import '../../services/free_stats_quota_store.dart';
+import '../../services/match_incidents.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/stats_engine.dart';
 import '../../state/app_data_controller.dart';
@@ -256,6 +257,10 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
           const SizedBox(height: 14),
           _NotesCard(notes: match.notes, onEdit: _editNotes),
           const SizedBox(height: 10),
+          if (matchIncidents(match).isNotEmpty) ...[
+            _IncidentsCard(incidents: matchIncidents(match)),
+            const SizedBox(height: 10),
+          ],
           _RivalStatsCard(stats: stats),
           const SizedBox(height: 20),
         ],
@@ -274,6 +279,34 @@ class _MatchSummaryScreenState extends State<MatchSummaryScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Cambios excepcionales y líberos sin poder jugar o redesignados (ver
+/// `matchIncidents`): solo aparece si hubo alguno.
+class _IncidentsCard extends StatelessWidget {
+  final List<String> incidents;
+  const _IncidentsCard({required this.incidents});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Incidencias reglamentarias', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            for (final line in incidents)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(line, style: const TextStyle(fontSize: 13)),
+              ),
+          ],
         ),
       ),
     );

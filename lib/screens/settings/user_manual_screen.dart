@@ -14,7 +14,7 @@ import 'package:printing/printing.dart';
 const kUserManualUrl = 'https://volleystatsapp-be835.web.app/manual.pdf';
 
 /// Manual de usuario dentro de la app (Configuración → "Manual de usuario",
-/// función premium). Baja el PDF publicado cada vez que se abre y lo muestra
+/// gratis para todos los planes). Baja el PDF publicado cada vez que se abre y lo muestra
 /// con `PdfPreview` (del paquete `printing`, que ya se usa para el reporte),
 /// con compartir e imprimir. Guarda la última copia bajada: sin conexión
 /// muestra esa, avisando que puede no ser la más reciente.

@@ -3,4 +3,4 @@
 /// (`package_info_plus`) solo para esto; `test/app_version_test.dart` falla
 /// si deja de coincidir con `pubspec.yaml`, así que al subir la versión en
 /// un release hay que actualizarla acá también.
-const kAppVersion = '1.3.0+18';
+const kAppVersion = '1.4.0+19';

@@ -28,6 +28,14 @@ class SubstitutionEvent {
   /// el saque, o la salida forzada del líbero al rotar a la fila delantera).
   final bool auto;
 
+  /// true si fue un cambio excepcional (Regla 15.7 de la FIVB): un jugador
+  /// que no puede seguir por lesión, enfermedad, expulsión o descalificación
+  /// y no se podía reemplazar con un cambio legal. No cuenta contra el límite
+  /// ([countedAgainstLimit] en false), el que sale no puede volver a jugar en
+  /// el resto del partido y el puesto queda cerrado a cambios regulares.
+  /// false en partidos anteriores.
+  final bool exceptional;
+
   final DateTime timestamp;
 
   SubstitutionEvent({
@@ -41,6 +49,7 @@ class SubstitutionEvent {
     required this.countedAgainstLimit,
     required this.isLiberoAction,
     this.auto = false,
+    this.exceptional = false,
     required this.timestamp,
   });
 
@@ -55,6 +64,7 @@ class SubstitutionEvent {
         'countedAgainstLimit': countedAgainstLimit,
         'isLiberoAction': isLiberoAction,
         'auto': auto,
+        'exceptional': exceptional,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -69,6 +79,7 @@ class SubstitutionEvent {
         countedAgainstLimit: json['countedAgainstLimit'] as bool? ?? true,
         isLiberoAction: json['isLiberoAction'] as bool? ?? false,
         auto: json['auto'] as bool? ?? false,
+        exceptional: json['exceptional'] as bool? ?? false,
         timestamp:
             DateTime.tryParse(json['timestamp'] as String? ?? '') ?? DateTime.now(),
       );
